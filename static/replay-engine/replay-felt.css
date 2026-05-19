@@ -1,0 +1,713 @@
+/* Felt + replay-panel styles extracted from casinoMalwareExtension/history.css
+   (lines 667-end). Page chrome rules are stripped because the website has
+   its own. Loaded into the Data page from /replay-engine/replay-felt.css. */
+
+.replay-inline {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  display: grid;
+  grid-template-rows: auto auto auto;
+  gap: 10px;
+}
+
+.replay-empty {
+  color: var(--muted);
+  padding: 8px 0;
+  font-style: italic;
+}
+
+.replay-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.replay-headline {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+.replay-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+.replay-subtitle {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.replay-step-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-strong);
+  padding: 3px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+/* Felt — navy ellipse with the Replay Poker hold'em watermark.
+   The wrap fills the available width so the felt can stretch up to its
+   ~1.4x larger cap (1500px). The seat layout uses percentage-based
+   `--x`/`--y`, so widening the felt automatically spreads seats apart;
+   meanwhile cards/plates/icons/pot/scrubber are sized in absolute px and
+   stay the same physical size — exactly what's needed to fit a 9-seat
+   layout without resizing the UI controls. */
+.replay-felt-wrap {
+  position: relative;
+  padding: 8px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+}
+.replay-felt {
+  position: relative;
+  width: min(100%, 1500px);
+  aspect-ratio: 16 / 9;
+  background:
+    radial-gradient(ellipse at 50% 42%, #1b2a3e 0%, #131e2c 65%, #0d141d 100%);
+  /* Bloated rounded-rectangle/oval hybrid — slightly bigger radii on the
+     vertical axis to keep the long sides nearly straight. */
+  border-radius: 32% / 50%;
+  border: 1px solid var(--accent-strong);
+  box-shadow:
+    inset 0 0 0 6px rgba(109, 198, 232, 0.05),
+    inset 0 0 80px rgba(0, 0, 0, 0.45),
+    0 8px 30px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+/* Replay Poker hold'em watermark. Lives at the dead centre of the felt,
+   sized larger; it is allowed to sit underneath the community cards (cards
+   live above on z-index: 2; watermark below on z-index: 1). */
+.felt-watermark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0.22;
+  pointer-events: none;
+  width: 26%;
+  min-width: 160px;
+  max-width: 280px;
+  display: flex;
+  justify-content: center;
+  z-index: 1;
+}
+.felt-watermark img {
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 3px 8px rgba(0,0,0,0.6));
+}
+
+/* Pot — pill on the left with the numeric amount, zig-zag chip stack on
+   the right. Placed directly ABOVE the community board (board sits at
+   ~top: 52%, pot bottom now lands a few px above it). The container
+   itself is just an anchor; visual styling lives on `.pot-pill`. */
+/* Pot — anchored by its BOTTOM edge so the pill sits directly above
+   the community cards regardless of chip-stack height. The board lives
+   at top:52% (centred); the cards are ~14% felt-height tall, so their
+   top edge is roughly at top:45%. We place the pot's bottom edge at
+   top:44%, which leaves a tiny gap above the cards. */
+.felt-pot {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  transform: translate(-50%, -100%);
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  z-index: 2;
+}
+.pot-pill {
+  background: rgba(10, 20, 40, 0.7);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 4px 14px;
+}
+.felt-pot .pot-label {
+  color: var(--muted);
+  font-size: 10.5px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  margin-right: 6px;
+}
+
+.felt-board {
+  position: absolute;
+  left: 50%;
+  top: 52%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  gap: 8px;
+  z-index: 2;
+}
+
+/* ---- Cards (CasinoCards renderer) ----
+   All cards render at one canonical size (DEFAULT_WIDTH in cards.js) so
+   the layout never shifts when hidden cards flip to faces. */
+.card-wrap {
+  display: inline-block;
+  line-height: 0;
+  vertical-align: top;
+  border-radius: 7px;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4));
+  user-select: none;
+  /* Pivot from horizontal centre for the sinusoidal flip animation. */
+  transform-origin: 50% 50%;
+  backface-visibility: hidden;
+}
+.card-wrap svg.card-svg {
+  display: block;
+  border-radius: 6px;
+}
+.card-wrap.empty { opacity: 0.5; }
+/* All hidden cards are clickable: peekable -> flip; otherwise -> shake. */
+.card-wrap.hidden { cursor: pointer; }
+.card-wrap.hidden.peekable:hover svg.card-svg {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: -1px;
+}
+.card-wrap.hidden:not(.peekable):hover svg.card-svg {
+  outline: 2px dashed rgba(248, 113, 113, 0.5);
+  outline-offset: -1px;
+}
+.card-fallback {
+  display: inline-block;
+  background: #f3f6fc;
+  color: #0d141d;
+  border: 1px solid rgba(0,0,0,0.15);
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 700;
+  padding: 6px 8px;
+  line-height: 1;
+}
+
+/* ---- Seats around the felt ----
+   Each .felt-seat is a CSS grid using a single uniform 2x2 template
+   (icon|bet on top, plate|cards on bottom). See the unified grid block
+   below for details. The seat itself is anchored at (--x, --y) on the
+   felt. The orient-* classes are still emitted on the element as a
+   hook for any per-position styling (e.g. dealer-button placement). */
+/* The seats container is a full-felt absolute overlay so each seat can
+   anchor itself with (left, top) percentages relative to the felt. With
+   z-index: 3 it stacks above the community board; without
+   `pointer-events: none` here the empty stretches of the overlay (which
+   visually cover the board area) would swallow every click on a board
+   card. The actual seats restore `pointer-events: auto`. */
+.felt-seats { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.felt-seat { pointer-events: auto; }
+.felt-seat {
+  position: absolute;
+  display: grid;
+  /* The anchor point is the centre of the seat; CSS positions us with
+     `transform: translate(-50%, -50%)` so each seat is centred on its
+     (--x, --y). */
+  left: var(--x, 50%);
+  top: var(--y, 50%);
+  transform: translate(-50%, -50%);
+}
+
+.seat-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: #131c28;
+  border: 2px solid var(--border-strong);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  justify-self: center;
+}
+/* Per-state icon fills. The base rule lives in `.seat-icon` above
+   (dark navy fill + grey ring); each state below colors the WHOLE icon
+   ring + plate (see plate rules further down). Precedence is enforced
+   by source order — the most specific / latest rule wins. Visual
+   hierarchy from least to most important:
+     1. base                (dark navy fill, grey ring)
+     2. folded              (light grey)
+     3. hero                (deep red)
+     4. acting              (deep yellow)
+     5. hero+acting         (deep orange)
+     6. sit-out             (dark grey — overrides hero/acting)
+     7. all-in              (deep red — overrides everything except winner/refund)
+     8. seat-refund         (cyan — refunded chips coming back)
+     9. seat-winner         (green — overrides everything) */
+.felt-seat.folded      .seat-icon { background: #6b7280; border-color: #9ca3af; }
+.felt-seat.hero        .seat-icon { background: #b91c1c; border-color: #f87171; }
+.felt-seat.acting      .seat-icon { background: #ca8a04; border-color: #fbbf24; }
+.felt-seat.hero.acting .seat-icon { background: #c2410c; border-color: #fb923c; }
+.felt-seat.sit-out     .seat-icon { background: #374151; border-color: #4b5563; }
+.felt-seat.all-in      .seat-icon { background: #7f1d1d; border-color: #b91c1c; }
+.felt-seat.seat-refund .seat-icon { background: #155e75; border-color: #22d3ee; }
+.felt-seat.seat-winner .seat-icon {
+  background: #166534;
+  border-color: var(--ok);
+  box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.35);
+}
+.seat-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.seat-avatar-fallback {
+  color: var(--muted);
+  font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 14px;
+}
+
+/* Hole cards stay upright. The grid places them in the correct cell for
+   each orientation; no rotation/translate is required here. */
+.seat-cards {
+  display: flex;
+  gap: 2px;
+  align-self: end;
+  justify-self: center;
+}
+.seat-cards.empty { visibility: hidden; }
+.seat-cards:empty { display: none; }
+
+/* ----------- Unified seat grid -----------
+   Every seat — regardless of where it sits on the felt — uses the same
+   internal 2x2 layout:
+     icon  | bet (number + chip stack)
+     plate | cards
+   The icon sits upper-left of the plate; the plate's badge is below the
+   icon. The bet block (numeric pill + zig-zag chip stack) lives on the
+   upper-right, directly to the right of the icon. The hole cards sit on
+   the lower-right, next to the plate. The orientation classes
+   (orient-down / -up / -left / -right) are kept as a hook on the
+   element for any future per-position tweaks but no longer alter the
+   internal grid. */
+.felt-seat {
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto;
+  grid-template-areas:
+    "icon  bet"
+    "plate cards";
+  column-gap: 8px;
+  row-gap: 4px;
+  align-items: start;
+  justify-items: start;
+}
+
+/* Place the named slots into their grid areas. */
+.felt-seat .seat-icon       { grid-area: icon;  align-self: end;   justify-self: center; }
+.felt-seat .seat-name-plate { grid-area: plate; align-self: start; justify-self: center; }
+/* Cards sit on the lower-right next to the plate, bottom-aligned with
+   the plate so the cards' bottom edge sits on the same baseline as the
+   plate. */
+.felt-seat .seat-cards      { grid-area: cards; align-self: end;   justify-self: start;  }
+/* Bet block sits on the upper-right next to the icon, bottom-aligned
+   with the icon so the chip-stack baseline meets the icon's bottom. */
+.felt-seat .seat-bet        { grid-area: bet;   align-self: end;   justify-self: start;  }
+
+/* Fixed-size name plate. Same width and height regardless of pill state
+   so the seat layout never jitters as the user scrubs through steps. */
+.seat-name-plate {
+  background: rgba(10, 20, 40, 0.92);
+  border: 2px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 4px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 140px;
+  /* Three rows: name (12px) + stack (11px) + pill (18px) + gaps. Lock
+     the height so the placeholder pill takes the same space as a real
+     CALL 18 / RAISE 300 pill. */
+  height: 62px;
+  box-sizing: border-box;
+  text-align: center;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+/* Plate colour rules — fill the WHOLE plate (matches the icon fill
+   above). The plate and the icon are read as one "badge" by the user,
+   so they get the same colour scheme on every state.
+
+   Precedence (later rules win where the cascade overlaps):
+     1. base               (dark navy fill, border-strong)
+     2. folded             (light grey)
+     3. hero               (deep red)
+     4. acting             (deep yellow)
+     5. hero+acting        (deep orange)
+     6. sit-out            (dark grey — overrides hero/acting)
+     7. all-in             (deep red — overrides hero/acting)
+     8. seat-refund        (cyan — refunded chips coming back)
+     9. seat-winner        (green — overrides everything) */
+.felt-seat.folded .seat-name-plate {
+  background: #6b7280;
+  border-color: #9ca3af;
+}
+.felt-seat.hero .seat-name-plate {
+  background: #b91c1c;
+  border-color: #f87171;
+}
+.felt-seat.acting .seat-name-plate {
+  background: #ca8a04;
+  border-color: #fbbf24;
+}
+.felt-seat.hero.acting .seat-name-plate {
+  background: #c2410c;
+  border-color: #fb923c;
+}
+.felt-seat.sit-out .seat-name-plate {
+  background: #374151;
+  border-color: #4b5563;
+}
+.felt-seat.all-in .seat-name-plate {
+  background: #7f1d1d;
+  border-color: #b91c1c;
+}
+.felt-seat.seat-refund .seat-name-plate {
+  background: #155e75;
+  border-color: #22d3ee;
+}
+.felt-seat.seat-winner .seat-name-plate {
+  background: #166534;
+  border-color: var(--ok);
+}
+
+/* Keep all text legible on the coloured fills. */
+.felt-seat.folded .seat-name,
+.felt-seat.hero .seat-name,
+.felt-seat.acting .seat-name,
+.felt-seat.sit-out .seat-name,
+.felt-seat.all-in .seat-name,
+.felt-seat.seat-refund .seat-name,
+.felt-seat.seat-winner .seat-name {
+  color: #fff;
+}
+.felt-seat.folded .seat-stack,
+.felt-seat.hero .seat-stack,
+.felt-seat.acting .seat-stack,
+.felt-seat.sit-out .seat-stack,
+.felt-seat.all-in .seat-stack,
+.felt-seat.seat-refund .seat-stack,
+.felt-seat.seat-winner .seat-stack {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.seat-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+.seat-stack {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+/* Pill height is locked so the plate height never shifts with/without an
+   action. When there is no current action we still render a placeholder
+   pill (visibility: hidden) that reserves the same vertical slot. */
+.seat-action {
+  margin-top: 3px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-strong);
+  border-radius: 999px;
+  padding: 1px 8px;
+  min-height: 16px;
+  line-height: 14px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.seat-action.placeholder { visibility: hidden; }
+.seat-action.action-fold { color: var(--muted); background: transparent; border-color: var(--border-strong); }
+.seat-action.action-allIn { color: #fbbf24; background: rgba(251, 191, 36, 0.10); border-color: rgba(251, 191, 36, 0.35); }
+.seat-action.action-show, .seat-action.action-muck { color: var(--ok); background: rgba(74, 222, 128, 0.10); border-color: rgba(74, 222, 128, 0.35); }
+/* On any coloured plate fill (hero, acting, sit-out, all-in, refund,
+   winner, folded), soften the action pill so it still reads as a chip
+   but stops fighting the plate fill. */
+.felt-seat.hero .seat-action,
+.felt-seat.acting .seat-action,
+.felt-seat.sit-out .seat-action,
+.felt-seat.all-in .seat-action,
+.felt-seat.seat-refund .seat-action,
+.felt-seat.seat-winner .seat-action,
+.felt-seat.folded .seat-action {
+  color: #fff;
+  background: rgba(0, 0, 0, 0.25);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* Bet block — pill (numeric amount) plus a zig-zag chip stack. Lives in
+   the seat's `bet` grid cell (upper-right of the seat, right of the
+   icon). Flex row so the pill and the chip stack sit shoulder-to-
+   shoulder. */
+.seat-bet {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 6px;
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--text);
+  white-space: nowrap;
+  z-index: 4;
+}
+.seat-bet-amount {
+  background: rgba(10, 20, 40, 0.7);
+  border: 1px solid var(--accent-strong);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+/* Winnings/refund pills — same shape as the standing-bet pill, but
+   re-tinted so the user can see chips flowing INTO a seat at the
+   award step. The chip stack itself is unchanged (greedy denomination
+   decomposition); only the numeric pill changes colour. */
+.seat-bet-winnings .seat-bet-amount {
+  background: rgba(22, 101, 52, 0.4);
+  border-color: var(--ok);
+  color: #fff;
+}
+.seat-bet-refund .seat-bet-amount {
+  background: rgba(21, 94, 117, 0.4);
+  border-color: #22d3ee;
+  color: #fff;
+}
+
+/* ---- Chip stack visualisation ----
+   A `.chip-stack` is a row of `.chip-col`s. Each column represents one
+   denomination; same-denomination chips stack vertically inside the
+   column. Chip image size and stack offsets live here so both the pot
+   and the per-seat bet pick up the same visuals.
+*/
+.chip-stack {
+  --chip-w: 36px;            /* visual width of a chip (2x previous) */
+  --chip-h: 34px;            /* visual height (slight ellipse) */
+  --chip-rise: 8px;          /* vertical offset between stacked chips */
+  --chip-zig: 12px;          /* zig-zag baseline rise for odd columns */
+  --chip-col-gap: -4px;      /* small overlap so adjacent columns hug */
+  position: relative;
+  display: inline-flex;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: var(--chip-col-gap);
+  /* The stack itself only reserves space for ONE chip's worth — taller
+     stacks overflow upward. Containers (.seat-bet, .felt-pot) align
+     these flex-end so the bottom chip sits on the container baseline,
+     and any tall stacks just rise visually above. */
+  height: var(--chip-h);
+  pointer-events: none;
+  user-select: none;
+}
+.chip-col {
+  position: relative;
+  width: var(--chip-w);
+  height: var(--chip-h);
+  /* Allow individual chips (which are absolutely positioned) to render
+     above the column box without being clipped. */
+  overflow: visible;
+  display: block;
+}
+/* Zig-zag: even-indexed columns sit on the low baseline, odd-indexed
+   columns ride raised by --chip-zig. */
+.chip-col-low  { transform: translateY(0); }
+.chip-col-high { transform: translateY(calc(-1 * var(--chip-zig))); }
+
+.chip-col .chip {
+  position: absolute;
+  left: 0;
+  width: var(--chip-w);
+  height: var(--chip-h);
+  /* Stack from the bottom upward: chip with index k sits at
+     k * --chip-rise above the column's bottom. */
+  bottom: calc(var(--k, 0) * var(--chip-rise));
+  display: block;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
+  image-rendering: -webkit-optimize-contrast;
+}
+/* Overflow badge sits at the top of an over-capacity column. */
+.chip-stack-overflow {
+  position: absolute;
+  bottom: calc(var(--chip-h) + 7 * var(--chip-rise));
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--text);
+  background: rgba(10, 20, 40, 0.85);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 0 4px;
+  line-height: 12px;
+  white-space: nowrap;
+}
+
+.seat-dealer {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--btn);
+  color: var(--btn-text);
+  font-weight: 700;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #0d141d;
+  z-index: 4;
+}
+/* Pin the dealer chip to the side of the seat that faces the felt centre
+   so it never collides with the cards. */
+.felt-seat.orient-down  .seat-dealer { top: 0;     right: -10px; }
+.felt-seat.orient-up    .seat-dealer { bottom: 0;  right: -10px; }
+.felt-seat.orient-left  .seat-dealer { right: -10px; bottom: 8px; }
+.felt-seat.orient-right .seat-dealer { left: -10px;  bottom: 8px; }
+
+.seat-winner .seat-name-plate {
+  border-color: var(--ok);
+  box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.45);
+}
+
+/* Scrubber */
+.replay-controls {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  align-items: center;
+  padding-top: 4px;
+}
+
+.replay-step-btn {
+  appearance: none;
+  background: var(--btn);
+  color: var(--btn-text);
+  border: 1px solid var(--btn);
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.replay-step-btn:hover { background: var(--btn-hover); border-color: var(--btn-hover); }
+.replay-step-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.replay-scrubber {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 26px;
+  background: transparent;
+  cursor: pointer;
+}
+.replay-scrubber::-webkit-slider-runnable-track {
+  height: 6px;
+  background: linear-gradient(to right, var(--accent-soft), var(--accent-soft));
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+}
+.replay-scrubber::-moz-range-track {
+  height: 6px;
+  background: var(--accent-soft);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+}
+.replay-scrubber::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
+  background: var(--btn);
+  border: 1px solid var(--btn-hover);
+  border-radius: 50%;
+  cursor: pointer;
+}
+.replay-scrubber::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: var(--btn);
+  border: 1px solid var(--btn-hover);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.replay-scrubber-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Milestone tick marks rendered as a separate strip directly above the
+   slider. Big ticks = milestones, small ticks = every step. */
+.replay-ticks {
+  position: relative;
+  height: 14px;
+  pointer-events: none;
+}
+.replay-tick {
+  position: absolute;
+  top: 4px;
+  width: 1px;
+  height: 6px;
+  background: var(--border-strong);
+  transform: translateX(-0.5px);
+}
+.replay-tick.milestone {
+  top: 0;
+  height: 12px;
+  width: 2px;
+  background: var(--accent);
+  border-radius: 1px;
+}
+.replay-tick-label {
+  position: absolute;
+  top: -16px;
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+/* ------- Responsive ------- */
+
+@media (max-width: 600px) {
+  .topbar { padding: 6px 12px; gap: 10px; }
+  .brand-name { display: none; }
+  main { padding: 14px 10px 32px 10px; }
+  .session-row {
+    grid-template-columns: 16px 1fr;
+    gap: 10px;
+  }
+  .session-meta { display: none; }
+  .hand-row {
+    grid-template-columns: 16px 80px auto auto;
+    gap: 10px;
+  }
+  .hand-row .hand-meta { display: none; }
+  .session-body { padding-left: 18px; }
+  .hand-replay { margin-left: 18px; }
+}
