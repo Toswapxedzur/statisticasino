@@ -8,7 +8,7 @@
     Aggregated poker captures + investigation notes. Browse the
     <a href="/data">Data</a> tab for hands collected from many uploaders, the
     <a href="/blog">Blog</a> for statistical write-ups, or
-    <a href="/upload">Upload</a> a `.casinodump` from the Chrome extension.
+    <a href="/contribute">Contribute</a> a `.casinodump` from the Chrome extension.
   </p>
   <p class="muted" style="margin-bottom:0">
     {#if data.user}

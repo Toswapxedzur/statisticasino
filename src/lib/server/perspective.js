@@ -8,14 +8,32 @@
 // v2 (2026-05-21): single hero only. The multi-hero union model from
 // v1 is gone; we never store more than one perspective per row.
 //
-// Edge cases:
-//   - mucked hand without `show` -> still detectable from dealHoleCards
-//   - bulk-update playback (a `show` update reveals OTHER seats later)
-//     -> we use the FIRST dealHoleCards update only, so "shown by the
-//     opponent at showdown" doesn't count as a perspective claim.
-//   - all seats masked (rare; a `dealHoleCards` that omits the local
-//     seat) -> return null and the caller REJECTS the upload as
-//     generic (no perspective).
+// Wire-format reference (DATA_FORMAT.md §4.2 + casinoMalwareExtension/
+// replay.js, which is the source of truth for what real frames look
+// like):
+//
+//   * `startHand` payload:
+//       { action:"startHand", id, dealerSeat,
+//         seats:   [ { id, userId, stack, state, ... }, ... ],
+//         players: [ { seatId, ... }, ... ] }
+//     Note that on the `startHand` action the seat key is `id`, NOT
+//     `seatId`. This bit me; keeping it commented loudly.
+//
+//   * `dealHoleCards` payload:
+//       { action:"dealHoleCards",
+//         players: [ { seatId, cards: ["Ah","Kd"] | ["X","X"] }, ... ] }
+//     ALWAYS `players[]`, NOT `seats[]`. (My initial server impl
+//     read `seats[]` and was rejecting every real upload as
+//     "generic" — chat 2026-05-21.)
+//
+//   * Per-action commit payloads (`bet` / `call` / `raise` / `fold` /
+//     `dealCommunityCards` / `updatePots` / etc.):
+//       { action, seatId, ..., players: [ { seatId, ... }, ... ],
+//         seats?: [ { id, userId, ... }, ... ] }
+//
+// The detectors below accept BOTH shapes (`players[]` and `seats[]`)
+// so the synthetic test envelopes I wrote for smoke-ingest.js still
+// pass — but production frames flow through the `players[]` branch.
 
 const MASK = new Set(["X", "x", "?", ""]);
 
@@ -31,6 +49,9 @@ function isRealPair(cards) {
 // Walk the envelope's frames, find the FIRST `dealHoleCards` update,
 // and return { seatId, holeCards }. Returns null when no qualifying
 // seat exists -> caller should reject as "generic".
+//
+// Reads `u.players[]` first (real shape), then `u.seats[]` (legacy /
+// synthetic), then a flat `{ u.seatId, u.cards }` (very rare).
 export function detectPerspective(envelope) {
   if (!envelope || !Array.isArray(envelope.frames)) return null;
   for (const f of envelope.frames) {
@@ -39,42 +60,59 @@ export function detectPerspective(envelope) {
     if (!updates) continue;
     for (const u of updates) {
       if (!u || u.action !== "dealHoleCards") continue;
-      // Two known payload shapes in DATA_FORMAT.md:
-      //   { action:"dealHoleCards", seats: [ {seatId, cards}, ... ] }
-      //   { action:"dealHoleCards", seatId, cards }                  (rare)
+      if (Array.isArray(u.players)) {
+        for (const p of u.players) {
+          if (p && p.seatId != null && isRealPair(p.cards)) {
+            return { seatId: Number(p.seatId), holeCards: p.cards.slice(0, 2) };
+          }
+        }
+      }
       if (Array.isArray(u.seats)) {
         for (const s of u.seats) {
           if (!s) continue;
-          if (isRealPair(s.cards)) {
-            return { seatId: Number(s.seatId), holeCards: s.cards.slice(0, 2) };
+          // On `dealHoleCards` synthetic test frames the seat key is
+          // `seatId`. On other actions (`startHand`, `updatePots`, ...)
+          // it's `id`. Accept both.
+          const sid = s.seatId ?? s.id;
+          if (sid != null && isRealPair(s.cards)) {
+            return { seatId: Number(sid), holeCards: s.cards.slice(0, 2) };
           }
         }
-      } else if (u.seatId != null && isRealPair(u.cards)) {
+      }
+      if (u.seatId != null && isRealPair(u.cards)) {
         return { seatId: Number(u.seatId), holeCards: u.cards.slice(0, 2) };
       }
-      // Only the FIRST dealHoleCards counts — see header comment.
+      // Only the FIRST dealHoleCards counts — opponents `show` later
+      // at showdown and we don't want THAT counted as a perspective
+      // claim.
       return null;
     }
   }
   return null;
 }
 
-// Walk the envelope's frames looking for a seat-snapshot that maps
-// `seatId -> userId`. Frames carry `seats: [{ id|seatId, userId, ... }]`
-// in startHand / dealCommunityCards / state / output updates.
+// Walk the envelope's frames looking for a seat snapshot that names
+// `seatId -> userId`. Real frames carry the pair on:
 //
-// Returns the first non-null userId we see for `targetSeatId`, or null
-// if the envelope never names the seat's user.
+//   * updates[].seats[]   ({ id|seatId, userId })   — startHand /
+//                                                     updatePots / state-style
+//   * updates[].players[] ({ seatId, userId? })     — most actions
+//   * updates[]           ({ action:"seat", seatId, userId, ... })
+//   * payload.seats[]                                — top-level state event
+//
+// `payload.seats[]` is rare in our captured slice (we keep `output`
+// frames mostly), but cheap to check.
 export function resolveSeatUserId(envelope, targetSeatId) {
   if (!envelope || targetSeatId == null) return null;
   const frames = Array.isArray(envelope.frames) ? envelope.frames : [];
   const target = Number(targetSeatId);
 
-  function scanSeat(s) {
-    if (!s || typeof s !== "object") return null;
-    const sid = s.seatId ?? s.id;
+  function maybeUid(node) {
+    if (!node || typeof node !== "object") return null;
+    // Accept either { id, ... } or { seatId, ... } as the seat-id key.
+    const sid = node.seatId ?? node.id;
     if (sid == null || Number(sid) !== target) return null;
-    const uid = s.userId ?? s.user_id;
+    const uid = node.userId ?? node.user_id;
     if (uid == null) return null;
     const n = Number(uid);
     return Number.isFinite(n) && n > 0 ? n : null;
@@ -84,26 +122,29 @@ export function resolveSeatUserId(envelope, targetSeatId) {
     const payload = f && f.payload;
     if (!payload || typeof payload !== "object") continue;
 
-    // Direct `seats: [...]` on the payload.
     if (Array.isArray(payload.seats)) {
       for (const s of payload.seats) {
-        const hit = scanSeat(s);
+        const hit = maybeUid(s);
         if (hit) return hit;
       }
     }
-    // `updates: [{ ..., seats: [...] }]`.
     if (Array.isArray(payload.updates)) {
       for (const u of payload.updates) {
         if (!u) continue;
         if (Array.isArray(u.seats)) {
           for (const s of u.seats) {
-            const hit = scanSeat(s);
+            const hit = maybeUid(s);
             if (hit) return hit;
           }
         }
-        // Some `seat` action shapes carry a single seat snapshot inline.
+        if (Array.isArray(u.players)) {
+          for (const p of u.players) {
+            const hit = maybeUid(p);
+            if (hit) return hit;
+          }
+        }
         if (u.action === "seat") {
-          const hit = scanSeat(u);
+          const hit = maybeUid(u);
           if (hit) return hit;
         }
       }
@@ -112,15 +153,22 @@ export function resolveSeatUserId(envelope, targetSeatId) {
   return null;
 }
 
-// Resolve "this hand's perspective owner" all the way to a casino-side
-// display name. Falls back to `User <id>` when we know the userId but
-// no name was available in the container's userIndex; returns null if
-// neither a userId nor a name can be derived (caller should reject as
-// generic).
+// Resolve "this hand's perspective owner" all the way to a stable
+// display name. The casino-side `username` comes from the container's
+// `userIndex` (built extension-side via `CasinoUsers.buildIndex` from
+// REST / RSC blobs that carry both `id` and `username`). When that
+// fails — which happens whenever the user only opens a table without
+// hitting the lobby first — we fall back through:
 //
-// `userIndex` is `{ [userId]: username }` carried by the container
-// (FlushRequest / ExportContainer). It is built extension-side from
-// `CasinoUsers.buildIndex(messages)`.
+//   1. `User <userId>`            if we found a userId for the seat
+//   2. `Seat <seatId> @ <tableId>`  last-ditch bucket so anonymous
+//                                   captures still get a player node
+//                                   instead of being silently dropped
+//
+// We NEVER return null when `detectPerspective` succeeded — that was
+// the v1 behaviour that made manual exports look like "rejected as
+// generic". A round with visible hole cards is by definition
+// non-generic; missing identity should not block ingest.
 export function resolvePerspectivePlayer(envelope, userIndex) {
   const persp = detectPerspective(envelope);
   if (!persp) return null;
@@ -131,7 +179,10 @@ export function resolvePerspectivePlayer(envelope, userIndex) {
     if (typeof candidate === "string" && candidate.length > 0) name = candidate;
   }
   if (!name && userId != null) name = `User ${userId}`;
-  if (!name) return null;
+  if (!name) {
+    const tid = envelope && envelope.tableId ? String(envelope.tableId) : "unknown";
+    name = `Seat ${persp.seatId} @ ${tid}`;
+  }
   return {
     seatId: persp.seatId,
     holeCards: persp.holeCards,

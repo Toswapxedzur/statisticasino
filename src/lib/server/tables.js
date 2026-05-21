@@ -173,3 +173,55 @@ export async function loadHand(handKey) {
     }))
   };
 }
+
+// Bulk variant of loadHand for the "Export selected" actions on
+// /data. Returns one row per handKey in the same shape as loadHand,
+// but skips per-hand upload rows (the export endpoints don't need
+// them). Removed hands are silently dropped.
+export async function loadHandsForExport(handKeys) {
+  if (!Array.isArray(handKeys) || handKeys.length === 0) return [];
+  const db = await getDb();
+
+  // Chunk the IN-list query — better-sqlite3 prepared statements
+  // have a hard limit on bound parameters (~32k by default but the
+  // SQLite default is 999), so 500 is a safe slice size.
+  const CHUNK = 500;
+  const out = [];
+  for (let i = 0; i < handKeys.length; i += CHUNK) {
+    const slice = handKeys.slice(i, i + CHUNK);
+    const placeholders = slice.map(() => "?").join(",");
+    const rows = db.prepare(`
+      SELECT
+        c.hand_key, c.table_id, c.hand_id, c.first_ts, c.last_ts,
+        c.table_names_json, c.frames_blob,
+        c.hero_seat, c.hero_hole_cards_json, c.content_hash,
+        p.id AS player_id, p.name AS player_name, p.casino_user_id
+      FROM hand_canonical c
+      JOIN casino_player p ON p.id = c.player_id
+      WHERE c.hand_key IN (${placeholders}) AND c.removed_at IS NULL
+    `).all(...slice);
+    for (const r of rows) {
+      let heroHoleCards = null;
+      try { heroHoleCards = JSON.parse(r.hero_hole_cards_json); }
+      catch { heroHoleCards = null; }
+      out.push({
+        handKey: r.hand_key,
+        tableId: r.table_id,
+        handId: r.hand_id,
+        firstTs: r.first_ts,
+        lastTs: r.last_ts,
+        tableNames: parseNames(r.table_names_json),
+        framesBlob: r.frames_blob,
+        heroSeat: r.hero_seat,
+        heroHoleCards,
+        contentHash: r.content_hash,
+        player: {
+          id: r.player_id,
+          name: r.player_name,
+          casinoUserId: r.casino_user_id
+        }
+      });
+    }
+  }
+  return out;
+}

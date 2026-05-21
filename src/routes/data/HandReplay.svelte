@@ -591,9 +591,15 @@
       const tableLabel = container.tableName
         ? `${container.tableName} \u00b7 #${container.tableId}`
         : `Table #${container.tableId}`;
-      const playerLabel = payload.player && payload.player.name
-        ? ` \u00b7 ${payload.player.name}'s perspective`
-        : "";
+      // Generic rows (admin spectator uploads) carry the synthetic
+      // [Generic] player name; render those as "spectator view"
+      // instead of the literal "[Generic]'s perspective".
+      let playerLabel = "";
+      if (payload.player && payload.player.name) {
+        playerLabel = payload.player.name === "[Generic]"
+          ? " \u00b7 spectator view"
+          : ` \u00b7 ${payload.player.name}'s perspective`;
+      }
       panelEl.querySelector(".replay-title").textContent =
         `Hand ${payload.handId || "(no id)"}`;
       panelEl.querySelector(".replay-subtitle").textContent =
@@ -643,6 +649,11 @@
     }
   }
 
+  // Replace masked ["X","X"] hole cards in `dealHoleCards` updates
+  // with the perspective's real cards. Real frames carry the seat
+  // list under `players[]`, NOT `seats[]` (DATA_FORMAT.md §4.2 +
+  // replay.js#dealHoleCards). The legacy `seats[]` branch stays for
+  // any old envelope shape we still want to render.
   function patchHoleCards(frames, perspectives) {
     const byId = new Map();
     for (const p of perspectives) {
@@ -657,10 +668,18 @@
       if (!updates) continue;
       for (const u of updates) {
         if (!u || u.action !== "dealHoleCards") continue;
+        if (Array.isArray(u.players)) {
+          for (const p of u.players) {
+            if (!p || p.seatId == null) continue;
+            const real = byId.get(Number(p.seatId));
+            if (real) p.cards = real.slice(0, 2);
+          }
+        }
         if (Array.isArray(u.seats)) {
           for (const s of u.seats) {
-            const sid = Number(s.seatId);
-            const real = byId.get(sid);
+            const sid = s.seatId ?? s.id;
+            if (sid == null) continue;
+            const real = byId.get(Number(sid));
             if (real) s.cards = real.slice(0, 2);
           }
         }

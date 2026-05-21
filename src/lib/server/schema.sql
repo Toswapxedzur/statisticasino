@@ -1,24 +1,36 @@
--- Statisticasino schema (v2).
+-- Statisticasino schema (v3).
 --
--- v2 changes (2026-05-21, per user spec "different players could still hold
--- the same table"):
+-- v3 changes (2026-05-21, per user spec "admin can upload generic
+-- casinodump files; generic rounds belong to a top-level Generic
+-- bucket"):
+--
+-- * `hand_canonical.hero_seat` is now NULLABLE. Generic rounds (no
+--   detectable perspective) carry NULL for hero_seat / hole cards.
+-- * `casino_player` gains an implicit "Generic" row, created lazily
+--   on first generic ingest (see ingest.js#GENERIC_PLAYER_NAME).
+-- * Non-admin uploads still reject generic rounds. Admin uploads
+--   funnel them under the Generic player. Same dedup rules apply
+--   inside the Generic bucket as anywhere else.
+--
+-- v2 retained:
 --
 -- * Removed `hand_perspective` (multi-hero union table).
--- * `hand_canonical` is now keyed by `(player_name, table_id, hand_id)` —
+-- * `hand_canonical` is keyed by `(player_id, table_id, hand_dedup_id)` —
 --   the same round captured from two different in-game perspectives is
 --   stored as TWO rows under TWO `casino_player` parents, NOT merged.
--- * Single `hero_seat` / `hero_player_*` columns replace the multi-hero
---   `redSeats[]` model. Render layer now highlights ONE seat per hand.
--- * New `casino_player` table is the top-level grouping node for the
---   /data tree. The "player name" is the in-game screen name extracted
---   from the dump's `userIndex`, NOT the uploader's site account.
--- * Uploads with no detectable perspective ("generic") are rejected by
---   ingest and never produce a row here.
+--   Generic uploads sit independently under the Generic player and may
+--   coexist with the same round under a real player.
+-- * Single `hero_seat` column replaces the multi-hero `redSeats[]`
+--   model. Render layer highlights at most ONE seat per hand.
+-- * `casino_player` is the top-level grouping node for the /data tree.
+--   Real-player names come from the dump's `userIndex`; the synthetic
+--   "Generic" name is reserved for admin generic uploads.
 --
--- Soft-delete + comment surfaces are unchanged.
+-- Soft-delete + comment surfaces are unchanged across versions.
 --
--- The migration runner DROPs every v1 table on its first v2 boot (per
--- user spec "drop existing 43 rows on migrate"). See migrate.js.
+-- The v1 -> v2 migration DROPs every v1 hand_* table; v2 -> v3 is an
+-- additive table-rebuild for hand_canonical (drops the NOT NULL on
+-- hero_seat) without wiping rows. See migrate.js.
 
 CREATE TABLE IF NOT EXISTS user (
   id            TEXT PRIMARY KEY,
@@ -82,9 +94,11 @@ CREATE TABLE IF NOT EXISTS hand_canonical (
   first_ts      INTEGER NOT NULL,
   last_ts       INTEGER NOT NULL,
   table_names_json TEXT,
-  -- Single hero seat for this row. NOT NULL because we reject generic
-  -- (no-perspective) uploads at ingest, so every stored row has one.
-  hero_seat     INTEGER NOT NULL,
+  -- Single hero seat for this row. Nullable since v3 because admin
+  -- generic uploads are accepted with NULL hero (the row attaches to
+  -- the synthetic Generic player; see ingest.js#GENERIC_PLAYER_NAME).
+  -- Real-player rows still always have a hero_seat.
+  hero_seat     INTEGER,
   hero_hole_cards_json TEXT,
   frames_blob   BLOB NOT NULL,
   content_hash  TEXT NOT NULL,
@@ -131,4 +145,4 @@ CREATE TABLE IF NOT EXISTS meta (
   key   TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
-INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '2');
+INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '3');

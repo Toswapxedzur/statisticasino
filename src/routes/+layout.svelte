@@ -17,7 +17,7 @@
   <nav class="nav-tabs" aria-label="Sections">
     <a class="nav-tab" href="/data" aria-current={isActive("/data") ? "page" : undefined}>Data</a>
     <a class="nav-tab" href="/blog" aria-current={isActive("/blog") ? "page" : undefined}>Blog</a>
-    <a class="nav-tab" href="/upload" aria-current={isActive("/upload") ? "page" : undefined}>Upload</a>
+    <a class="nav-tab" href="/contribute" aria-current={isActive("/contribute") ? "page" : undefined}>Contribute</a>
     {#if data.user}
       <a class="nav-tab" href="/account" aria-current={isActive("/account") ? "page" : undefined}>
         {data.user.displayName || data.user.email}

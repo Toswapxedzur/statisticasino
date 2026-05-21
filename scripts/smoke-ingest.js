@@ -1,6 +1,6 @@
-// Smoke test for the v2 ingest pipeline.
+// Smoke test for the v3 ingest pipeline.
 //
-// Builds five synthetic hand envelopes:
+// Pass A — non-admin uploader. Builds five synthetic envelopes:
 //
 //   1. Hero = "Alice" (seat 3) at table 9001 hand "h-1"     [finished]
 //   2. Hero = "Alice" (seat 3) at table 9001 hand "h-1"     [finished, dup]
@@ -8,9 +8,17 @@
 //   4. Generic capture (no perspective) at table 9001 hand "h-2"
 //   5. Hero = "Alice" (seat 3) at table 9001 hand "h-3"     [incomplete]
 //
-// Then asserts the tree has 2 players (Alice, Bob), each with 1 hand
-// at table 9001, the generic capture was rejected, and the incomplete
-// hand was rejected by the server-side defence-in-depth check.
+//   Asserts: 2 real players, generic rejected, incomplete rejected.
+//
+// Pass B — admin uploader. Re-uploads:
+//
+//   6. Generic capture at table 9001 hand "h-1" (overlap with Alice + Bob)
+//   7. Generic capture at table 9001 hand "h-2"
+//   8. Generic capture at table 9001 hand "h-2" (dup inside Generic)
+//
+//   Asserts: a third player "[Generic]" appears, hands 6+7 ingest
+//   under it, hand 8 is collapsed as a dup, hand 6 coexists with
+//   Alice's and Bob's takes on the same round.
 //
 // Run with: node scripts/smoke-ingest.js
 
@@ -37,18 +45,25 @@ const { listPlayers } = await import("../src/lib/server/tables.js");
 
 await ensureMigrated();
 
+// Real-shape WebSocket frames as observed in production (DATA_FORMAT.md
+// §4.2 + casinoMalwareExtension/replay.js):
+//
+//   * `startHand` payload:    seats[]   keyed by `id` (NOT seatId)
+//   * `dealHoleCards` payload: players[] keyed by `seatId`
+//
+// The legacy shape (`dealHoleCards` with `seats[]`) is also accepted
+// by perspective.js as a back-compat path; we exercise BOTH below.
 const heroFrame = (seatId, cards, handId) => ({
   ts: Date.now(),
   event: "output",
   payload: {
     handId,
     updates: [
-      // seats[] gives us seatId -> userId for username resolution
-      { action: "startHand", seats: [
-        { seatId: 3, userId: 1001 },
-        { seatId: 7, userId: 1002 },
+      { action: "startHand", id: handId, dealerSeat: 1, seats: [
+        { id: 3, userId: 1001, stack: 1000, state: "playing" },
+        { id: 7, userId: 1002, stack: 1000, state: "playing" },
       ] },
-      { action: "dealHoleCards", seats: [
+      { action: "dealHoleCards", players: [
         { seatId: 3, cards: seatId === 3 ? cards : ["X", "X"] },
         { seatId: 7, cards: seatId === 7 ? cards : ["X", "X"] }
       ] }
@@ -61,7 +76,11 @@ const genericFrame = (handId) => ({
   payload: {
     handId,
     updates: [
-      { action: "dealHoleCards", seats: [
+      { action: "startHand", id: handId, seats: [
+        { id: 3, userId: 1001 },
+        { id: 7, userId: 1002 }
+      ] },
+      { action: "dealHoleCards", players: [
         { seatId: 3, cards: ["X", "X"] },
         { seatId: 7, cards: ["X", "X"] }
       ] }
@@ -103,15 +122,10 @@ const container = {
   ]
 };
 
-const summary = await ingestContainer(container, null);
-console.log("ingest summary:", summary);
+// ---------------------- Pass A: non-admin uploader ------------------
 
-const players = await listPlayers();
-console.log("players:", JSON.stringify(players.map((p) => ({
-  name: p.name,
-  handCount: p.handCount,
-  tables: p.tables.map((t) => ({ tableId: t.tableId, handCount: t.handCount, hands: t.hands.length }))
-})), null, 2));
+const summaryA = await ingestContainer(container, null);
+console.log("[A] ingest summary:", summaryA);
 
 let pass = true;
 function expect(label, actual, expected) {
@@ -119,19 +133,70 @@ function expect(label, actual, expected) {
   console.log(`${ok ? "OK " : "BAD"}  ${label}: got ${actual}, want ${expected}`);
   if (!ok) pass = false;
 }
-expect("summary.received",            summary.received,            5);
-expect("summary.accepted",            summary.accepted,            2);
-expect("summary.duplicates",          summary.duplicates,          1);
-expect("summary.rejectedGeneric",     summary.rejectedGeneric,     1);
-expect("summary.rejectedIncomplete",  summary.rejectedIncomplete,  1);
-expect("summary.errors.length",       summary.errors.length,       0);
-expect("players.length",              players.length,              2);
-const alice = players.find((p) => p.name === "Alice");
-const bob   = players.find((p) => p.name === "Bob");
-expect("Alice exists",  !!alice,                            true);
-expect("Bob exists",    !!bob,                              true);
-expect("Alice handCount", alice && alice.handCount,         1);
-expect("Bob handCount",   bob   && bob.handCount,           1);
+expect("[A] summary.received",            summaryA.received,            5);
+expect("[A] summary.accepted",            summaryA.accepted,            2);
+expect("[A] summary.acceptedGeneric",     summaryA.acceptedGeneric,     0);
+expect("[A] summary.duplicates",          summaryA.duplicates,          1);
+expect("[A] summary.rejectedGeneric",     summaryA.rejectedGeneric,     1);
+expect("[A] summary.rejectedIncomplete",  summaryA.rejectedIncomplete,  1);
+expect("[A] summary.errors.length",       summaryA.errors.length,       0);
+
+const playersA = await listPlayers();
+expect("[A] players.length",              playersA.length,              2);
+const aliceA = playersA.find((p) => p.name === "Alice");
+const bobA   = playersA.find((p) => p.name === "Bob");
+expect("[A] Alice exists",        !!aliceA,                              true);
+expect("[A] Bob exists",          !!bobA,                                true);
+expect("[A] Alice handCount",     aliceA && aliceA.handCount,            1);
+expect("[A] Bob handCount",       bobA   && bobA.handCount,              1);
+expect("[A] no Generic player",   playersA.some((p) => p.name === "[Generic]"), false);
+
+// ---------------------- Pass B: admin uploader ----------------------
+//
+// Re-upload one envelope that OVERLAPS Alice/Bob's round (same
+// tableId + handId) plus a fresh generic round and a duplicate of
+// it. Admin-side ingest should accept all three; the duplicate
+// should collapse.
+
+const adminContainer = {
+  v: 1,
+  format: "casino-export",
+  exportedTs: Date.now(),
+  userIndex: { "1001": "Alice", "1002": "Bob" },
+  hands: [
+    envelope({ tableId: "9001", handId: "h-1", generic: true, ts: 100 }), // overlaps with Alice + Bob
+    envelope({ tableId: "9001", handId: "h-9", generic: true, ts: 101 }), // fresh under Generic
+    envelope({ tableId: "9001", handId: "h-9", generic: true, ts: 102 })  // dup inside Generic
+  ]
+};
+const summaryB = await ingestContainer(adminContainer, null, { isAdmin: true });
+console.log("[B] ingest summary:", summaryB);
+expect("[B] summary.received",            summaryB.received,            3);
+expect("[B] summary.accepted",            summaryB.accepted,            2);
+expect("[B] summary.acceptedGeneric",     summaryB.acceptedGeneric,     2);
+expect("[B] summary.duplicates",          summaryB.duplicates,          1);
+expect("[B] summary.rejectedGeneric",     summaryB.rejectedGeneric,     0);
+expect("[B] summary.rejectedIncomplete",  summaryB.rejectedIncomplete,  0);
+
+const playersB = await listPlayers();
+console.log("[B] players:", JSON.stringify(playersB.map((p) => ({
+  name: p.name,
+  handCount: p.handCount,
+  tables: p.tables.map((t) => ({ tableId: t.tableId, handCount: t.handCount }))
+})), null, 2));
+
+const generic = playersB.find((p) => p.name === "[Generic]");
+expect("[B] Generic player exists",       !!generic,                    true);
+expect("[B] Generic handCount",           generic && generic.handCount, 2);
+expect("[B] all 3 players present",       playersB.length,              3);
+
+// Critically: Alice's row for h-1 is still there alongside the new
+// Generic row for h-1 — overlap must NOT be merged.
+const aliceB = playersB.find((p) => p.name === "Alice");
+expect("[B] Alice still has 1 hand",      aliceB && aliceB.handCount,   1);
+const genericTable = generic && generic.tables[0];
+const genericH1 = genericTable && genericTable.hands.find((h) => h.handId === "h-1");
+expect("[B] Generic h-1 has null hero",   genericH1 && genericH1.heroSeat, null);
 
 if (existsSync(SMOKE_DB)) unlinkSync(SMOKE_DB);
 process.exit(pass ? 0 : 1);

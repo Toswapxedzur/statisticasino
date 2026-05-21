@@ -24,7 +24,7 @@
 <section class="card">
   <div class="card-head"><h3>Your uploads ({data.myUploads.length})</h3></div>
   {#if data.myUploads.length === 0}
-    <p class="muted">Nothing yet. Try the <a href="/upload">Upload</a> page.</p>
+    <p class="muted">Nothing yet. Try the <a href="/contribute">Contribute</a> page.</p>
   {:else}
     <ul style="list-style:none;margin:0;padding:0">
       {#each data.myUploads as u (u.id)}
@@ -34,7 +34,9 @@
             {#if u.is_canonical}<span style="color:var(--ok);margin-left:6px;font-size:11px">CANONICAL</span>{/if}
           </span>
           <span class="muted">
-            {u.player_name ? `${u.player_name} \u00b7 ` : ""}seat {u.hero_seat ?? "?"} \u00b7 {fmt(u.uploaded_at)}
+            {u.player_name === "[Generic]"
+              ? "Generic \u00b7 "
+              : (u.player_name ? `${u.player_name} \u00b7 ` : "")}{u.hero_seat == null ? "no hero" : `seat ${u.hero_seat}`} \u00b7 {fmt(u.uploaded_at)}
           </span>
         </li>
       {/each}

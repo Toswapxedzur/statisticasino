@@ -2,6 +2,7 @@
   import { enhance } from "$app/forms";
   import { invalidateAll } from "$app/navigation";
   import HandReplay from "./HandReplay.svelte";
+  import TristateCheckbox from "./TristateCheckbox.svelte";
 
   let { data } = $props();
 
@@ -11,15 +12,23 @@
   let expandedPlayer = $state({});
   // Map<"<playerId>::<tableId>", boolean> — table expansion under a player.
   let expandedTable = $state({});
-  // Set<handKey> — admin multi-select for the bulk-delete bar.
+  // Set<handKey> — multi-select drives every action-panel button.
+  // Anyone can select; only admins can act on Delete (the per-button
+  // gate is enforced server-side too).
   let selected = $state(new Set());
-  let deleteError = $state(null);
+  let actionError = $state(null);
+  let actionBusy = $state(false);
 
-  // `data.user` may be null for anonymous visitors; the entire delete
-  // UI hangs off this flag.
   let isAdmin = $derived(!!data.user?.isAdmin);
 
   // ----- formatting helpers ---------------------------------------
+  // The synthetic Generic bucket is stored under the reserved name
+  // "[Generic]" (see ingest.js#GENERIC_PLAYER_NAME). We render it as
+  // "Generic" to keep the UI clean.
+  const GENERIC_NAME = "[Generic]";
+  function isGenericPlayer(p) { return p && p.name === GENERIC_NAME; }
+  function playerDisplay(p)   { return isGenericPlayer(p) ? "Generic" : p.name; }
+
   function tableTitle(t) {
     if (!t.names.length) return "Table";
     return t.names.slice().reverse().join(" - ");
@@ -51,26 +60,58 @@
   }
   function toggleHand(key) { openHand[key] = !openHand[key]; }
 
-  // ----- admin selection ------------------------------------------
-  function toggleSelect(handKey) {
+  // ----- selection helpers ----------------------------------------
+  // Tri-state at every level: a parent's checkbox is checked iff
+  // every descendant round is checked, indeterminate iff some-but-
+  // not-all, unchecked iff none.
+
+  function allHandKeys() {
+    const out = [];
+    for (const p of data.players) {
+      for (const t of p.tables) {
+        for (const h of t.hands) out.push(h.handKey);
+      }
+    }
+    return out;
+  }
+  function tableHandKeys(t) { return t.hands.map((h) => h.handKey); }
+  function playerHandKeys(p) {
+    const out = [];
+    for (const t of p.tables) for (const h of t.hands) out.push(h.handKey);
+    return out;
+  }
+
+  function tristateState(keys) {
+    if (!keys.length) return "none";
+    let n = 0;
+    for (const k of keys) if (selected.has(k)) n++;
+    if (n === 0) return "none";
+    if (n === keys.length) return "all";
+    return "some";
+  }
+
+  function setTristate(keys, on) {
+    const next = new Set(selected);
+    if (on) for (const k of keys) next.add(k);
+    else    for (const k of keys) next.delete(k);
+    selected = next;
+  }
+
+  function toggleHandSelect(handKey) {
     const next = new Set(selected);
     if (next.has(handKey)) next.delete(handKey);
     else next.add(handKey);
     selected = next;
   }
+
+  function selectAll() {
+    const next = new Set(selected);
+    for (const k of allHandKeys()) next.add(k);
+    selected = next;
+  }
   function clearSelection() {
     selected = new Set();
-    deleteError = null;
-  }
-  function selectAllInTable(t) {
-    const next = new Set(selected);
-    for (const h of t.hands) next.add(h.handKey);
-    selected = next;
-  }
-  function selectAllForPlayer(p) {
-    const next = new Set(selected);
-    for (const t of p.tables) for (const h of t.hands) next.add(h.handKey);
-    selected = next;
+    actionError = null;
   }
 
   // Form-action handler shared by all three delete forms. SvelteKit's
@@ -83,44 +124,197 @@
         const keys = [...selected];
         selected = new Set();
         for (const k of keys) delete openHand[k];
-        deleteError = null;
+        actionError = null;
         await invalidateAll();
       } else if (result.type === "failure") {
-        deleteError = result.data?.error || "Delete failed.";
+        actionError = result.data?.error || "Delete failed.";
       }
       await update({ reset: false, invalidateAll: false });
     };
   }
 
-  function confirmTableDelete(t, e) {
-    if (!confirm(`Delete all ${t.handCount} hands at ${tableTitle(t)}? This is reversible (soft delete).`)) {
-      e.preventDefault();
+  // ----- export actions -------------------------------------------
+
+  async function exportSelectedDump() {
+    if (selected.size === 0 || actionBusy) return;
+    actionBusy = true;
+    actionError = null;
+    try {
+      const res = await fetch("/data/export-dump", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ handKeys: [...selected] })
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(`HTTP ${res.status}: ${txt.slice(0, 240)}`);
+      }
+      const text = await res.text();
+      const filename = (res.headers.get("Content-Disposition") || "")
+        .match(/filename="?([^";]+)"?/)?.[1]
+        || `casino-export-${Date.now()}.casinodump`;
+      triggerDownload(filename, "application/octet-stream", text);
+    } catch (e) {
+      actionError = `Export failed: ${e?.message || e}`;
+    } finally {
+      actionBusy = false;
     }
   }
-  function confirmPlayerDelete(p, e) {
-    if (!confirm(`Delete all ${p.handCount} hands captured from ${p.name}'s perspective? This is reversible (soft delete).`)) {
-      e.preventDefault();
+
+  // Lazy-load the replay engine + readable transformer, fetch each
+  // selected hand's frames, run buildSteps, transform, download.
+  // Done client-side so we don't need to ship the replay engine to
+  // the SvelteKit server context.
+  async function exportSelectedReadable() {
+    if (selected.size === 0 || actionBusy) return;
+    actionBusy = true;
+    actionError = null;
+    try {
+      await ensureReplayEngine();
+      const Replay = window.CasinoReplay;
+      const Readable = window.CasinoReadable;
+      if (!Replay || !Readable) throw new Error("Replay engine unavailable");
+
+      const keys = [...selected];
+      const rounds = [];
+      for (const k of keys) {
+        const res = await fetch(`/data/hand/${encodeURIComponent(k)}`);
+        if (!res.ok) throw new Error(`Failed to load ${k}: HTTP ${res.status}`);
+        const hand = await res.json();
+        const container = {
+          frames: hand.frames || [],
+          tableId: hand.tableId,
+          tableName: (hand.tableNames && hand.tableNames[0]) || null
+        };
+        const round = Replay.buildSteps(container, 0);
+        rounds.push({
+          // Hero info — on the web we DO have the player name (it's
+          // the canonical row's player), so emit it. The "no hero"
+          // case (heroSeat == null) corresponds to a Generic row;
+          // we still emit player.name = "[Generic]" so the consumer
+          // can group correctly.
+          player: {
+            name: hand.player?.name ?? null,
+            casinoUserId: hand.player?.casinoUserId ?? null
+          },
+          table: { tableId: hand.tableId, names: hand.tableNames || null },
+          round: Readable.buildRoundReadable(round, hand.heroSeat == null ? null : {
+            name: hand.player?.name ?? null,
+            casinoUserId: hand.player?.casinoUserId ?? null,
+            seatId: hand.heroSeat,
+            holeCards: hand.heroHoleCards || null
+          }, { firstTs: hand.firstTs, lastTs: hand.lastTs })
+        });
+      }
+      const payload = Readable.buildExport(rounds);
+      const json = JSON.stringify(payload, null, 2);
+      const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+      triggerDownload(`casino-readable-${stamp}.json`, "application/json", json);
+    } catch (e) {
+      actionError = `Readable export failed: ${e?.message || e}`;
+    } finally {
+      actionBusy = false;
     }
   }
+
+  async function ensureReplayEngine() {
+    if (window.CasinoReplay && window.CasinoReadable) return;
+    async function loadScript(src) {
+      return new Promise((resolve, reject) => {
+        if (document.querySelector(`script[src="${src}"]`)) return resolve();
+        const s = document.createElement("script");
+        s.src = src;
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error(`failed to load ${src}`));
+        document.head.appendChild(s);
+      });
+    }
+    await loadScript("/replay-engine/tableize.js");
+    await loadScript("/replay-engine/cards.js");
+    await loadScript("/replay-engine/users.js");
+    await loadScript("/replay-engine/replay.js");
+    await loadScript("/replay-engine/readable.js");
+  }
+
+  function triggerDownload(filename, mime, content) {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+      a.remove();
+    }, 0);
+  }
+
+  // ----- derived UI flags ----------------------------------------
+  let allKeys = $derived(allHandKeys());
+  let allChecked = $derived(allKeys.length > 0 && allKeys.every((k) => selected.has(k)));
+  let nothingSelected = $derived(selected.size === 0);
 </script>
 
 <svelte:head>
   <link rel="stylesheet" href="/replay-engine/replay-felt.css" />
 </svelte:head>
 
-{#if isAdmin && selected.size > 0}
-  <div class="delete-bar">
-    <form method="POST" action="?/deleteHands" use:enhance={handleDelete}>
-      {#each [...selected] as k (k)}
-        <input type="hidden" name="handKey" value={k} />
-      {/each}
-      <span>{selected.size} round{selected.size === 1 ? "" : "s"} selected</span>
-      <button class="btn btn-danger" type="submit">
-        Delete {selected.size} round{selected.size === 1 ? "" : "s"}
+{#if data.players.length > 0}
+  <div class="action-bar">
+    <span class="action-bar-count">
+      {#if selected.size === 0}
+        No rounds selected
+      {:else}
+        {selected.size} round{selected.size === 1 ? "" : "s"} selected
+      {/if}
+    </span>
+    <div class="action-bar-buttons">
+      <button class="btn btn-secondary"
+              type="button"
+              disabled={allChecked}
+              onclick={selectAll}>
+        Select all
       </button>
-      <button class="btn btn-secondary" type="button" onclick={clearSelection}>Cancel</button>
-    </form>
-    {#if deleteError}<span class="form-error" style="margin-left:8px">{deleteError}</span>{/if}
+      {#if isAdmin}
+        <form method="POST" action="?/deleteHands" use:enhance={handleDelete}>
+          {#each [...selected] as k (k)}
+            <input type="hidden" name="handKey" value={k} />
+          {/each}
+          <button class="btn btn-danger"
+                  type="submit"
+                  disabled={nothingSelected || actionBusy}>
+            Delete selected
+          </button>
+        </form>
+      {:else}
+        <button class="btn btn-danger"
+                type="button"
+                disabled
+                title="Admin only">
+          Delete selected
+        </button>
+      {/if}
+      <button class="btn btn-secondary"
+              type="button"
+              disabled={nothingSelected || actionBusy}
+              onclick={exportSelectedDump}>
+        Export
+      </button>
+      <button class="btn btn-secondary"
+              type="button"
+              disabled={nothingSelected || actionBusy}
+              onclick={exportSelectedReadable}>
+        Export readable
+      </button>
+      <button class="btn btn-secondary"
+              type="button"
+              disabled={nothingSelected}
+              onclick={clearSelection}>
+        Cancel
+      </button>
+    </div>
+    {#if actionError}<span class="form-error" style="margin-left:8px">{actionError}</span>{/if}
   </div>
 {/if}
 
@@ -128,22 +322,30 @@
   <div class="list-empty">
     <p>No hands ingested yet.</p>
     <p>
-      <a href="/upload">Upload a .casinodump</a> from the Chrome extension to get started.
-      Generic captures (no perspective) are rejected.
+      <a href="/contribute">Contribute a .casinodump</a> from the Chrome extension to get started.
+      Generic captures (no visible hole cards) are rejected for normal
+      uploads; admins can ingest them under the Generic player.
     </p>
   </div>
 {:else}
   <ul class="p-list">
     {#each data.players as p (p.id)}
-      <li class="p-item">
+      {@const pKeys = playerHandKeys(p)}
+      {@const pState = tristateState(pKeys)}
+      <li class="p-item" class:p-generic={isGenericPlayer(p)}>
         <div class="p-item-head">
+          <TristateCheckbox
+            triState={pState}
+            title="Select / deselect every round captured from this player"
+            onToggle={(on) => setTristate(pKeys, on)}
+          />
           <button
             class="p-row"
             aria-expanded={expandedPlayer[p.id] ? "true" : "false"}
             onclick={() => togglePlayer(p.id)}
           >
             <span class="p-caret">{expandedPlayer[p.id] ? "▾" : "▸"}</span>
-            <span class="p-name">{p.name}</span>
+            <span class="p-name">{playerDisplay(p)}</span>
             <span class="p-meta">
               {p.handCount} hand{p.handCount === 1 ? "" : "s"}
               <span class="dot-sep">·</span>
@@ -152,29 +354,20 @@
               {fmtRange(p.firstTs, p.lastTs)}
             </span>
           </button>
-          {#if isAdmin}
-            <button
-              class="btn btn-secondary btn-sm"
-              type="button"
-              onclick={() => selectAllForPlayer(p)}
-              title="Select every round captured from this player"
-            >Select all</button>
-            <form method="POST" action="?/deletePlayer" use:enhance={handleDelete} style="margin:0">
-              <input type="hidden" name="playerId" value={p.id} />
-              <button
-                class="btn btn-danger btn-sm"
-                type="submit"
-                onclick={(e) => confirmPlayerDelete(p, e)}
-              >Delete player</button>
-            </form>
-          {/if}
         </div>
 
         {#if expandedPlayer[p.id]}
           <ul class="t-list">
             {#each p.tables as t (t.tableId)}
+              {@const tKeys = tableHandKeys(t)}
+              {@const tState = tristateState(tKeys)}
               <li class="t-item">
                 <div class="t-item-head">
+                  <TristateCheckbox
+                    triState={tState}
+                    title="Select / deselect every round at this table"
+                    onToggle={(on) => setTristate(tKeys, on)}
+                  />
                   <button
                     class="t-row"
                     aria-expanded={isTableOpen(p.id, t.tableId) ? "true" : "false"}
@@ -189,46 +382,31 @@
                       {fmtRange(t.firstTs, t.lastTs)}
                     </span>
                   </button>
-                  {#if isAdmin}
-                    <button
-                      class="btn btn-secondary btn-sm"
-                      type="button"
-                      onclick={() => selectAllInTable(t)}
-                      title="Add every round in this table to the selection"
-                    >Select all</button>
-                    <form method="POST" action="?/deleteTable" use:enhance={handleDelete} style="margin:0">
-                      <input type="hidden" name="playerId" value={p.id} />
-                      <input type="hidden" name="tableId" value={t.tableId} />
-                      <button
-                        class="btn btn-danger btn-sm"
-                        type="submit"
-                        onclick={(e) => confirmTableDelete(t, e)}
-                      >Delete table</button>
-                    </form>
-                  {/if}
                 </div>
 
                 {#if isTableOpen(p.id, t.tableId)}
                   <ol class="h-list">
                     {#each t.hands.slice().reverse() as h, i (h.handKey)}
                       <li class="h-item">
-                        <div class="h-item-row" class:has-checkbox={isAdmin}>
-                          {#if isAdmin}
-                            <label class="h-check" title="Select for delete">
-                              <input
-                                type="checkbox"
-                                checked={selected.has(h.handKey)}
-                                onchange={() => toggleSelect(h.handKey)}
-                              />
-                            </label>
-                          {/if}
+                        <div class="h-item-row">
+                          <label class="tree-select" title="Select round for bulk action">
+                            <input
+                              type="checkbox"
+                              checked={selected.has(h.handKey)}
+                              onchange={() => toggleHandSelect(h.handKey)}
+                            />
+                          </label>
                           <button class="h-row" onclick={() => toggleHand(h.handKey)}
                                   aria-expanded={openHand[h.handKey] ? "true" : "false"}>
                             <span class="h-caret">{openHand[h.handKey] ? "▾" : "▸"}</span>
                             <span class="h-idx">Round {t.hands.length - i}</span>
                             <span class="h-time">{fmtDate(h.firstTs)}</span>
                             <span class="h-meta">
-                              seat {h.heroSeat}
+                              {#if h.heroSeat != null}
+                                seat {h.heroSeat}
+                              {:else}
+                                generic
+                              {/if}
                               {#if h.uploadCount > 1}
                                 <span class="dot-sep">·</span>
                                 {h.uploadCount} uploads
@@ -265,7 +443,7 @@
   .p-item { padding: 8px 0; border-bottom: 1px solid var(--border); }
   .p-item-head { display: flex; align-items: center; gap: 8px; }
   .p-row {
-    width: 100%; text-align: left;
+    flex: 1; min-width: 0; text-align: left;
     appearance: none; background: transparent; border: 0; color: var(--text);
     display: grid;
     grid-template-columns: 16px 1fr auto;
@@ -276,13 +454,14 @@
   .p-caret { color: var(--muted); }
   .p-name { font-weight: 700; font-size: 15px; color: var(--hero); }
   .p-meta { color: var(--muted); font-size: 12px; }
+  .p-item.p-generic .p-name { color: var(--muted); font-style: italic; }
 
   /* Table branch (under a player) ----------------------------------- */
   .t-list { padding-left: 24px; }
   .t-item { padding: 4px 0; }
   .t-item-head { display: flex; align-items: center; gap: 8px; }
   .t-row, .h-row {
-    width: 100%; text-align: left;
+    flex: 1; min-width: 0; text-align: left;
     appearance: none; background: transparent; border: 0; color: var(--text);
     display: grid;
     grid-template-columns: 16px 1fr auto auto;
@@ -300,20 +479,20 @@
   .h-item { padding: 4px 0; }
   .h-item-row {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: 22px 1fr;
     align-items: center;
   }
-  .h-item-row.has-checkbox { grid-template-columns: 22px 1fr; }
   .h-row { grid-template-columns: 16px 1fr 100px auto; }
   .h-idx { color: var(--text); }
   .h-replay { padding: 8px 0 12px 28px; }
   .dot-sep { margin: 0 6px; opacity: 0.6; }
 
-  /* Admin-only delete UI ------------------------------------------- */
-  .h-check { display: flex; align-items: center; justify-content: center; cursor: pointer; }
-  .h-check input[type="checkbox"] { accent-color: var(--hero); cursor: pointer; }
-  .btn-sm { padding: 3px 10px; font-size: 11.5px; border-radius: 6px; }
-  .delete-bar {
+  /* Tri-state checkbox ------------------------------------------- */
+  .tree-select { display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .tree-select input[type="checkbox"] { accent-color: var(--hero); cursor: pointer; }
+
+  /* Action bar (always visible while data exists) ---------------- */
+  .action-bar {
     position: sticky; top: 44px; z-index: 5;
     display: flex; align-items: center; gap: 10px;
     margin: -16px -16px 12px;
@@ -321,7 +500,11 @@
     background: var(--surface);
     border-bottom: 1px solid var(--border);
   }
-  .delete-bar form {
-    display: inline-flex; align-items: center; gap: 8px; margin: 0;
+  .action-bar form { display: inline-flex; align-items: center; margin: 0; }
+  .action-bar-count { color: var(--muted); font-size: 12.5px; margin-right: auto; }
+  .action-bar-buttons {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    justify-content: flex-end;
   }
+  .action-bar-buttons button:disabled { opacity: 0.45; cursor: not-allowed; }
 </style>

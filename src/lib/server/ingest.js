@@ -1,15 +1,26 @@
-// Hand-envelope ingest (v2).
+// Hand-envelope ingest (v3).
 //
 // Accepts an `ExportContainer` (from the extension's flush / export
 // pipeline — see casinoMalwareExtension/serialize.js) and writes each
 // envelope into the DB.
 //
-// v2 rules (2026-05-21):
+// v3 rules (2026-05-21, "admin can upload generic dumps"):
 //
-//   * UPLOADS WITHOUT A DETECTABLE PERSPECTIVE ARE REJECTED. The
-//     extension can capture data it sees as a spectator, and that
-//     stream contains no real hole cards for any seat — we treat
-//     those as "generic" and refuse to store them.
+//   * Generic uploads (no detectable perspective — pure spectator
+//     captures) are accepted IFF the uploader is an admin. They land
+//     under a synthetic top-level Generic player node so admins can
+//     curate the data tree. Non-admin uploads still reject generic
+//     rounds with `summary.rejectedGeneric`.
+//
+//   * Generic rounds may COEXIST with the same `(tableId, handId)`
+//     under one or more real players. Each lives under its own
+//     `casino_player` parent; ingest never merges across them.
+//
+//   * `hero_seat` and `hero_hole_cards_json` are NULL for generic
+//     rows. The replay component falls back to "no red seat" when
+//     these are absent.
+//
+// v2 rules retained:
 //
 //   * KEYING IS PER-PLAYER. The same `(tableId, handId)` captured from
 //     two different perspective owners produces TWO rows under TWO
@@ -17,8 +28,7 @@
 //     from the SAME player at the same hand collapse to one row.
 //
 //   * SINGLE HERO PER HAND. We never carry "redSeats[]" — each row
-//     stores exactly one `hero_seat` and its hole cards. The
-//     statisticasino renderer highlights that one seat.
+//     stores at most one `hero_seat`.
 //
 // Container shape:
 //   {
@@ -27,6 +37,18 @@
 //                                           extension as of 2026-05-21
 //     hands: [HandEnvelope, ...]
 //   }
+//
+// Caller contract:
+//   ingestContainer(container, uploaderUserId, { isAdmin })
+//     - uploaderUserId: site account id, or null for anonymous
+//     - opts.isAdmin:    bool. Admins flip generic-uploads from
+//                        rejected to accepted. Defaults to false.
+
+// The reserved name for the synthetic top-level bucket that holds
+// admin-uploaded generic rounds. Must NEVER collide with a real
+// casino-side display name; the casino doesn't accept names containing
+// "[" so the brackets are belt-and-braces.
+const GENERIC_PLAYER_NAME = "[Generic]";
 
 import { randomBytes, createHash } from "node:crypto";
 import { Buffer } from "node:buffer";
@@ -124,18 +146,24 @@ export async function decodeContainer(bodyBytes, contentEncoding) {
 // ---------------------------------------------------------- ingest
 
 // `userId` is the uploader's user id, or null for anonymous uploads.
-// Returns a summary { received, accepted, rejectedGeneric,
-// rejectedIncomplete, duplicates, errors[] } so the upload UI can show
-// what happened.
+// `opts.isAdmin` flips the generic-upload behaviour from "reject" to
+// "ingest under the Generic player".
+//
+// Returns a summary { received, accepted, acceptedGeneric,
+// rejectedGeneric, rejectedIncomplete, duplicates, errors[] } so the
+// upload UI can show what happened. `acceptedGeneric` is a strict
+// subset of `accepted`.
 //
 // Defence in depth (chat 2026-05-21): we refuse to store any envelope
 // whose `lifecycle` isn't "finished". The extension itself filters
 // these out before flushing, but a manually-uploaded .casinodump can
 // reach us via /upload regardless, so we check here too.
-export async function ingestContainer(container, userId) {
+export async function ingestContainer(container, userId, opts = {}) {
+  const isAdmin = !!opts.isAdmin;
   const summary = {
     received: 0,
     accepted: 0,
+    acceptedGeneric: 0,
     rejectedGeneric: 0,
     rejectedIncomplete: 0,
     duplicates: 0,
@@ -204,23 +232,42 @@ export async function ingestContainer(container, userId) {
           continue;
         }
 
-        // 2. Reject generic uploads — no perspective -> nothing for
-        //    the per-player tree to attach to.
+        // 2. Resolve the perspective. Three outcomes:
+        //    a) `persp` is a real player -> ingest under that player.
+        //    b) `persp` is null AND uploader is admin -> ingest under
+        //       the synthetic Generic player.
+        //    c) `persp` is null AND uploader is non-admin -> reject.
         const persp = resolvePerspectivePlayer(env, userIndex);
-        if (!persp) {
+        let isGenericRow = false;
+        let playerName, playerCasinoUserId, heroSeat, heroHoleCardsJson;
+        if (persp) {
+          playerName = persp.name;
+          playerCasinoUserId = persp.casinoUserId || null;
+          heroSeat = persp.seatId;
+          heroHoleCardsJson = JSON.stringify(persp.holeCards);
+        } else if (isAdmin) {
+          isGenericRow = true;
+          playerName = GENERIC_PLAYER_NAME;
+          playerCasinoUserId = null;
+          heroSeat = null;
+          heroHoleCardsJson = null;
+        } else {
           summary.rejectedGeneric++;
           continue;
         }
 
-        // 2. Find or create the casino_player row that owns this hand.
-        let playerRow = selPlayerByName.get(persp.name);
+        // 3. Find or create the casino_player row that owns this hand.
+        //    The Generic player is just a regular row with a reserved
+        //    name; nothing in the data tree treats it specially other
+        //    than the UI labelling it "Generic".
+        let playerRow = selPlayerByName.get(playerName);
         let playerId;
         if (!playerRow) {
           playerId = newId();
           insPlayer.run(
             playerId,
-            persp.name,
-            persp.casinoUserId || null,
+            playerName,
+            playerCasinoUserId,
             env.firstTs || now,
             env.lastTs || now
           );
@@ -229,15 +276,17 @@ export async function ingestContainer(container, userId) {
           updPlayerSeen.run(
             env.lastTs || now,
             env.firstTs || now,
-            persp.casinoUserId || null,
+            playerCasinoUserId,
             playerId
           );
         }
 
-        // 3. Per-player dedup. Same player + same (tableId, handId|ts)
+        // 4. Per-player dedup. Same player + same (tableId, handId|ts)
         //    -> merge into the existing row; otherwise insert a new
         //    one. Two DIFFERENT players at the same round still get
-        //    two rows because `player_id` is part of the key.
+        //    two rows because `player_id` is part of the key —
+        //    Generic + RealPlayerA at the same round is two rows by
+        //    construction.
         const dedupId = handDedupId(env);
         const existing = selCanonicalByDedup.get(playerId, String(env.tableId), dedupId);
 
@@ -260,8 +309,8 @@ export async function ingestContainer(container, userId) {
             env.firstTs || 0,
             env.lastTs || 0,
             namesJson,
-            persp.seatId,
-            JSON.stringify(persp.holeCards),
+            heroSeat,
+            heroHoleCardsJson,
             gzipFrames(env.frames || []),
             uploadHash,
             now,
@@ -269,6 +318,7 @@ export async function ingestContainer(container, userId) {
           );
           isCanonical = 1;
           summary.accepted++;
+          if (isGenericRow) summary.acceptedGeneric++;
         } else {
           handKey = existing.hand_key;
           // Same player re-uploaded the same round. Whether bytes are
