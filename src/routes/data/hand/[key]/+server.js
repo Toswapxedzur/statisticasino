@@ -1,5 +1,5 @@
-// Returns one hand's full payload (frames + perspectives + uploads) as
-// JSON. Called by the inline replay component on click.
+// Returns one hand's full payload (frames + hero + uploads) as JSON.
+// Called by the inline replay component on click.
 //
 // We gunzip on the server because the client never sees the raw blob
 // and decoding gzip in the browser would require a ~10 KB polyfill or
@@ -28,7 +28,10 @@ export async function GET({ params }) {
     lastTs: hand.lastTs,
     tableNames: hand.tableNames,
     frames,
-    perspectives: hand.perspectives,
+    // v2: single hero replaces the v1 `perspectives[]` union list.
+    heroSeat: hand.heroSeat,
+    heroHoleCards: hand.heroHoleCards,
+    player: hand.player,
     uploads: hand.uploads
   });
 }

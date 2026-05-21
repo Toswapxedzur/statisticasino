@@ -21,8 +21,10 @@
   let stepsLen = $state(0);
   let stepsReady = $state(false);
 
-  // Seats highlighted red because at least one uploader saw the hand
-  // from that seat. 0..N entries.
+  // v2 (single-hero model): exactly one seat per hand can be red,
+  // pulled from the canonical row's `hero_seat` column. We store it as
+  // a Set with 0 or 1 element so the renderSeats helper keeps its
+  // membership-test API.
   let redSeats = new Set();
 
   // ---------------------------------------------------------- module load
@@ -97,29 +99,12 @@
     return null;
   }
 
-  // From history.js — modified ONLY to consult our `redSeats` set
-  // (0..N perspectives) and return ALL of them, instead of returning a
-  // single number. Callers compare via `heroSeats.has(seat.seatId)`.
-  function detectHeroSeats(round) {
-    const out = new Set(redSeats);
-    // Belt-and-braces: walk the round's dealHoleCards updates and add any
-    // seats whose cards are fully resolved (handles the case where a
-    // perspective wasn't pre-computed server-side, e.g. very old
-    // canonical bytes).
-    if (round && Array.isArray(round.steps)) {
-      for (const step of round.steps) {
-        if (!step || step.action !== "dealHoleCards") continue;
-        const u = step.update;
-        if (!u || !Array.isArray(u.players)) continue;
-        for (const p of u.players) {
-          if (p && p.seatId != null && Array.isArray(p.cards) && p.cards.length === 2
-              && p.cards.every((c) => c && c !== "X")) {
-            out.add(Number(p.seatId));
-          }
-        }
-      }
-    }
-    return out;
+  // v2: single-hero. We seed `out` from `redSeats` (the server-stamped
+  // hero_seat for this row) and don't sniff `dealHoleCards` for extra
+  // seats — multi-hero is intentionally OFF. Returns a Set so the
+  // renderSeats `.has()` API is preserved.
+  function detectHeroSeats(_round) {
+    return new Set(redSeats);
   }
 
   // From history.js — verbatim.
@@ -557,7 +542,13 @@
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       payload = await res.json();
 
-      patchHoleCards(payload.frames, payload.perspectives);
+      // v2: single hero. Build a one-element perspective list out of
+      // the canonical row's hero_seat + hero_hole_cards so the existing
+      // patch-cards / red-highlight code paths keep their shape.
+      const singleHero = (payload.heroSeat != null && Array.isArray(payload.heroHoleCards))
+        ? [{ seatId: Number(payload.heroSeat), holeCards: payload.heroHoleCards }]
+        : [];
+      patchHoleCards(payload.frames, singleHero);
 
       const container = {
         frames: payload.frames,
@@ -568,13 +559,8 @@
       const round = ReplayMod().buildSteps(container, 0);
       const engine = new (ReplayMod().Replay)(round);
 
-      // Build the set of red-highlighted seats from the server's
-      // perspective rows.
-      redSeats = new Set(
-        (payload.perspectives || [])
-          .filter((p) => p.seatId != null)
-          .map((p) => Number(p.seatId))
-      );
+      // Single red seat for v2 — see `let redSeats` above.
+      redSeats = new Set(singleHero.map((p) => p.seatId));
 
       stepsLen = round.steps.length;
       stepsReady = stepsLen > 0;
@@ -605,10 +591,13 @@
       const tableLabel = container.tableName
         ? `${container.tableName} \u00b7 #${container.tableId}`
         : `Table #${container.tableId}`;
+      const playerLabel = payload.player && payload.player.name
+        ? ` \u00b7 ${payload.player.name}'s perspective`
+        : "";
       panelEl.querySelector(".replay-title").textContent =
         `Hand ${payload.handId || "(no id)"}`;
       panelEl.querySelector(".replay-subtitle").textContent =
-        `${tableLabel} \u00b7 ${round.steps.length} step${round.steps.length === 1 ? "" : "s"}`;
+        `${tableLabel}${playerLabel} \u00b7 ${round.steps.length} step${round.steps.length === 1 ? "" : "s"}`;
 
       // Scrubber bounds.
       const scrub = panelEl.querySelector(".replay-scrubber");

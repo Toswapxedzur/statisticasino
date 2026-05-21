@@ -1,30 +1,39 @@
-// Hand-envelope ingest.
+// Hand-envelope ingest (v2).
 //
 // Accepts an `ExportContainer` (from the extension's flush / export
 // pipeline — see casinoMalwareExtension/serialize.js) and writes each
-// envelope into the DB with first-upload-wins canonical semantics.
+// envelope into the DB.
 //
-// Flow per envelope:
-//   1. Parse hand_key from envelope or recompute from (tableId, handId, firstTs).
-//   2. Compute the upload's content hash (the envelope already carries
-//      one; we trust it but recompute as a sanity check).
-//   3. Detect perspective owner (seat + hole cards).
-//   4. Look up `hand_canonical` by hand_key.
-//      - If missing: insert (this upload becomes the canonical bytes).
-//      - If present: leave canonical bytes untouched; record this upload
-//        as a non-canonical perspective contributor.
-//   5. Upsert (hand_key, seat_id) into `hand_perspective`. ON CONFLICT
-//      DO NOTHING because the FIRST upload to claim a perspective wins
-//      for the perspective row (later uploads from the same seat get
-//      recorded in hand_upload but don't bump the perspective row).
-//   6. Always insert a `hand_upload` row regardless of canonical-ness.
+// v2 rules (2026-05-21):
+//
+//   * UPLOADS WITHOUT A DETECTABLE PERSPECTIVE ARE REJECTED. The
+//     extension can capture data it sees as a spectator, and that
+//     stream contains no real hole cards for any seat — we treat
+//     those as "generic" and refuse to store them.
+//
+//   * KEYING IS PER-PLAYER. The same `(tableId, handId)` captured from
+//     two different perspective owners produces TWO rows under TWO
+//     `casino_player` parents, NOT a single merged row. Re-uploads
+//     from the SAME player at the same hand collapse to one row.
+//
+//   * SINGLE HERO PER HAND. We never carry "redSeats[]" — each row
+//     stores exactly one `hero_seat` and its hole cards. The
+//     statisticasino renderer highlights that one seat.
+//
+// Container shape:
+//   {
+//     v, format,
+//     userIndex: { [userId]: username },   // optional; populated by
+//                                           extension as of 2026-05-21
+//     hands: [HandEnvelope, ...]
+//   }
 
-import { randomBytes, createHash, gunzipSync } from "node:crypto";
+import { randomBytes, createHash } from "node:crypto";
 import { Buffer } from "node:buffer";
 import { promisify } from "node:util";
 import * as zlib from "node:zlib";
 import { getDb, tx } from "./db.js";
-import { detectPerspective } from "./perspective.js";
+import { resolvePerspectivePlayer } from "./perspective.js";
 
 const gunzip = promisify(zlib.gunzip);
 
@@ -36,21 +45,28 @@ function sha256Hex(str) {
 
 function newId() { return randomBytes(16).toString("hex"); }
 
-// Compute the canonical hand_key from the envelope. Mirrors the rule in
-// the extension's serialize.js so the same hand keys match across both
-// sides.
-function handKey(envelope) {
-  if (envelope.handKey) return String(envelope.handKey);
-  const t = String(envelope.tableId || "unknown");
+// Stable per-(player, table) dedup key for a hand. Mirrors the
+// extension's serialize.js#handKey but returns just the hand-half
+// (the `<handId>` or `ts-<firstTs>` suffix), not the full
+// `${tableId}::${handId}` form, so it composes nicely under a
+// per-player UNIQUE INDEX.
+function handDedupId(envelope) {
   const h = envelope.handId ? String(envelope.handId) : null;
-  if (h && !h.startsWith("hand-")) return `${t}::${h}`;
-  return `${t}::ts-${envelope.firstTs || 0}`;
+  if (h && !h.startsWith("hand-")) return h;
+  return `ts-${envelope.firstTs || 0}`;
+}
+
+// Stable URL-safe key for the canonical row. Composed from the
+// player id, table id, and hand dedup id so two players' takes on
+// the same round get distinct keys.
+function buildHandKey(playerId, tableId, dedupId) {
+  return `${playerId}::${tableId}::${dedupId}`;
 }
 
 function envContentHash(envelope) {
   // Same canonicalisation rule as the extension: hash {handKey, handId, frames}.
   const canonical = JSON.stringify({
-    handKey: envelope.handKey || handKey(envelope),
+    handKey: envelope.handKey || null,
     handId: envelope.handId || null,
     frames: envelope.frames || []
   });
@@ -89,7 +105,6 @@ export async function decodeContainer(bodyBytes, contentEncoding) {
       const plain = await gunzip(gz);
       return JSON.parse(plain.toString("utf8"));
     } catch (_) {
-      // fall through to plain JSON below
       try {
         return JSON.parse(bytes.toString("utf8"));
       } catch (_e2) {
@@ -98,26 +113,31 @@ export async function decodeContainer(bodyBytes, contentEncoding) {
     }
   }
 
-  // Binary path: gzipped JSON (the network flush format).
   if (contentEncoding === "gzip" || (firstByte === 0x1f && bytes[1] === 0x8b)) {
     const plain = await gunzip(bytes);
     return JSON.parse(plain.toString("utf8"));
   }
 
-  // Last resort: try plain JSON.
   return JSON.parse(bytes.toString("utf8"));
 }
 
-// ----------------------------------------------------------- ingest
+// ---------------------------------------------------------- ingest
 
 // `userId` is the uploader's user id, or null for anonymous uploads.
-// Returns a summary { received, canonicalCreated, perspectivesAdded,
-// duplicates, errors[] } so the upload UI can show what happened.
+// Returns a summary { received, accepted, rejectedGeneric,
+// rejectedIncomplete, duplicates, errors[] } so the upload UI can show
+// what happened.
+//
+// Defence in depth (chat 2026-05-21): we refuse to store any envelope
+// whose `lifecycle` isn't "finished". The extension itself filters
+// these out before flushing, but a manually-uploaded .casinodump can
+// reach us via /upload regardless, so we check here too.
 export async function ingestContainer(container, userId) {
   const summary = {
     received: 0,
-    canonicalCreated: 0,
-    perspectivesAdded: 0,
+    accepted: 0,
+    rejectedGeneric: 0,
+    rejectedIncomplete: 0,
     duplicates: 0,
     errors: []
   };
@@ -126,30 +146,44 @@ export async function ingestContainer(container, userId) {
     return summary;
   }
 
+  const userIndex = (container.userIndex && typeof container.userIndex === "object")
+    ? container.userIndex
+    : {};
+
   const db = await getDb();
   const now = Date.now();
 
   // Prepared statements (cached on the connection).
-  const selCanonical = db.prepare(
-    "SELECT hand_key, content_hash FROM hand_canonical WHERE hand_key = ?"
+  const selPlayerByName = db.prepare(
+    "SELECT id, casino_user_id FROM casino_player WHERE name = ?"
+  );
+  const insPlayer = db.prepare(`
+    INSERT INTO casino_player (id, name, casino_user_id, first_seen_ts, last_seen_ts)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+  const updPlayerSeen = db.prepare(`
+    UPDATE casino_player
+       SET last_seen_ts   = MAX(last_seen_ts, ?),
+           first_seen_ts  = MIN(first_seen_ts, ?),
+           casino_user_id = COALESCE(casino_user_id, ?)
+     WHERE id = ?
+  `);
+  const selCanonicalByDedup = db.prepare(
+    "SELECT hand_key, content_hash FROM hand_canonical "
+    + "WHERE player_id = ? AND table_id = ? AND hand_dedup_id = ?"
   );
   const insCanonical = db.prepare(`
     INSERT INTO hand_canonical
-      (hand_key, table_id, hand_id, first_ts, last_ts, table_names_json,
+      (hand_key, player_id, table_id, hand_id, hand_dedup_id,
+       first_ts, last_ts, table_names_json,
+       hero_seat, hero_hole_cards_json,
        frames_blob, content_hash, created_at, first_uploader_user_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insUpload = db.prepare(`
     INSERT INTO hand_upload
-      (id, hand_key, perspective_seat_id, hole_cards_json, user_id,
-       uploaded_at, content_hash, is_canonical)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-  const insPerspective = db.prepare(`
-    INSERT INTO hand_perspective
-      (hand_key, seat_id, hole_cards_json, first_seen_upload_id)
-    VALUES (?, ?, ?, ?)
-    ON CONFLICT (hand_key, seat_id) DO NOTHING
+      (id, hand_key, user_id, uploaded_at, content_hash, is_canonical)
+    VALUES (?, ?, ?, ?, ?, ?)
   `);
 
   // Wrap the whole batch in one transaction for speed + atomicity.
@@ -157,61 +191,101 @@ export async function ingestContainer(container, userId) {
     for (const env of container.hands) {
       summary.received++;
       try {
-        const key = handKey(env);
-        if (!env.tableId) throw new Error(`hand ${key} missing tableId`);
+        if (!env.tableId) throw new Error(`hand missing tableId`);
+
+        // 1. Reject anything that isn't a fully-finished round.
+        //    `lifecycle` is set extension-side by tableize.js; envelopes
+        //    from an old extension that pre-dates the field default to
+        //    "incomplete" via serialize.js fallback, so we treat
+        //    "missing" as "incomplete" by intent.
+        const lifecycle = env.lifecycle || "incomplete";
+        if (lifecycle !== "finished") {
+          summary.rejectedIncomplete++;
+          continue;
+        }
+
+        // 2. Reject generic uploads — no perspective -> nothing for
+        //    the per-player tree to attach to.
+        const persp = resolvePerspectivePlayer(env, userIndex);
+        if (!persp) {
+          summary.rejectedGeneric++;
+          continue;
+        }
+
+        // 2. Find or create the casino_player row that owns this hand.
+        let playerRow = selPlayerByName.get(persp.name);
+        let playerId;
+        if (!playerRow) {
+          playerId = newId();
+          insPlayer.run(
+            playerId,
+            persp.name,
+            persp.casinoUserId || null,
+            env.firstTs || now,
+            env.lastTs || now
+          );
+        } else {
+          playerId = playerRow.id;
+          updPlayerSeen.run(
+            env.lastTs || now,
+            env.firstTs || now,
+            persp.casinoUserId || null,
+            playerId
+          );
+        }
+
+        // 3. Per-player dedup. Same player + same (tableId, handId|ts)
+        //    -> merge into the existing row; otherwise insert a new
+        //    one. Two DIFFERENT players at the same round still get
+        //    two rows because `player_id` is part of the key.
+        const dedupId = handDedupId(env);
+        const existing = selCanonicalByDedup.get(playerId, String(env.tableId), dedupId);
 
         const uploadHash = envContentHash(env);
-        const perspective = detectPerspective(env);
         const uploadId = newId();
         const namesJson = env.tableNames
           ? JSON.stringify(env.tableNames)
           : (env.tableName ? JSON.stringify([env.tableName]) : null);
 
-        const existing = selCanonical.get(key);
         let isCanonical = 0;
+        let handKey;
         if (!existing) {
-          // First upload of this hand wins. Store its bytes.
+          handKey = buildHandKey(playerId, env.tableId, dedupId);
           insCanonical.run(
-            key,
+            handKey,
+            playerId,
             String(env.tableId),
             env.handId ? String(env.handId) : null,
+            dedupId,
             env.firstTs || 0,
             env.lastTs || 0,
             namesJson,
+            persp.seatId,
+            JSON.stringify(persp.holeCards),
             gzipFrames(env.frames || []),
             uploadHash,
             now,
             userId || null
           );
           isCanonical = 1;
-          summary.canonicalCreated++;
-        } else if (existing.content_hash === uploadHash) {
-          // Exact byte-identical re-upload from the same perspective.
-          // Still record the upload (audit) but flag it as a dup.
-          summary.duplicates++;
+          summary.accepted++;
+        } else {
+          handKey = existing.hand_key;
+          // Same player re-uploaded the same round. Whether bytes are
+          // identical or drifted, we keep the FIRST canonical bytes
+          // and just record the upload audit.
+          if (existing.content_hash === uploadHash) summary.duplicates++;
+          else summary.duplicates++; // either way: collapsed.
         }
-        // (else: a different upload contributes only its perspective)
 
         insUpload.run(
           uploadId,
-          key,
-          perspective ? perspective.seatId : null,
-          perspective ? JSON.stringify(perspective.holeCards) : null,
+          handKey,
           userId || null,
           now,
           uploadHash,
           isCanonical
         );
-
-        if (perspective) {
-          const r = insPerspective.run(
-            key,
-            perspective.seatId,
-            JSON.stringify(perspective.holeCards),
-            uploadId
-          );
-          if (r.changes > 0) summary.perspectivesAdded++;
-        }
       } catch (e) {
         summary.errors.push(String(e && e.message || e));
       }

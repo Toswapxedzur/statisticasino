@@ -12,9 +12,23 @@ Three sections:
   (0, 1, or N reds per hand depending on who has contributed).
 - **Blog** — markdown files under `content/blog/`, rendered as
   investigation write-ups.
-- **Account** — anonymous browsing + uploading is allowed; signed-in
-  users have a profile + can perform privileged actions. One admin
-  (the first account matching `ADMIN_EMAIL`) can promote others.
+- **Account** — anonymous browsing is allowed; signed-in users have a
+  profile + (if admin) can perform privileged actions. One admin (the
+  first account matching `ADMIN_EMAIL`) can promote others.
+
+### Auth model (2026-05-20)
+
+- Only **admins** can upload via [`/upload`](http://localhost:5173/upload)
+  or delete hands. Non-admins see a denial card on `/upload` and the
+  Data page hides every checkbox + Delete button.
+- Deletes are **soft-deletes**: `hand_canonical.removed_at` /
+  `removed_by_user_id` get stamped, and every read path filters
+  `WHERE removed_at IS NULL`. Reversible by clearing those columns in
+  SQL if you ever want a hand back.
+- The Chrome extension's autoflush channel
+  ([`/api/flush`](http://localhost:5173/api/flush)) remains anonymous
+  so the extension's background service worker can keep posting
+  without managing auth tokens.
 
 ## Quick start (local-first)
 
@@ -38,22 +52,51 @@ The DB file lives at `../local_storage/casino.db` by default — same
 parent folder as the Chrome extension's source tree. Override via
 `DATABASE_PATH` in `.env`.
 
-## How the merge works
+## How ingest + the data tree work (v2)
 
 1. The Chrome extension's *Export all* button produces a `.casinodump`
    (gzipped JSON + base64). Drop that on the [`/upload`](http://localhost:5173/upload) page.
-2. The site decodes the container and walks each hand envelope.
-3. For each `(tableId, handId)` it looks up `hand_canonical`:
-   - **first upload wins**: the canonical frames are immutable once
-     written. Subsequent uploads of the same hand contribute only the
-     uploader's perspective (their seat + their hole cards).
-4. `hand_perspective` is the materialised set of perspective owners per
-   hand. The replay panel renders one red seat per row in that table.
+   **Anyone can upload** (signed-in or anonymous). Pure spectator
+   captures (no visible hole cards) are rejected as *generic*.
+2. For each hand envelope the server detects the **single perspective
+   owner** — the seat whose hole cards are real (not `["X","X"]`) in
+   the first `dealHoleCards`. The seat's `userId` is resolved against
+   the container's `userIndex` to a casino-side display name.
+3. `(playerName, tableId, handId)` is the dedup key on
+   `hand_canonical`. Re-uploads from the **same** in-game player at
+   the same round collapse to one row (first bytes win); the **same**
+   round captured by a **different** in-game player produces a
+   separate row under that other player.
+4. The `/data` tree is three levels deep:
 
-When an admin or authenticated user (eventually) cleans data, removing
-all contributions from a particular uploader can leave a hand with
-**zero** perspectives — the merged view then has no red seats. That's
-intentional.
+       Player (casino-side screen name)
+       ├── Table (with all the names it's been called by)
+       │   └── Round n
+       └── ...
+
+   The "player" node is the in-game perspective owner — **not** the
+   uploader's site account. Two different casino-side players at the
+   same physical table get two sibling player nodes.
+5. Each round's replay highlights **exactly one** red seat: the
+   perspective-owner seat for that row.
+
+### Auth model
+
+| surface | who | notes |
+| - | - | - |
+| `/upload` | anyone | rejects generic (no-perspective) dumps |
+| `/api/flush` | anyone | extension's autoflush; always anonymous |
+| `/data` listing | anyone | reads always filter `removed_at IS NULL` |
+| Per-round / table / player **delete** | admins only | soft-delete; `hand_canonical.removed_at` + `removed_by_user_id` keep the audit trail |
+| Comments (placeholder) | TBD | schema supports anonymous comments |
+
+### v1 → v2 migration
+
+The schema went from a single canonical row per `(tableId, handId)`
+with a multi-hero `hand_perspective` union table to per-player rows
+with a single `hero_seat`. Per the user's choice, the migration
+**drops** the old `hand_canonical` / `hand_perspective` / `hand_upload`
+tables on first boot (accounts + sessions + comments are preserved).
 
 ## Adding a blog post
 

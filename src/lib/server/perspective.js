@@ -5,14 +5,17 @@
 // So the seat with a fully-resolved card pair after `dealHoleCards` is
 // the upload's perspective owner.
 //
+// v2 (2026-05-21): single hero only. The multi-hero union model from
+// v1 is gone; we never store more than one perspective per row.
+//
 // Edge cases:
 //   - mucked hand without `show` -> still detectable from dealHoleCards
 //   - bulk-update playback (a `show` update reveals OTHER seats later)
 //     -> we use the FIRST dealHoleCards update only, so "shown by the
 //     opponent at showdown" doesn't count as a perspective claim.
 //   - all seats masked (rare; a `dealHoleCards` that omits the local
-//     seat for some reason) -> return null and the caller stores a
-//     null perspective_seat_id.
+//     seat) -> return null and the caller REJECTS the upload as
+//     generic (no perspective).
 
 const MASK = new Set(["X", "x", "?", ""]);
 
@@ -26,8 +29,8 @@ function isRealPair(cards) {
 }
 
 // Walk the envelope's frames, find the FIRST `dealHoleCards` update,
-// and return { seatId, holeCards }. Returns null if no qualifying
-// seat exists.
+// and return { seatId, holeCards }. Returns null when no qualifying
+// seat exists -> caller should reject as "generic".
 export function detectPerspective(envelope) {
   if (!envelope || !Array.isArray(envelope.frames)) return null;
   for (const f of envelope.frames) {
@@ -56,18 +59,83 @@ export function detectPerspective(envelope) {
   return null;
 }
 
-// Returns the union of all perspective hole cards for a hand. Used by
-// the renderer when one canonical hand has been claimed by multiple
-// uploaders. Input is an array of rows from `hand_perspective`.
-export function unionHoleCards(perspectiveRows) {
-  const out = {};
-  for (const r of perspectiveRows) {
-    if (r.seat_id == null) continue;
-    let cards;
-    try { cards = JSON.parse(r.hole_cards_json); } catch { cards = null; }
-    if (Array.isArray(cards) && cards.length === 2) {
-      out[r.seat_id] = cards;
+// Walk the envelope's frames looking for a seat-snapshot that maps
+// `seatId -> userId`. Frames carry `seats: [{ id|seatId, userId, ... }]`
+// in startHand / dealCommunityCards / state / output updates.
+//
+// Returns the first non-null userId we see for `targetSeatId`, or null
+// if the envelope never names the seat's user.
+export function resolveSeatUserId(envelope, targetSeatId) {
+  if (!envelope || targetSeatId == null) return null;
+  const frames = Array.isArray(envelope.frames) ? envelope.frames : [];
+  const target = Number(targetSeatId);
+
+  function scanSeat(s) {
+    if (!s || typeof s !== "object") return null;
+    const sid = s.seatId ?? s.id;
+    if (sid == null || Number(sid) !== target) return null;
+    const uid = s.userId ?? s.user_id;
+    if (uid == null) return null;
+    const n = Number(uid);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }
+
+  for (const f of frames) {
+    const payload = f && f.payload;
+    if (!payload || typeof payload !== "object") continue;
+
+    // Direct `seats: [...]` on the payload.
+    if (Array.isArray(payload.seats)) {
+      for (const s of payload.seats) {
+        const hit = scanSeat(s);
+        if (hit) return hit;
+      }
+    }
+    // `updates: [{ ..., seats: [...] }]`.
+    if (Array.isArray(payload.updates)) {
+      for (const u of payload.updates) {
+        if (!u) continue;
+        if (Array.isArray(u.seats)) {
+          for (const s of u.seats) {
+            const hit = scanSeat(s);
+            if (hit) return hit;
+          }
+        }
+        // Some `seat` action shapes carry a single seat snapshot inline.
+        if (u.action === "seat") {
+          const hit = scanSeat(u);
+          if (hit) return hit;
+        }
+      }
     }
   }
-  return out;
+  return null;
+}
+
+// Resolve "this hand's perspective owner" all the way to a casino-side
+// display name. Falls back to `User <id>` when we know the userId but
+// no name was available in the container's userIndex; returns null if
+// neither a userId nor a name can be derived (caller should reject as
+// generic).
+//
+// `userIndex` is `{ [userId]: username }` carried by the container
+// (FlushRequest / ExportContainer). It is built extension-side from
+// `CasinoUsers.buildIndex(messages)`.
+export function resolvePerspectivePlayer(envelope, userIndex) {
+  const persp = detectPerspective(envelope);
+  if (!persp) return null;
+  const userId = resolveSeatUserId(envelope, persp.seatId);
+  let name = null;
+  if (userId != null && userIndex && Object.prototype.hasOwnProperty.call(userIndex, String(userId))) {
+    const candidate = userIndex[String(userId)];
+    if (typeof candidate === "string" && candidate.length > 0) name = candidate;
+  }
+  if (!name && userId != null) name = `User ${userId}`;
+  if (!name) return null;
+  return {
+    seatId: persp.seatId,
+    holeCards: persp.holeCards,
+    casinoUserId: userId,
+    name
+  };
 }

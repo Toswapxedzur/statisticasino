@@ -1,8 +1,22 @@
-// Read helpers that aggregate canonical hands into the tableId-rooted
-// tree the data page renders. Mirrors the extension's `tableize.js`
-// grouping, but the source is SQLite rather than the in-memory message
-// log: each `hand_canonical` row contributes one round, and `tableId`
-// is the obvious group key.
+// Read helpers that aggregate canonical hands into the three-level
+// tree the /data page renders (v2):
+//
+//   players: [{
+//     id, name, casinoUserId,
+//     firstTs, lastTs, handCount,
+//     tables: [{
+//       tableId, names[], firstTs, lastTs, handCount,
+//       hands: [{ handKey, handId, firstTs, lastTs, heroSeat,
+//                 uploadCount, commentCount }, ...]
+//     }, ...]
+//   }, ...]
+//
+// Sort order (newest-first by recency at every level):
+//   * Players: descending last_seen_ts.
+//   * Tables within a player: descending most-recent hand last_ts.
+//   * Hands within a table: ascending first_ts (the UI .reverse()s
+//     so the most recent round shows on top — preserves the v1
+//     contract.).
 
 import { getDb } from "./db.js";
 
@@ -14,86 +28,125 @@ function parseNames(jsonStr) {
   } catch { return []; }
 }
 
-// Build the [{ tableId, names[], firstTs, lastTs, handCount, hands[] }]
-// tree the data page renders. Hands are oldest-first within a table so
-// the UI's reverse() puts the latest at the top.
-export async function listTables() {
+export async function listPlayers() {
   const db = await getDb();
+
+  // One row per non-removed canonical hand, joined to its player
+  // parent + a couple of cheap counts. Filtering at the SQL layer
+  // keeps the JS-side grouping straightforward.
   const rows = db.prepare(`
     SELECT
-      c.hand_key, c.table_id, c.hand_id, c.first_ts, c.last_ts,
-      c.table_names_json, c.first_uploader_user_id,
-      (SELECT COUNT(*) FROM hand_perspective p WHERE p.hand_key = c.hand_key) AS perspective_count,
+      p.id           AS player_id,
+      p.name         AS player_name,
+      p.casino_user_id,
+      p.first_seen_ts AS player_first_seen_ts,
+      p.last_seen_ts  AS player_last_seen_ts,
+      c.hand_key,
+      c.table_id,
+      c.hand_id,
+      c.hand_dedup_id,
+      c.first_ts,
+      c.last_ts,
+      c.table_names_json,
+      c.hero_seat,
       (SELECT COUNT(*) FROM hand_upload u WHERE u.hand_key = c.hand_key) AS upload_count,
       (SELECT COUNT(*) FROM comment cm WHERE cm.hand_key = c.hand_key AND cm.removed_at IS NULL) AS comment_count
     FROM hand_canonical c
+    JOIN casino_player p ON p.id = c.player_id
     WHERE c.removed_at IS NULL
-    ORDER BY c.first_ts ASC
+    ORDER BY p.last_seen_ts DESC, c.first_ts ASC
   `).all();
 
-  // Group by table_id, accumulate the union of names across all hands
-  // (insertion-order preserved, dedup).
-  const byTable = new Map();
+  // Group: player -> table -> hands.
+  const byPlayer = new Map();
   for (const r of rows) {
-    let t = byTable.get(r.table_id);
-    if (!t) {
-      t = {
+    let player = byPlayer.get(r.player_id);
+    if (!player) {
+      player = {
+        id: r.player_id,
+        name: r.player_name,
+        casinoUserId: r.casino_user_id,
+        firstTs: r.player_first_seen_ts,
+        lastTs: r.player_last_seen_ts,
+        handCount: 0,
+        tables: new Map()       // tableId -> tableObj; flattened on return
+      };
+      byPlayer.set(r.player_id, player);
+    }
+
+    let table = player.tables.get(r.table_id);
+    if (!table) {
+      table = {
         tableId: r.table_id,
         names: [],
         firstTs: r.first_ts,
         lastTs: r.last_ts,
         hands: []
       };
-      byTable.set(r.table_id, t);
+      player.tables.set(r.table_id, table);
     }
     for (const n of parseNames(r.table_names_json)) {
-      if (t.names.indexOf(n) === -1) t.names.push(n);
+      if (table.names.indexOf(n) === -1) table.names.push(n);
     }
-    t.firstTs = Math.min(t.firstTs, r.first_ts);
-    t.lastTs = Math.max(t.lastTs, r.last_ts);
-    t.hands.push({
+    table.firstTs = Math.min(table.firstTs, r.first_ts);
+    table.lastTs = Math.max(table.lastTs, r.last_ts);
+    table.hands.push({
       handKey: r.hand_key,
       handId: r.hand_id,
       firstTs: r.first_ts,
       lastTs: r.last_ts,
-      perspectiveCount: r.perspective_count,
+      heroSeat: r.hero_seat,
       uploadCount: r.upload_count,
       commentCount: r.comment_count
     });
+
+    player.handCount++;
+    player.firstTs = Math.min(player.firstTs, r.first_ts);
+    player.lastTs = Math.max(player.lastTs, r.last_ts);
   }
 
-  // Newest-first by last activity across the whole table.
-  return Array.from(byTable.values())
-    .sort((a, b) => b.lastTs - a.lastTs);
+  // Flatten Maps -> arrays, sort tables newest-first within each
+  // player, and sort players newest-first overall. Hands stay
+  // chronological so the UI's `.reverse()` puts the newest on top.
+  const players = Array.from(byPlayer.values()).map((p) => {
+    const tables = Array.from(p.tables.values()).map((t) => ({
+      ...t,
+      handCount: t.hands.length
+    })).sort((a, b) => b.lastTs - a.lastTs);
+    return { ...p, tables };
+  }).sort((a, b) => b.lastTs - a.lastTs);
+
+  return players;
 }
 
-// Fetch a single hand's bytes (gunzipped JSON frames + perspectives +
-// comments) for the inline replay panel.
+// Fetch a single hand's bytes (gunzipped JSON frames + hero +
+// uploads) for the inline replay panel.
 export async function loadHand(handKey) {
   const db = await getDb();
   const canonical = db.prepare(`
-    SELECT hand_key, table_id, hand_id, first_ts, last_ts,
-           table_names_json, frames_blob, created_at,
-           first_uploader_user_id
-    FROM hand_canonical
-    WHERE hand_key = ? AND removed_at IS NULL
+    SELECT
+      c.hand_key, c.table_id, c.hand_id, c.first_ts, c.last_ts,
+      c.table_names_json, c.frames_blob, c.created_at,
+      c.hero_seat, c.hero_hole_cards_json,
+      c.first_uploader_user_id,
+      p.id AS player_id, p.name AS player_name, p.casino_user_id
+    FROM hand_canonical c
+    JOIN casino_player p ON p.id = c.player_id
+    WHERE c.hand_key = ? AND c.removed_at IS NULL
   `).get(handKey);
   if (!canonical) return null;
 
-  const perspectives = db.prepare(`
-    SELECT seat_id, hole_cards_json
-    FROM hand_perspective
-    WHERE hand_key = ?
-    ORDER BY seat_id
-  `).all(handKey);
-
   const uploads = db.prepare(`
-    SELECT u.id, u.perspective_seat_id, u.user_id, u.uploaded_at, u.is_canonical,
+    SELECT u.id, u.user_id, u.uploaded_at, u.is_canonical,
            usr.email AS uploader_email, usr.display_name AS uploader_display
     FROM hand_upload u LEFT JOIN user usr ON usr.id = u.user_id
     WHERE u.hand_key = ?
     ORDER BY u.uploaded_at ASC
   `).all(handKey);
+
+  let heroHoleCards = null;
+  try { heroHoleCards = JSON.parse(canonical.hero_hole_cards_json); }
+  catch { heroHoleCards = null; }
 
   return {
     handKey: canonical.hand_key,
@@ -103,16 +156,18 @@ export async function loadHand(handKey) {
     lastTs: canonical.last_ts,
     tableNames: parseNames(canonical.table_names_json),
     framesBlob: canonical.frames_blob,
-    perspectives: perspectives.map((p) => ({
-      seatId: p.seat_id,
-      holeCards: (() => { try { return JSON.parse(p.hole_cards_json); } catch { return null; } })()
-    })),
+    heroSeat: canonical.hero_seat,
+    heroHoleCards,
+    player: {
+      id: canonical.player_id,
+      name: canonical.player_name,
+      casinoUserId: canonical.casino_user_id
+    },
     uploads: uploads.map((u) => ({
       id: u.id,
-      seatId: u.perspective_seat_id,
       uploader: u.uploader_email
         ? (u.uploader_display || u.uploader_email)
-        : null,        // null => anonymous
+        : null,
       uploadedAt: u.uploaded_at,
       isCanonical: !!u.is_canonical
     }))

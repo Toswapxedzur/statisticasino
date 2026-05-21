@@ -1,13 +1,23 @@
-// Upload form action.
+// Upload form action (v2).
 //
-// Accepts multipart/form-data with a `dump` file field. The file is
-// either a `.casinodump` (base64 of gzipped JSON), a raw gzipped JSON
-// container, or a plain JSON container — `decodeContainer` sniffs.
+// Per spec 2026-05-21:
+//
+//   * Anyone (signed-in or anonymous) can upload data through /upload.
+//   * Uploads with no detectable perspective ("generic" — pure
+//     spectator captures) are rejected by ingest. The form surfaces
+//     `summary.rejectedGeneric` so the user sees why nothing landed.
+//
+// `/api/flush` (the Chrome extension's autoflush channel) was always
+// anonymous and stays that way.
 
 import { fail } from "@sveltejs/kit";
 import { decodeContainer, ingestContainer } from "$lib/server/ingest.js";
 
 const MAX_BYTES = 50 * 1024 * 1024;  // 50 MB hard cap on a single upload
+
+export async function load({ locals }) {
+  return { user: locals.user };
+}
 
 export const actions = {
   default: async ({ request, locals }) => {
@@ -34,6 +44,9 @@ export const actions = {
       return fail(400, { error: "Dump does not contain a hands[] array." });
     }
 
+    // Anonymous uploads are allowed — `userId` is null when there's
+    // no logged-in user. The casino-side "playername" tree node
+    // is derived from the dump's userIndex, NOT from this account.
     const summary = await ingestContainer(container, locals.user ? locals.user.id : null);
     return { summary };
   }

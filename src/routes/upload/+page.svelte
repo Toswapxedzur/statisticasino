@@ -7,9 +7,12 @@
   <div class="card-head"><h3>Upload .casinodump</h3></div>
   <p class="muted">
     Drop the file you got from <em>Settings &rarr; Export all</em> in the
-    Chrome extension. We'll merge each hand into the canonical dataset.
-    Finished hands you uploaded from your seat will be marked
-    <span style="color:var(--hero);font-weight:600">red</span> on the replay felt.
+    Chrome extension. Each round gets parented under the casino-side
+    player whose hole cards are visible (the "perspective owner") — so
+    the same round captured from a different perspective by another
+    user becomes its own row, not a merge of yours. Captures with no
+    visible hole cards (pure spectator dumps) are <strong>rejected</strong>
+    as generic.
   </p>
 
   <form
@@ -22,14 +25,8 @@
       <input name="dump" type="file" accept=".casinodump,.json,.gz,application/octet-stream" required />
     </label>
     <button class="btn" type="submit" disabled={submitting}>
-      {submitting ? "Uploading\u2026" : "Upload"}
+      {submitting ? "Uploading…" : "Upload"}
     </button>
-    {#if !data.user}
-      <p class="muted" style="margin-top:8px">
-        Uploading anonymously. <a href="/account/login">Sign in</a> to link
-        these hands to your account (no requirement).
-      </p>
-    {/if}
   </form>
 
   {#if form && form.error}
@@ -40,13 +37,27 @@
       <strong>Done.</strong>
       <ul style="margin:6px 0 0 16px;padding:0;color:var(--muted)">
         <li>Received: {form.summary.received}</li>
-        <li>New canonical hands: {form.summary.canonicalCreated}</li>
-        <li>Perspectives added: {form.summary.perspectivesAdded}</li>
-        <li>Duplicates: {form.summary.duplicates}</li>
+        <li>Accepted (new rounds): {form.summary.accepted}</li>
+        <li>Duplicates (collapsed): {form.summary.duplicates}</li>
+        <li>
+          Rejected as incomplete (no finishHand):
+          <strong>{form.summary.rejectedIncomplete ?? 0}</strong>
+        </li>
+        <li>
+          Rejected as generic (no perspective):
+          <strong>{form.summary.rejectedGeneric}</strong>
+        </li>
         {#if form.summary.errors && form.summary.errors.length}
           <li style="color:var(--danger)">Errors: {form.summary.errors.length}</li>
         {/if}
       </ul>
+      {#if form.summary.rejectedGeneric > 0 && form.summary.accepted === 0}
+        <p style="color:var(--muted);margin-top:8px">
+          Every hand in this dump was captured as a spectator (no
+          visible hole cards). Sit at the table and play a hand to
+          produce a non-generic capture.
+        </p>
+      {/if}
     </div>
   {/if}
 </section>

@@ -7,10 +7,15 @@ export async function load({ locals }) {
   if (!locals.user) throw redirect(303, "/account/login");
 
   const db = await getDb();
+  // v2: `hand_upload.perspective_seat_id` is gone — per-row hero seat
+  // now lives on `hand_canonical.hero_seat`. Pull it from there.
   const myUploads = db.prepare(`
-    SELECT u.id, u.hand_key, u.perspective_seat_id, u.uploaded_at, u.is_canonical,
-           c.table_id, c.first_ts
-    FROM hand_upload u LEFT JOIN hand_canonical c ON c.hand_key = u.hand_key
+    SELECT u.id, u.hand_key, u.uploaded_at, u.is_canonical,
+           c.table_id, c.first_ts, c.hero_seat,
+           p.name AS player_name
+    FROM hand_upload u
+    LEFT JOIN hand_canonical c ON c.hand_key = u.hand_key
+    LEFT JOIN casino_player p ON p.id = c.player_id
     WHERE u.user_id = ?
     ORDER BY u.uploaded_at DESC
     LIMIT 100
@@ -36,15 +41,6 @@ export const actions = {
     await invalidateSession(token);
     clearSessionCookie(cookies);
     throw redirect(303, "/");
-  },
-
-  // Stub: per user spec 2026-05-19 "first implement no one can clean data".
-  // The form exists so we can wire the real action later; for now it just
-  // tells the caller it's disabled. Authenticated callers see a polite
-  // message; anonymous callers shouldn't even see the form.
-  cleanData: async ({ locals }) => {
-    if (!locals.user) return fail(401, { cleanError: "Sign in to manage data." });
-    return fail(501, { cleanError: "Data cleaning is intentionally disabled for now." });
   },
 
   promote: async ({ request, locals }) => {

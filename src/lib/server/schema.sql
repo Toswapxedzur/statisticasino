@@ -1,106 +1,134 @@
--- Statisticasino schema (v1).
+-- Statisticasino schema (v2).
 --
--- Design notes:
+-- v2 changes (2026-05-21, per user spec "different players could still hold
+-- the same table"):
 --
--- * `hand_canonical` is the immutable, first-upload-wins record per
---   `(table_id, hand_id)`. Its `frames_json` is the gzipped JSON envelope
---   from the FIRST upload. Subsequent uploads do NOT overwrite it.
--- * `hand_upload` records every upload regardless of whether it was the
---   first or a duplicate-perspective. Each upload carries its perspective
---   seat id + (when known) its uploader user id, so the rendering layer
---   can pull the full set of red-highlighted seats.
--- * `hand_perspective` is a derived join of (hand_canonical, seat_id) ->
---   the set of uploads that contributed that perspective. Populated by
---   the ingest endpoint as a UNIQUE row per (hand_key, seat_id) so the
---   data page can fetch "all reds for this hand" in O(1) per hand.
--- * Comments live on a hand. Anonymous comments are allowed (user_id NULL)
---   per the user's spec ("everyone can upload comment").
+-- * Removed `hand_perspective` (multi-hero union table).
+-- * `hand_canonical` is now keyed by `(player_name, table_id, hand_id)` —
+--   the same round captured from two different in-game perspectives is
+--   stored as TWO rows under TWO `casino_player` parents, NOT merged.
+-- * Single `hero_seat` / `hero_player_*` columns replace the multi-hero
+--   `redSeats[]` model. Render layer now highlights ONE seat per hand.
+-- * New `casino_player` table is the top-level grouping node for the
+--   /data tree. The "player name" is the in-game screen name extracted
+--   from the dump's `userIndex`, NOT the uploader's site account.
+-- * Uploads with no detectable perspective ("generic") are rejected by
+--   ingest and never produce a row here.
+--
+-- Soft-delete + comment surfaces are unchanged.
+--
+-- The migration runner DROPs every v1 table on its first v2 boot (per
+-- user spec "drop existing 43 rows on migrate"). See migrate.js.
 
 CREATE TABLE IF NOT EXISTS user (
-  id            TEXT PRIMARY KEY,            -- ulid-ish
+  id            TEXT PRIMARY KEY,
   email         TEXT NOT NULL UNIQUE,
-  password_hash TEXT NOT NULL,               -- argon2id (encoded string)
+  password_hash TEXT NOT NULL,
   display_name  TEXT,
   is_admin      INTEGER NOT NULL DEFAULT 0,
-  created_at    INTEGER NOT NULL             -- epoch ms
+  created_at    INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS session (
-  id          TEXT PRIMARY KEY,              -- sha-256 hash of the cookie token
+  id          TEXT PRIMARY KEY,
   user_id     TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
-  expires_at  INTEGER NOT NULL               -- epoch ms
+  expires_at  INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_session_user ON session(user_id);
 
+-- ----------------------------------------------------------------- 
+-- Top-level grouping node for the /data tree. One row per CASINO
+-- screen-name we've ever observed as a perspective owner.
+--
+-- `name` is the casino-side display name; the special sentinel
+-- "User <id>" is used when the dump has a userId for the perspective
+-- seat but no resolvable username (rare).
+-- -----------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS casino_player (
+  id           TEXT PRIMARY KEY,        -- ulid-ish
+  name         TEXT NOT NULL UNIQUE,
+  -- The numeric casino userId, when known. Lets us reconcile if the
+  -- player ever renames themselves on the casino side (a future
+  -- migration could merge two `casino_player` rows by userId).
+  casino_user_id INTEGER,
+  first_seen_ts INTEGER NOT NULL,
+  last_seen_ts  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_casino_player_name ON casino_player(name);
+CREATE INDEX IF NOT EXISTS idx_casino_player_userid ON casino_player(casino_user_id);
+
+-- ----------------------------------------------------------------- 
+-- A round captured from a single perspective. Same `(table_id, hand_id)`
+-- captured from two different perspectives -> two rows here, parented
+-- under two different `casino_player`s.
+--
+-- Composite key is enforced via a UNIQUE index on
+-- (player_id, table_id, hand_id_or_ts) — see below — rather than a
+-- compound PRIMARY KEY because we still want a stable string handle
+-- for URLs (`hand_key`).
+-- -----------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS hand_canonical (
-  hand_key      TEXT PRIMARY KEY,            -- "<tableId>::<handId>" (or "<tableId>::ts-<ts>")
+  hand_key      TEXT PRIMARY KEY,
+  player_id     TEXT NOT NULL REFERENCES casino_player(id) ON DELETE CASCADE,
   table_id      TEXT NOT NULL,
-  hand_id       TEXT,                        -- server-side hand id; null only for the ts-fallback shape
+  hand_id       TEXT,
+  -- Stable secondary identifier for the same hand at the same table:
+  --   handId      when the casino server tagged it (preferred), OR
+  --   "ts-<firstTs>" when there's no server-assigned id.
+  -- Used by ingest's UNIQUE constraint so two re-uploads from the same
+  -- player at the same hand collapse to one row, but two DIFFERENT
+  -- players at the same hand stay separate.
+  hand_dedup_id TEXT NOT NULL,
   first_ts      INTEGER NOT NULL,
   last_ts       INTEGER NOT NULL,
-  table_names_json TEXT,                     -- JSON array of names seen for this table over time
-  frames_blob   BLOB NOT NULL,               -- gzipped JSON of the frames[]; opaque to SQL
-  content_hash  TEXT NOT NULL,               -- sha-256 of the canonical envelope body
-  created_at    INTEGER NOT NULL,            -- when we first ingested it
+  table_names_json TEXT,
+  -- Single hero seat for this row. NOT NULL because we reject generic
+  -- (no-perspective) uploads at ingest, so every stored row has one.
+  hero_seat     INTEGER NOT NULL,
+  hero_hole_cards_json TEXT,
+  frames_blob   BLOB NOT NULL,
+  content_hash  TEXT NOT NULL,
+  created_at    INTEGER NOT NULL,
   first_uploader_user_id TEXT REFERENCES user(id) ON DELETE SET NULL,
-  -- soft-delete: an admin / authed user can mark a canonical hand as
-  -- removed; the row stays for audit but the rendering layer filters it.
   removed_at    INTEGER,
   removed_by_user_id TEXT REFERENCES user(id) ON DELETE SET NULL
 );
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_hand_canonical_player_round
+  ON hand_canonical(player_id, table_id, hand_dedup_id);
 CREATE INDEX IF NOT EXISTS idx_hand_canonical_table ON hand_canonical(table_id, last_ts DESC);
+CREATE INDEX IF NOT EXISTS idx_hand_canonical_player ON hand_canonical(player_id, last_ts DESC);
 CREATE INDEX IF NOT EXISTS idx_hand_canonical_first_ts ON hand_canonical(first_ts);
 
+-- ----------------------------------------------------------------- 
+-- Audit trail of every upload that ever produced or duplicated a row
+-- in `hand_canonical`. Multiple uploads for the same player+round
+-- collapse the canonical row but each one is recorded here so an
+-- admin can see "who has uploaded what".
+-- -----------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS hand_upload (
   id             TEXT PRIMARY KEY,
   hand_key       TEXT NOT NULL REFERENCES hand_canonical(hand_key) ON DELETE CASCADE,
-  -- The seat id this upload was authored from. Null only if perspective
-  -- detection couldn't pin a single seat (e.g. all seats masked, very rare).
-  perspective_seat_id INTEGER,
-  -- Cards revealed for this perspective (the seat's two hole cards as a
-  -- JSON array of strings like ["Ah","Kd"]). Stored separately from
-  -- frames_blob so the canonical envelope stays untouched but the merge
-  -- query can union perspective reveals cheaply.
-  hole_cards_json     TEXT,
-  user_id        TEXT REFERENCES user(id) ON DELETE SET NULL,  -- null = anonymous upload
+  user_id        TEXT REFERENCES user(id) ON DELETE SET NULL,
   uploaded_at    INTEGER NOT NULL,
-  content_hash   TEXT NOT NULL,              -- sha-256 of THIS upload's bytes (for dedup detection)
-  -- Was this the canonical-creating upload? (1 = yes, 0 = it merged into
-  -- an existing canonical record contributing only perspective bytes.)
+  content_hash   TEXT NOT NULL,
   is_canonical   INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_hand_upload_hand ON hand_upload(hand_key);
 CREATE INDEX IF NOT EXISTS idx_hand_upload_user ON hand_upload(user_id);
 
--- Materialised view of perspective owners per hand. Lets the data page
--- pull "list of red seats" with one row-per-perspective without parsing
--- frames_blob at render time. Updated by ingest as a side-effect.
-CREATE TABLE IF NOT EXISTS hand_perspective (
-  hand_key TEXT NOT NULL REFERENCES hand_canonical(hand_key) ON DELETE CASCADE,
-  seat_id  INTEGER NOT NULL,
-  -- ONE row per (hand_key, seat_id) regardless of how many uploads
-  -- contributed that perspective; uploader info lives in hand_upload.
-  hole_cards_json TEXT,
-  first_seen_upload_id TEXT REFERENCES hand_upload(id) ON DELETE SET NULL,
-  PRIMARY KEY (hand_key, seat_id)
-);
-
 CREATE TABLE IF NOT EXISTS comment (
   id         TEXT PRIMARY KEY,
   hand_key   TEXT NOT NULL REFERENCES hand_canonical(hand_key) ON DELETE CASCADE,
-  user_id    TEXT REFERENCES user(id) ON DELETE SET NULL,   -- null = anonymous
-  author_display TEXT,                                       -- frozen at write time
+  user_id    TEXT REFERENCES user(id) ON DELETE SET NULL,
+  author_display TEXT,
   body       TEXT NOT NULL,
   created_at INTEGER NOT NULL,
-  removed_at INTEGER                                          -- soft-delete by admin
+  removed_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_comment_hand ON comment(hand_key, created_at);
 
--- Generic key/value cache. Currently only used to remember which schema
--- version is applied; lets us add migrations later without re-running
--- everything from scratch.
 CREATE TABLE IF NOT EXISTS meta (
   key   TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
-INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '1');
+INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '2');
