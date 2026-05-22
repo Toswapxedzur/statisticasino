@@ -17,6 +17,19 @@
   // logic. Instead we set checked + indeterminate via a $effect
   // that re-runs whenever the prop changes, and we own the click
   // handler ourselves.
+  //
+  // KNOWN QUIRK (2026-05-22): on the clicked checkbox specifically,
+  // some actor between Svelte's flush and the next browser paint
+  // resets `.checked` and `.indeterminate` back to false. The other
+  // tristates on the page (which receive the same `selected` write
+  // but were not the click target) update correctly. We diagnosed
+  // it via DRIFT logs and were unable to identify the culprit
+  // (MutationObserver on attributes did not fire, no node
+  // replacement was observed). The defensive fix is to re-apply
+  // the property writes on the next animation frame — invisible
+  // to the user, costs one rAF + two property assignments per
+  // click. Remove the rAF re-apply if a future Svelte version
+  // makes this unnecessary.
 
   let { triState, title = "", onToggle } = $props();
 
@@ -24,8 +37,16 @@
 
   $effect(() => {
     if (!inputEl) return;
-    inputEl.checked = triState === "all";
-    inputEl.indeterminate = triState === "some";
+    const c = triState === "all";
+    const i = triState === "some";
+    inputEl.checked = c;
+    inputEl.indeterminate = i;
+    // Defensive re-apply on the next frame — see KNOWN QUIRK above.
+    const node = inputEl;
+    requestAnimationFrame(() => {
+      if (node.checked !== c)        node.checked = c;
+      if (node.indeterminate !== i)  node.indeterminate = i;
+    });
   });
 
   function handleClick(ev) {

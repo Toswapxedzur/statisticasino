@@ -106,6 +106,8 @@ cat > content/blog/my-post.md <<'EOF'
 title: "Some investigation"
 date: 2026-06-01
 description: "What I found."
+pinned: false       # set to true to float above other posts
+draft: false        # set to true to hide from non-admins
 ---
 
 Markdown body here.
@@ -113,7 +115,8 @@ EOF
 ```
 
 Refresh the [`/blog`](http://localhost:5173/blog) page; the post appears
-within 60s (file watcher cache).
+within 60s (file watcher cache). Pinned posts sort above non-pinned ones;
+within each bucket, newest first.
 
 ## File layout
 
@@ -164,6 +167,69 @@ node build
 
 The server listens on `PORT` (default 3000). Front it with caddy /
 nginx / your favourite reverse proxy.
+
+### Hosting requirements
+
+This stack has a few non-negotiables that ruled some hosts out:
+
+| Requirement | Why | Hosts that work | Hosts that don't |
+| - | - | - | - |
+| Native Node addons (`better-sqlite3`) | The DB driver is a compiled C++ binding; no V8-only / edge runtimes. | Fly.io, Render, Railway, a plain VPS, Docker on anything | Cloudflare Workers, Vercel Edge Functions, Deno Deploy |
+| Persistent disk | `casino.db` is one file. If the disk vanishes between deploys, every uploaded hand is gone. | Anything with attached block / volume storage | Vercel serverless, "ephemeral container" tiers |
+| Long-lived process | `npm run dev` and `node build` are normal long-lived servers, not request-scoped lambdas. | Same as above | Lambda / serverless without a "background worker" tier |
+| Outbound HTTPS to nothing in particular | The server **doesn't** call out to anything; only the extension calls in. | All | (none) |
+
+Concretely, "a small VPS with a 5 GB attached volume mounted at
+`/var/lib/casino`" is the minimum viable shape. Render or Fly with a
+persistent disk both work and have free tiers that are big enough for
+a school project.
+
+### Volume layout
+
+```
+/var/lib/casino/
+  casino.db          SQLite file (DATABASE_PATH points here)
+  casino.db-wal      auto-managed by sqlite (WAL mode)
+  casino.db-shm      auto-managed by sqlite
+  backups/           if you wire up the backup script below
+```
+
+Make sure the Node process has read+write on the directory, not just
+on `casino.db` — SQLite needs to (re)create the `-wal` / `-shm`
+sidecar files.
+
+### Backups
+
+There is no built-in backup job. For a school-project scale (≤100 MB
+DB, ≤handful of contributors per day), the simplest thing is a cron
+that runs `sqlite3 casino.db ".backup backups/casino-YYYYMMDD.db"`
+nightly and ages out files older than ~14 days. SQLite's `.backup`
+command is online — it does not lock writers — so you can run it
+against the live DB.
+
+If your host (Fly, Render, etc.) offers volume snapshots, just enable
+those and skip the cron — same effect.
+
+### Environment variables
+
+| Var | Default | Notes |
+| - | - | - |
+| `PORT` | `3000` | Bind port for the Node server. |
+| `DATABASE_PATH` | `../local_storage/casino.db` | Absolute path strongly recommended in production. |
+| `ADMIN_EMAIL` | (none) | The first account whose email matches becomes the admin. |
+| `ORIGIN` | (none) | Set to your public origin (e.g. `https://stats.example.org`) so SvelteKit's CSRF check passes for `POST` from the same domain. |
+
+### CORS on `/api/flush`
+
+The extension fetches `FLUSH_ENDPOINT` from a `chrome-extension://...`
+origin. If your reverse proxy is strict about CORS, add the extension
+origin to the allow-list, **or** keep it permissive on `/api/flush`
+specifically since that endpoint is anonymous-write by design.
+
+The endpoint is currently rate-limit-free. For a public release add a
+cap at the proxy layer (e.g. nginx `limit_req`) before announcing the
+URL anywhere — the body cap in the app is generous on purpose so the
+extension can flush large sessions in one go.
 
 ## Migrating to Postgres later
 

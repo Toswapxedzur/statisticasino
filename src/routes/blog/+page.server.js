@@ -10,6 +10,7 @@ export async function load({ locals }) {
       title: p.title,
       description: p.description,
       draft: p.draft,
+      pinned: p.pinned,
       date: p.date
     }))
   };

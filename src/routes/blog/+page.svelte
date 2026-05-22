@@ -13,8 +13,9 @@
   {:else}
     <ul class="blog-list">
       {#each data.posts as p (p.slug)}
-        <li class="blog-card">
+        <li class="blog-card" class:pinned={p.pinned}>
           <a class="blog-title" href={`/blog/${p.slug}`}>{p.title}</a>
+          {#if p.pinned}<span class="pin-tag" title="Pinned to the top">PINNED</span>{/if}
           {#if p.draft}<span class="draft-tag">DRAFT</span>{/if}
           <div class="blog-meta muted">{fmt(p.date)}</div>
           {#if p.description}
@@ -40,4 +41,13 @@
     color: var(--muted);
     border: 1px solid var(--border-strong); padding: 1px 6px; border-radius: 999px;
   }
+  .pin-tag {
+    display: inline-block;
+    margin-left: 8px;
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.4px;
+    color: #b25d00;
+    background: #fff4e5;
+    border: 1px solid #f0c389; padding: 1px 6px; border-radius: 999px;
+  }
+  .blog-card.pinned { background: linear-gradient(0deg, transparent, rgba(255, 244, 229, 0.35)); }
 </style>

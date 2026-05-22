@@ -8,6 +8,7 @@
 //   date: 2026-05-10
 //   slug: bet-sizing
 //   draft: false                                # default false
+//   pinned: false                               # default false
 //   description: "Optional short summary."
 //   ---
 //   # Markdown body...
@@ -15,6 +16,8 @@
 // The slug defaults to the filename without `.md` if not in the front
 // matter. `draft: true` posts are hidden from the index and from
 // individual-post lookups (so they return 404 in production).
+// `pinned: true` posts are sorted above non-pinned posts in the index
+// (still ordered by date desc within each bucket).
 //
 // Caching: we read posts on every request in dev (so live editing
 // works); in production, the file list is cached for 60s. That's fast
@@ -55,6 +58,7 @@ function readOne(file) {
     title: parsed.data.title || slug,
     description: parsed.data.description || "",
     draft: parsed.data.draft === true,
+    pinned: parsed.data.pinned === true,
     date,
     body: parsed.content,
     // `html` is computed lazily by the detail page to avoid parsing
@@ -68,7 +72,11 @@ export function listPosts({ includeDrafts = false } = {}) {
   }
   const posts = listMarkdownFiles()
     .map(readOne)
-    .sort((a, b) => b.date - a.date);
+    .sort((a, b) => {
+      // Pinned posts float to the top; within each bucket, newest first.
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+      return b.date - a.date;
+    });
   _cache = posts;
   _cacheAt = Date.now();
   return includeDrafts ? posts : posts.filter((p) => !p.draft);
