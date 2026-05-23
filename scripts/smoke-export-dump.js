@@ -7,9 +7,10 @@
 //
 //   node scripts/smoke-export-dump.js
 
-import { existsSync, unlinkSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { gunzipSync, gzipSync } from "node:zlib";
+import mysql from "mysql2/promise";
 
 function ok(label, got, want) {
   const sg = JSON.stringify(got);
@@ -19,11 +20,31 @@ function ok(label, got, want) {
   if (!pass) process.exitCode = 1;
 }
 
-const SMOKE_DB = resolve(process.cwd(), "smoke-export-dump.sqlite");
-process.env.DATABASE_PATH = SMOKE_DB;
-if (existsSync(SMOKE_DB)) unlinkSync(SMOKE_DB);
+// Pull MYSQL_* from .env (no .env.example fallback — smoke is dev-only).
+const envPath = resolve(process.cwd(), ".env");
+if (existsSync(envPath)) {
+  for (const line of readFileSync(envPath, "utf8").split("\n")) {
+    const m = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (!m) continue;
+    if (!process.env[m[1]]) process.env[m[1]] = m[2];
+  }
+}
 
-const { ensureMigrated } = await import("../src/lib/server/migrate.js");
+const SMOKE_DB = "statisticasino_smoke";
+const root = await mysql.createConnection({
+  host: process.env.MYSQL_HOST,
+  port: Number(process.env.MYSQL_PORT || 3306),
+  user: process.env.MYSQL_USER,
+  password: process.env.MYSQL_PASSWORD
+});
+await root.query(`DROP DATABASE IF EXISTS \`${SMOKE_DB}\``);
+await root.query(`CREATE DATABASE \`${SMOKE_DB}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
+await root.end();
+process.env.MYSQL_DATABASE = SMOKE_DB;
+delete process.env.ADMIN_EMAIL;
+delete process.env.ADMIN_PASSWORD;
+
+const { ensureMigrated, shutdown } = await import("../src/lib/server/migrate.js");
 const { ingestContainer } = await import("../src/lib/server/ingest.js");
 const { loadHandsForExport } = await import("../src/lib/server/tables.js");
 
@@ -145,5 +166,13 @@ const reSummary = await ingestContainer(container2, null);
 ok("re-ingest duplicates", reSummary.duplicates, 2);
 ok("re-ingest no new", reSummary.accepted, 0);
 
-if (existsSync(SMOKE_DB)) unlinkSync(SMOKE_DB);
+await shutdown();
+const cleanup = await mysql.createConnection({
+  host: process.env.MYSQL_HOST,
+  port: Number(process.env.MYSQL_PORT || 3306),
+  user: process.env.MYSQL_USER,
+  password: process.env.MYSQL_PASSWORD
+});
+await cleanup.query(`DROP DATABASE IF EXISTS \`${SMOKE_DB}\``);
+await cleanup.end();
 console.log("export-dump smokes pass.");

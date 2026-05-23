@@ -22,6 +22,26 @@
 </section>
 
 <section class="card">
+  <div class="card-head"><h3>Change display name</h3></div>
+  <form method="POST" action="?/updateDisplayName">
+    <label class="field">
+      <span>Display name</span>
+      <input
+        name="displayName"
+        type="text"
+        autocomplete="name"
+        maxlength="64"
+        placeholder="Leave blank to clear"
+        value={data.user.displayName ?? ""}
+      />
+    </label>
+    <button class="btn" type="submit">Save</button>
+    {#if form?.displayNameError}<p class="form-error">{form.displayNameError}</p>{/if}
+    {#if form?.displayNameOk}<p class="form-success">Saved.</p>{/if}
+  </form>
+</section>
+
+<section class="card">
   <div class="card-head"><h3>Your uploads ({data.myUploads.length})</h3></div>
   {#if data.myUploads.length === 0}
     <p class="muted">Nothing yet. Try the <a href="/contribute">Contribute</a> page.</p>

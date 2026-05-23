@@ -2,7 +2,6 @@
 title: "Privacy & data handling"
 slug: data-privacy
 date: 2026-05-22
-pinned: true
 description: "Exactly what gets collected, what gets uploaded when you Flush or Export, and what does not."
 ---
 
@@ -99,10 +98,12 @@ Specifically, the following things are never read or sent:
 
 Anyone (signed in or not) can drop a `.casinodump` on the
 [Contribute](/contribute) page. The server splits it into one record
-per `(player, table, hand)` and stores those rows in a SQLite
+per `(player, table, hand)` and stores those rows in a MySQL
 database. Reads on `/data` are public. **Deletes are
-admin-only**, and they're soft — a `removed_at` column is set rather
-than the row being dropped, so the audit trail survives.
+admin-only** and they're hard — the row is removed from
+`hand_canonical` and the per-upload audit rows cascade away. There is
+no undelete; if you want a deleted hand back, the original
+`.casinodump` has to be re-uploaded.
 
 If you want a specific hand removed, message me. If you want
 everything you ever uploaded gone, also message me — there is no
@@ -121,5 +122,4 @@ overwrites the other.
 
 This post lives in `statisticasino/content/blog/data-privacy.md`. If
 something here is wrong or has gone stale, please open an issue or DM
-me; the post is pinned so any update floats to the top of the blog
-index.
+me.

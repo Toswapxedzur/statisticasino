@@ -54,7 +54,7 @@ import { randomBytes, createHash } from "node:crypto";
 import { Buffer } from "node:buffer";
 import { promisify } from "node:util";
 import * as zlib from "node:zlib";
-import { getDb, tx } from "./db.js";
+import { tx } from "./db.js";
 import { resolvePerspectivePlayer } from "./perspective.js";
 
 const gunzip = promisify(zlib.gunzip);
@@ -178,54 +178,18 @@ export async function ingestContainer(container, userId, opts = {}) {
     ? container.userIndex
     : {};
 
-  const db = await getDb();
   const now = Date.now();
 
-  // Prepared statements (cached on the connection).
-  const selPlayerByName = db.prepare(
-    "SELECT id, casino_user_id FROM casino_player WHERE name = ?"
-  );
-  const insPlayer = db.prepare(`
-    INSERT INTO casino_player (id, name, casino_user_id, first_seen_ts, last_seen_ts)
-    VALUES (?, ?, ?, ?, ?)
-  `);
-  const updPlayerSeen = db.prepare(`
-    UPDATE casino_player
-       SET last_seen_ts   = MAX(last_seen_ts, ?),
-           first_seen_ts  = MIN(first_seen_ts, ?),
-           casino_user_id = COALESCE(casino_user_id, ?)
-     WHERE id = ?
-  `);
-  const selCanonicalByDedup = db.prepare(
-    "SELECT hand_key, content_hash FROM hand_canonical "
-    + "WHERE player_id = ? AND table_id = ? AND hand_dedup_id = ?"
-  );
-  const insCanonical = db.prepare(`
-    INSERT INTO hand_canonical
-      (hand_key, player_id, table_id, hand_id, hand_dedup_id,
-       first_ts, last_ts, table_names_json,
-       hero_seat, hero_hole_cards_json,
-       frames_blob, content_hash, created_at, first_uploader_user_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-  const insUpload = db.prepare(`
-    INSERT INTO hand_upload
-      (id, hand_key, user_id, uploaded_at, content_hash, is_canonical)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `);
-
   // Wrap the whole batch in one transaction for speed + atomicity.
-  await tx(() => {
+  // The mysql2 PoolConnection passed to the callback supports
+  // .query(sql, params) which we use exclusively for the duration.
+  await tx(async (conn) => {
     for (const env of container.hands) {
       summary.received++;
       try {
         if (!env.tableId) throw new Error(`hand missing tableId`);
 
         // 1. Reject anything that isn't a fully-finished round.
-        //    `lifecycle` is set extension-side by tableize.js; envelopes
-        //    from an old extension that pre-dates the field default to
-        //    "incomplete" via serialize.js fallback, so we treat
-        //    "missing" as "incomplete" by intent.
         const lifecycle = env.lifecycle || "incomplete";
         if (lifecycle !== "finished") {
           summary.rejectedIncomplete++;
@@ -257,38 +221,58 @@ export async function ingestContainer(container, userId, opts = {}) {
         }
 
         // 3. Find or create the casino_player row that owns this hand.
-        //    The Generic player is just a regular row with a reserved
-        //    name; nothing in the data tree treats it specially other
-        //    than the UI labelling it "Generic".
-        let playerRow = selPlayerByName.get(playerName);
+        const [playerRows] = await conn.query(
+          "SELECT id, casino_user_id FROM casino_player WHERE name = ? LIMIT 1",
+          [playerName]
+        );
+        const playerRow = playerRows[0];
         let playerId;
         if (!playerRow) {
           playerId = newId();
-          insPlayer.run(
-            playerId,
-            playerName,
-            playerCasinoUserId,
-            env.firstTs || now,
-            env.lastTs || now
+          await conn.query(
+            "INSERT INTO casino_player (id, name, casino_user_id, first_seen_ts, last_seen_ts) "
+            + "VALUES (?, ?, ?, ?, ?)",
+            [
+              playerId,
+              playerName,
+              playerCasinoUserId,
+              env.firstTs || now,
+              env.lastTs || now
+            ]
           );
         } else {
           playerId = playerRow.id;
-          updPlayerSeen.run(
-            env.lastTs || now,
-            env.firstTs || now,
-            playerCasinoUserId,
-            playerId
+          await conn.query(
+            "UPDATE casino_player "
+            + "   SET last_seen_ts   = GREATEST(last_seen_ts, ?), "
+            + "       first_seen_ts  = LEAST(first_seen_ts, ?), "
+            + "       casino_user_id = COALESCE(casino_user_id, ?) "
+            + " WHERE id = ?",
+            [
+              env.lastTs || now,
+              env.firstTs || now,
+              playerCasinoUserId,
+              playerId
+            ]
           );
         }
 
-        // 4. Per-player dedup. Same player + same (tableId, handId|ts)
-        //    -> merge into the existing row; otherwise insert a new
-        //    one. Two DIFFERENT players at the same round still get
-        //    two rows because `player_id` is part of the key —
-        //    Generic + RealPlayerA at the same round is two rows by
-        //    construction.
+        // 4. Per-player dedup.
+        // Post v5 (2026-05-22), deletes are hard `DELETE FROM
+        // hand_canonical`, so any row visible here is a live row.
+        // Re-uploads of a hand that was deleted just take the
+        // !existing branch and INSERT cleanly. If you ever revive
+        // soft-delete, this query MUST also filter on whatever
+        // tombstone column you add — the prior bug we fixed was
+        // exactly this query happily matching tombstoned rows and
+        // mis-classifying re-uploads as duplicates.
         const dedupId = handDedupId(env);
-        const existing = selCanonicalByDedup.get(playerId, String(env.tableId), dedupId);
+        const [existingRows] = await conn.query(
+          "SELECT hand_key, content_hash FROM hand_canonical "
+          + "WHERE player_id = ? AND table_id = ? AND hand_dedup_id = ? LIMIT 1",
+          [playerId, String(env.tableId), dedupId]
+        );
+        const existing = existingRows[0];
 
         const uploadHash = envContentHash(env);
         const uploadId = newId();
@@ -300,41 +284,43 @@ export async function ingestContainer(container, userId, opts = {}) {
         let handKey;
         if (!existing) {
           handKey = buildHandKey(playerId, env.tableId, dedupId);
-          insCanonical.run(
-            handKey,
-            playerId,
-            String(env.tableId),
-            env.handId ? String(env.handId) : null,
-            dedupId,
-            env.firstTs || 0,
-            env.lastTs || 0,
-            namesJson,
-            heroSeat,
-            heroHoleCardsJson,
-            gzipFrames(env.frames || []),
-            uploadHash,
-            now,
-            userId || null
+          await conn.query(
+            "INSERT INTO hand_canonical "
+            + "  (hand_key, player_id, table_id, hand_id, hand_dedup_id, "
+            + "   first_ts, last_ts, table_names_json, "
+            + "   hero_seat, hero_hole_cards_json, "
+            + "   frames_blob, content_hash, created_at, first_uploader_user_id) "
+            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+              handKey,
+              playerId,
+              String(env.tableId),
+              env.handId ? String(env.handId) : null,
+              dedupId,
+              env.firstTs || 0,
+              env.lastTs || 0,
+              namesJson,
+              heroSeat,
+              heroHoleCardsJson,
+              gzipFrames(env.frames || []),
+              uploadHash,
+              now,
+              userId || null
+            ]
           );
           isCanonical = 1;
           summary.accepted++;
           if (isGenericRow) summary.acceptedGeneric++;
         } else {
           handKey = existing.hand_key;
-          // Same player re-uploaded the same round. Whether bytes are
-          // identical or drifted, we keep the FIRST canonical bytes
-          // and just record the upload audit.
-          if (existing.content_hash === uploadHash) summary.duplicates++;
-          else summary.duplicates++; // either way: collapsed.
+          summary.duplicates++;
         }
 
-        insUpload.run(
-          uploadId,
-          handKey,
-          userId || null,
-          now,
-          uploadHash,
-          isCanonical
+        await conn.query(
+          "INSERT INTO hand_upload "
+          + "  (id, hand_key, user_id, uploaded_at, content_hash, is_canonical) "
+          + "VALUES (?, ?, ?, ?, ?, ?)",
+          [uploadId, handKey, userId || null, now, uploadHash, isCanonical]
         );
       } catch (e) {
         summary.errors.push(String(e && e.message || e));

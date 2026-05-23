@@ -18,7 +18,7 @@
 //     so the most recent round shows on top — preserves the v1
 //     contract.).
 
-import { getDb } from "./db.js";
+import { query, queryOne } from "./db.js";
 
 function parseNames(jsonStr) {
   if (!jsonStr) return [];
@@ -29,12 +29,7 @@ function parseNames(jsonStr) {
 }
 
 export async function listPlayers() {
-  const db = await getDb();
-
-  // One row per non-removed canonical hand, joined to its player
-  // parent + a couple of cheap counts. Filtering at the SQL layer
-  // keeps the JS-side grouping straightforward.
-  const rows = db.prepare(`
+  const rows = await query(`
     SELECT
       p.id           AS player_id,
       p.name         AS player_name,
@@ -53,9 +48,8 @@ export async function listPlayers() {
       (SELECT COUNT(*) FROM comment cm WHERE cm.hand_key = c.hand_key AND cm.removed_at IS NULL) AS comment_count
     FROM hand_canonical c
     JOIN casino_player p ON p.id = c.player_id
-    WHERE c.removed_at IS NULL
     ORDER BY p.last_seen_ts DESC, c.first_ts ASC
-  `).all();
+  `);
 
   // Group: player -> table -> hands.
   const byPlayer = new Map();
@@ -122,27 +116,28 @@ export async function listPlayers() {
 // Fetch a single hand's bytes (gunzipped JSON frames + hero +
 // uploads) for the inline replay panel.
 export async function loadHand(handKey) {
-  const db = await getDb();
-  const canonical = db.prepare(`
-    SELECT
-      c.hand_key, c.table_id, c.hand_id, c.first_ts, c.last_ts,
-      c.table_names_json, c.frames_blob, c.created_at,
-      c.hero_seat, c.hero_hole_cards_json,
-      c.first_uploader_user_id,
-      p.id AS player_id, p.name AS player_name, p.casino_user_id
-    FROM hand_canonical c
-    JOIN casino_player p ON p.id = c.player_id
-    WHERE c.hand_key = ? AND c.removed_at IS NULL
-  `).get(handKey);
+  const canonical = await queryOne(
+    `SELECT
+       c.hand_key, c.table_id, c.hand_id, c.first_ts, c.last_ts,
+       c.table_names_json, c.frames_blob, c.created_at,
+       c.hero_seat, c.hero_hole_cards_json,
+       c.first_uploader_user_id,
+       p.id AS player_id, p.name AS player_name, p.casino_user_id
+     FROM hand_canonical c
+     JOIN casino_player p ON p.id = c.player_id
+     WHERE c.hand_key = ?`,
+    [handKey]
+  );
   if (!canonical) return null;
 
-  const uploads = db.prepare(`
-    SELECT u.id, u.user_id, u.uploaded_at, u.is_canonical,
-           usr.email AS uploader_email, usr.display_name AS uploader_display
-    FROM hand_upload u LEFT JOIN user usr ON usr.id = u.user_id
-    WHERE u.hand_key = ?
-    ORDER BY u.uploaded_at ASC
-  `).all(handKey);
+  const uploads = await query(
+    `SELECT u.id, u.user_id, u.uploaded_at, u.is_canonical,
+            usr.email AS uploader_email, usr.display_name AS uploader_display
+     FROM hand_upload u LEFT JOIN user usr ON usr.id = u.user_id
+     WHERE u.hand_key = ?
+     ORDER BY u.uploaded_at ASC`,
+    [handKey]
+  );
 
   let heroHoleCards = null;
   try { heroHoleCards = JSON.parse(canonical.hero_hole_cards_json); }
@@ -177,29 +172,30 @@ export async function loadHand(handKey) {
 // Bulk variant of loadHand for the "Export selected" actions on
 // /data. Returns one row per handKey in the same shape as loadHand,
 // but skips per-hand upload rows (the export endpoints don't need
-// them). Removed hands are silently dropped.
+// them). Hand keys with no matching row are silently dropped (e.g. if
+// another tab deleted the row between the form load and the action).
 export async function loadHandsForExport(handKeys) {
   if (!Array.isArray(handKeys) || handKeys.length === 0) return [];
-  const db = await getDb();
 
-  // Chunk the IN-list query — better-sqlite3 prepared statements
-  // have a hard limit on bound parameters (~32k by default but the
-  // SQLite default is 999), so 500 is a safe slice size.
+  // Chunk the IN-list query — MySQL has a max_allowed_packet limit
+  // (default 64 MB on RDS) which is plenty, but keeping each query
+  // smallish helps with memory + lets us reuse the prepared plan.
   const CHUNK = 500;
   const out = [];
   for (let i = 0; i < handKeys.length; i += CHUNK) {
     const slice = handKeys.slice(i, i + CHUNK);
     const placeholders = slice.map(() => "?").join(",");
-    const rows = db.prepare(`
-      SELECT
-        c.hand_key, c.table_id, c.hand_id, c.first_ts, c.last_ts,
-        c.table_names_json, c.frames_blob,
-        c.hero_seat, c.hero_hole_cards_json, c.content_hash,
-        p.id AS player_id, p.name AS player_name, p.casino_user_id
-      FROM hand_canonical c
-      JOIN casino_player p ON p.id = c.player_id
-      WHERE c.hand_key IN (${placeholders}) AND c.removed_at IS NULL
-    `).all(...slice);
+    const rows = await query(
+      `SELECT
+         c.hand_key, c.table_id, c.hand_id, c.first_ts, c.last_ts,
+         c.table_names_json, c.frames_blob,
+         c.hero_seat, c.hero_hole_cards_json, c.content_hash,
+         p.id AS player_id, p.name AS player_name, p.casino_user_id
+       FROM hand_canonical c
+       JOIN casino_player p ON p.id = c.player_id
+       WHERE c.hand_key IN (${placeholders})`,
+      slice
+    );
     for (const r of rows) {
       let heroHoleCards = null;
       try { heroHoleCards = JSON.parse(r.hero_hole_cards_json); }

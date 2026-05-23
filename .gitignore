@@ -9,4 +9,3 @@ build/
 # is rebuilt fresh on every `npm run build`, so checking it in just
 # bloats history with binary churn.
 static/downloads/casino-inspector.zip
-smoke-*.sqlite

@@ -1,6 +1,11 @@
 # Statisticasino
 
 Companion website to the `casinoMalwareExtension` Chrome extension.
+
+> **Already deployed?** See [`DEPLOYMENT.md`](./DEPLOYMENT.md) for the
+> production-specific runbook (Aliyun HK ECS + RDS Shenzhen + Cloudflare,
+> incl. the mainland-China ICP trap that pushed us off cn-shenzhen).
+
 Aggregates poker hand captures uploaded by many users, merges them by
 `(tableId, handId)`, and renders the result with the same look-and-feel
 as the extension.
@@ -13,22 +18,43 @@ Three sections:
 - **Blog** — markdown files under `content/blog/`, rendered as
   investigation write-ups.
 - **Account** — anonymous browsing is allowed; signed-in users have a
-  profile + (if admin) can perform privileged actions. One admin (the
-  first account matching `ADMIN_EMAIL`) can promote others.
+  profile + (if admin) can perform privileged actions. The admin's
+  email + password are **hardcoded** in `auth.js` and checked before
+  the DB lookup at login (see "Auth model" below). The admin can
+  promote ordinary users.
 
-### Auth model (2026-05-20)
+### Auth model (2026-05-22, schema v7)
 
-- Only **admins** can upload via [`/upload`](http://localhost:5173/upload)
-  or delete hands. Non-admins see a denial card on `/upload` and the
-  Data page hides every checkbox + Delete button.
-- Deletes are **soft-deletes**: `hand_canonical.removed_at` /
-  `removed_by_user_id` get stamped, and every read path filters
-  `WHERE removed_at IS NULL`. Reversible by clearing those columns in
-  SQL if you ever want a hand back.
-- The Chrome extension's autoflush channel
-  ([`/api/flush`](http://localhost:5173/api/flush)) remains anonymous
-  so the extension's background service worker can keep posting
-  without managing auth tokens.
+- Signup requires an **email-verification code**. The form has four
+  slots: display name (optional), email, password, and the 6-digit
+  code that was emailed via Gmail SMTP (nodemailer talking to
+  `smtp.gmail.com:465` with an app-scoped password). Once an account
+  exists, no further verification is required on subsequent logins.
+  Codes are stored as sha256 hashes with a 10-minute TTL. See
+  `src/lib/server/email.js` and `email-verification.js`.
+- The **admin account is hardcoded**
+  (`auth.js#HARDCODED_ADMIN_EMAIL` + `HARDCODED_ADMIN_PASSWORD`).
+  The DB carries only a shell row at id `admin-hardcoded` with a
+  NULL `password_hash`, present so foreign-key references resolve;
+  the auth check itself never touches the DB. Rotating the admin
+  password means editing `auth.js` and redeploying.
+- Signed-in users can **change their display name** from the
+  `/account` page. The username is just a label; account identity is
+  the email and is immutable post-signup.
+- Only **admins** can upload via [`/contribute`](http://localhost:5273/contribute)
+  or delete hands. Non-admins see a denial card on `/contribute` and
+  the Data page hides every checkbox + Delete button.
+- Deletes are **hard deletes** (`DELETE FROM hand_canonical`); the
+  per-upload audit rows in `hand_upload` cascade away via the existing
+  FK. There is no undelete — re-upload the original `.casinodump` if
+  you want a round back. (Earlier revisions had a soft-delete with
+  `removed_at` columns, but the dedup path didn't honour them, so
+  re-uploads of a deleted round were silently dropped as duplicates.
+  See `src/lib/server/migrate.js#migrateToV5` for the upgrade.)
+- The Chrome extension's flush channel
+  ([`/api/flush`](http://localhost:5273/api/flush)) is anonymous so
+  the service worker can post without managing auth tokens. Posts are
+  user-initiated (the extension does not auto-upload).
 
 ## Quick start (local-first)
 
@@ -42,22 +68,25 @@ Then:
 
 ```bash
 cd statisticasino
-cp .env.example .env       # adjust if you want
-npm install                # installs better-sqlite3 (native build) + svelte
-npm run migrate            # creates ../local_storage/casino.db
-npm run dev                # http://localhost:5173
+cp .env.example .env       # fill in MYSQL_* and ADMIN_* values
+npm install                # installs mysql2 (pure JS) + svelte
+npm run migrate            # applies schema.sql to the configured DB
+npm run dev                # http://localhost:5273
 ```
 
-The DB file lives at `../local_storage/casino.db` by default — same
-parent folder as the Chrome extension's source tree. Override via
-`DATABASE_PATH` in `.env`.
+The database lives on a **MySQL 8** instance — locally that can be a
+dockerised MySQL or any compatible server; in production we run on
+Aliyun RDS for MySQL. Connection details come from `MYSQL_HOST`,
+`MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE` in
+`.env`. See `.env.example` for the full list.
 
 ## How ingest + the data tree work (v2)
 
-1. The Chrome extension's *Export all* button produces a `.casinodump`
-   (gzipped JSON + base64). Drop that on the [`/upload`](http://localhost:5173/upload) page.
-   **Anyone can upload** (signed-in or anonymous). Pure spectator
-   captures (no visible hole cards) are rejected as *generic*.
+1. The Chrome extension's *Export* button produces a `.casinodump`
+   (gzipped JSON + base64). Drop that on the [`/contribute`](http://localhost:5273/contribute) page.
+   **Only admins can upload.** Pure spectator captures (no visible
+   hole cards) are accepted only from admins, under a synthetic
+   `[Generic]` player node.
 2. For each hand envelope the server detects the **single perspective
    owner** — the seat whose hole cards are real (not `["X","X"]`) in
    the first `dealHoleCards`. The seat's `userId` is resolved against
@@ -85,9 +114,9 @@ parent folder as the Chrome extension's source tree. Override via
 | surface | who | notes |
 | - | - | - |
 | `/upload` | anyone | rejects generic (no-perspective) dumps |
-| `/api/flush` | anyone | extension's autoflush; always anonymous |
-| `/data` listing | anyone | reads always filter `removed_at IS NULL` |
-| Per-round / table / player **delete** | admins only | soft-delete; `hand_canonical.removed_at` + `removed_by_user_id` keep the audit trail |
+| `/api/flush` | anyone | extension's user-initiated Flush now; always anonymous |
+| `/data` listing | anyone | every row in `hand_canonical` is live (no soft-delete tombstones) |
+| Per-round / table / player **delete** | admins only | hard delete; `hand_upload` audit rows cascade away. No undelete — re-upload the dump |
 | Comments (placeholder) | TBD | schema supports anonymous comments |
 
 ### v1 → v2 migration
@@ -114,7 +143,7 @@ Markdown body here.
 EOF
 ```
 
-Refresh the [`/blog`](http://localhost:5173/blog) page; the post appears
+Refresh the [`/blog`](http://localhost:5273/blog) page; the post appears
 within 60s (file watcher cache). Pinned posts sort above non-pinned ones;
 within each bucket, newest first.
 
@@ -124,7 +153,7 @@ within each bucket, newest first.
 statisticasino/
   package.json                  npm manifest
   svelte.config.js              SvelteKit config (node adapter)
-  vite.config.js                Vite (external better-sqlite3)
+  vite.config.js                Vite + dev port 5273
   .env.example                  template; copy to .env
   scripts/migrate.js            standalone schema applier
   content/blog/*.md             blog source-of-truth
@@ -144,9 +173,9 @@ statisticasino/
       upload/                   .casinodump ingest form
       account/                  Sign in / sign up / profile / admin
     lib/server/
-      db.js                     shared better-sqlite3 connection
-      schema.sql                tables: user/session/hand_canonical/...
-      migrate.js                apply schema.sql idempotently
+      db.js                     mysql2 pool + async query/queryOne/execute/tx helpers
+      schema.sql                tables: user/session/hand_canonical/... (MySQL 8 / utf8mb4)
+      migrate.js                apply schema.sql idempotently + auto-provision admin
       auth.js                   scrypt + session tokens + admin promotion
       cookies.js                cookie helpers (session name + serialiser)
       ingest.js                 .casinodump -> hand_canonical merge
@@ -160,85 +189,114 @@ statisticasino/
 `npm run build` produces a Node server in `build/`. Run:
 
 ```bash
-DATABASE_PATH=/var/lib/casino/casino.db \
-ADMIN_EMAIL=you@example.com \
+MYSQL_HOST=rm-XXXX.mysql.cn-shenzhen.rds.aliyuncs.com \
+MYSQL_PORT=3306 \
+MYSQL_USER=root \
+MYSQL_PASSWORD=... \
+MYSQL_DATABASE=statisticasino \
+GMAIL_USER=you@gmail.com \
+GMAIL_APP_PASSWORD='abcd efgh ijkl mnop' \
+ORIGIN=https://stats.example.org \
 node build
 ```
 
+The admin's email + password are baked into `src/lib/server/auth.js`
+(`HARDCODED_ADMIN_*`) — there is no env var for them. If `GMAIL_USER`
+or `GMAIL_APP_PASSWORD` is unset, signup verification falls back to a
+console-log stub so the flow is still testable on a fresh deploy.
+
 The server listens on `PORT` (default 3000). Front it with caddy /
-nginx / your favourite reverse proxy.
+nginx / your favourite reverse proxy and terminate TLS there.
 
 ### Hosting requirements
 
-This stack has a few non-negotiables that ruled some hosts out:
+This stack runs as a normal long-lived Node process talking to a
+remote MySQL server. The constraints are mild:
 
 | Requirement | Why | Hosts that work | Hosts that don't |
 | - | - | - | - |
-| Native Node addons (`better-sqlite3`) | The DB driver is a compiled C++ binding; no V8-only / edge runtimes. | Fly.io, Render, Railway, a plain VPS, Docker on anything | Cloudflare Workers, Vercel Edge Functions, Deno Deploy |
-| Persistent disk | `casino.db` is one file. If the disk vanishes between deploys, every uploaded hand is gone. | Anything with attached block / volume storage | Vercel serverless, "ephemeral container" tiers |
-| Long-lived process | `npm run dev` and `node build` are normal long-lived servers, not request-scoped lambdas. | Same as above | Lambda / serverless without a "background worker" tier |
-| Outbound HTTPS to nothing in particular | The server **doesn't** call out to anything; only the extension calls in. | All | (none) |
+| Long-lived Node process | `node build` is a request-loop server, not a request-scoped lambda. | Aliyun ECS, DigitalOcean droplet, Render, Fly, Railway, Docker on anything | Cloudflare Workers, Vercel Edge Functions |
+| Outbound TCP to MySQL | The app server connects out to RDS:3306. | Anything with outbound networking | Sandboxed function runtimes that block outbound TCP |
+| Reverse proxy with TLS | Browsers + the extension's service worker only do HTTPS. | caddy, nginx, traefik | (none) |
 
-Concretely, "a small VPS with a 5 GB attached volume mounted at
-`/var/lib/casino`" is the minimum viable shape. Render or Fly with a
-persistent disk both work and have free tiers that are big enough for
-a school project.
+For a school project, "a single Aliyun ECS instance in the same region
+as RDS, behind caddy" is the minimum viable shape. Same-region keeps
+DB latency in the single-digit milliseconds.
 
-### Volume layout
+### Database hosting
 
-```
-/var/lib/casino/
-  casino.db          SQLite file (DATABASE_PATH points here)
-  casino.db-wal      auto-managed by sqlite (WAL mode)
-  casino.db-shm      auto-managed by sqlite
-  backups/           if you wire up the backup script below
-```
+We use **Aliyun RDS for MySQL 8** in production. RDS gives us:
 
-Make sure the Node process has read+write on the directory, not just
-on `casino.db` — SQLite needs to (re)create the `-wal` / `-shm`
-sidecar files.
+- Daily snapshots + 7-day point-in-time recovery out of the box, so
+  there's no need for a custom `mysqldump` cron.
+- Storage that grows on demand; a school-project workload sits well
+  under the 20 GB minimum tier.
+- A public endpoint with optional IP whitelisting; the password is the
+  only auth we use today (no IAM tie-in).
 
-### Backups
-
-There is no built-in backup job. For a school-project scale (≤100 MB
-DB, ≤handful of contributors per day), the simplest thing is a cron
-that runs `sqlite3 casino.db ".backup backups/casino-YYYYMMDD.db"`
-nightly and ages out files older than ~14 days. SQLite's `.backup`
-command is online — it does not lock writers — so you can run it
-against the live DB.
-
-If your host (Fly, Render, etc.) offers volume snapshots, just enable
-those and skip the cron — same effect.
+Notes:
+- **TLS is OFF by default on Aliyun RDS** — the instance literally
+  doesn't accept SSL handshakes until you enable it in the console
+  (Data Security → SSL → "Enable SSL"). The app respects `MYSQL_SSL=1`
+  in `.env` once you flip it; until then leave at `0`.
+- **IP allow-list** lives in the RDS console too. Add your dev laptop
+  and your production server's outbound IP. "All IPs" (`0.0.0.0/0`)
+  works but is poor hygiene.
+- **No IAM** in this setup — the password is the only credential.
+  Rotate it from the RDS console if it ever leaks; remember to update
+  `.env` afterwards.
 
 ### Environment variables
 
 | Var | Default | Notes |
 | - | - | - |
 | `PORT` | `3000` | Bind port for the Node server. |
-| `DATABASE_PATH` | `../local_storage/casino.db` | Absolute path strongly recommended in production. |
-| `ADMIN_EMAIL` | (none) | The first account whose email matches becomes the admin. |
-| `ORIGIN` | (none) | Set to your public origin (e.g. `https://stats.example.org`) so SvelteKit's CSRF check passes for `POST` from the same domain. |
+| `MYSQL_HOST` | (required) | RDS endpoint. |
+| `MYSQL_PORT` | `3306` | |
+| `MYSQL_USER` | (required) | RDS root or a dedicated app user. |
+| `MYSQL_PASSWORD` | (required) | |
+| `MYSQL_DATABASE` | `statisticasino` | Created automatically by `npm run migrate` if missing. |
+| `MYSQL_SSL` | `0` | Set to `1` after enabling SSL in the RDS console. |
+| `MYSQL_POOL_LIMIT` | `10` | Max simultaneous connections from the app. |
+| `GMAIL_USER` | (none) | Full Gmail address used as the SMTP login + From: address. Empty -> stub mode (codes log to stdout). |
+| `GMAIL_APP_PASSWORD` | (none) | 16-char app-scoped password from `https://myaccount.google.com/apppasswords`. NOT the regular Gmail password. Spaces are accepted and stripped. |
+| `GMAIL_FROM_NAME` | `Statisticasino` | Display name shown in recipients' inboxes (the `@gmail.com` part is locked to GMAIL_USER). |
+| `ORIGIN` | (none) | Public origin (`https://stats.example.org`) so SvelteKit knows what counts as same-origin. |
 
-### CORS on `/api/flush`
+### CORS / CSRF on `/api/flush`
 
 The extension fetches `FLUSH_ENDPOINT` from a `chrome-extension://...`
-origin. If your reverse proxy is strict about CORS, add the extension
-origin to the allow-list, **or** keep it permissive on `/api/flush`
-specifically since that endpoint is anonymous-write by design.
+origin. SvelteKit's per-request CSRF guard would reject these, so
+`svelte.config.js` sets `csrf.checkOrigin = false`. The endpoint is
+anonymous-write by design (gzipped game capture in, JSON summary
+out — no session cookies are read or written), so this is safe.
 
 The endpoint is currently rate-limit-free. For a public release add a
 cap at the proxy layer (e.g. nginx `limit_req`) before announcing the
-URL anywhere — the body cap in the app is generous on purpose so the
-extension can flush large sessions in one go.
+URL anywhere — the in-app upload cap is 50 MB per request, which is
+generous on purpose so the extension can flush large sessions in one
+go.
 
-## Migrating to Postgres later
+## Local MySQL alternative
 
-The SQL in `src/lib/server/schema.sql` is intentionally vanilla. To
-move to Postgres:
+If you don't want every dev request to round-trip to Aliyun (latency,
+flaky internet, etc.), spin up MySQL in Docker:
 
-1. Replace `better-sqlite3` with `pg` in `db.js`.
-2. Change the BLOB column to `bytea`.
-3. Adjust the `ON CONFLICT` syntax (already Postgres-compatible).
-4. Repoint `DATABASE_PATH` to a connection string.
+```bash
+docker run --name statisticasino-mysql \
+  -e MYSQL_ROOT_PASSWORD=local \
+  -p 3306:3306 \
+  -d mysql:8
+```
 
-No application code needs to change; the queries are all plain SQL.
+then point `.env` at `localhost`:
+
+```
+MYSQL_HOST=localhost
+MYSQL_USER=root
+MYSQL_PASSWORD=local
+MYSQL_DATABASE=statisticasino
+MYSQL_SSL=0
+```
+
+`npm run migrate` works against either, since the schema is the same.

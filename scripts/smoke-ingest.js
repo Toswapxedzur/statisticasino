@@ -22,8 +22,9 @@
 //
 // Run with: node scripts/smoke-ingest.js
 
-import { existsSync, readFileSync, unlinkSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import mysql from "mysql2/promise";
 
 const envPath = resolve(process.cwd(), ".env");
 if (existsSync(envPath)) {
@@ -34,12 +35,25 @@ if (existsSync(envPath)) {
   }
 }
 
-// Use a throwaway DB so the test is hermetic.
-const SMOKE_DB = resolve(process.cwd(), "smoke-ingest.sqlite");
-process.env.DATABASE_PATH = SMOKE_DB;
-if (existsSync(SMOKE_DB)) unlinkSync(SMOKE_DB);
+// Use a hermetic schema name so the test never touches production data.
+// We DROP + CREATE the database before pointing the app at it; the
+// ensureMigrated() call then builds the v4 schema on the fresh DB.
+const SMOKE_DB = "statisticasino_smoke";
+const root = await mysql.createConnection({
+  host: process.env.MYSQL_HOST,
+  port: Number(process.env.MYSQL_PORT || 3306),
+  user: process.env.MYSQL_USER,
+  password: process.env.MYSQL_PASSWORD
+});
+await root.query(`DROP DATABASE IF EXISTS \`${SMOKE_DB}\``);
+await root.query(`CREATE DATABASE \`${SMOKE_DB}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
+await root.end();
+process.env.MYSQL_DATABASE = SMOKE_DB;
+// Don't auto-create the admin user during smokes (env may not have a password set).
+delete process.env.ADMIN_EMAIL;
+delete process.env.ADMIN_PASSWORD;
 
-const { ensureMigrated } = await import("../src/lib/server/migrate.js");
+const { ensureMigrated, shutdown } = await import("../src/lib/server/migrate.js");
 const { ingestContainer } = await import("../src/lib/server/ingest.js");
 const { listPlayers } = await import("../src/lib/server/tables.js");
 
@@ -198,5 +212,14 @@ const genericTable = generic && generic.tables[0];
 const genericH1 = genericTable && genericTable.hands.find((h) => h.handId === "h-1");
 expect("[B] Generic h-1 has null hero",   genericH1 && genericH1.heroSeat, null);
 
-if (existsSync(SMOKE_DB)) unlinkSync(SMOKE_DB);
+await shutdown();
+// Drop the smoke DB on the way out so RDS doesn't accumulate cruft.
+const cleanup = await mysql.createConnection({
+  host: process.env.MYSQL_HOST,
+  port: Number(process.env.MYSQL_PORT || 3306),
+  user: process.env.MYSQL_USER,
+  password: process.env.MYSQL_PASSWORD
+});
+await cleanup.query(`DROP DATABASE IF EXISTS \`${SMOKE_DB}\``);
+await cleanup.end();
 process.exit(pass ? 0 : 1);

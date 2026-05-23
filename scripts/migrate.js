@@ -16,11 +16,9 @@ if (existsSync(envPath)) {
   }
 }
 
-const { getDb } = await import("../src/lib/server/db.js");
-const { ensureMigrated } = await import("../src/lib/server/migrate.js");
+const { ensureMigrated, shutdown } = await import("../src/lib/server/migrate.js");
 
 await ensureMigrated();
 console.log("[statisticasino] migrations applied");
 
-const db = await getDb();
-db.close();
+await shutdown();
