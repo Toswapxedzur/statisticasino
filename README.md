@@ -53,8 +53,10 @@ Three sections:
   See `src/lib/server/migrate.js#migrateToV5` for the upgrade.)
 - The Chrome extension's flush channel
   ([`/api/flush`](http://localhost:5273/api/flush)) is anonymous so
-  the service worker can post without managing auth tokens. Posts are
-  user-initiated (the extension does not auto-upload).
+  the service worker can post without managing auth tokens. Auto-flush
+  is on by default and fires the moment a hand finishes; users can
+  also click "Flush now" in History → Sync, or disable auto-flush
+  entirely in Settings.
 
 ## Quick start (local-first)
 
@@ -114,7 +116,7 @@ Aliyun RDS for MySQL. Connection details come from `MYSQL_HOST`,
 | surface | who | notes |
 | - | - | - |
 | `/upload` | anyone | rejects generic (no-perspective) dumps |
-| `/api/flush` | anyone | extension's user-initiated Flush now; always anonymous |
+| `/api/flush` | anyone | extension's auto-flush + manual "Flush now"; always anonymous |
 | `/data` listing | anyone | every row in `hand_canonical` is live (no soft-delete tombstones) |
 | Per-round / table / player **delete** | admins only | hard delete; `hand_upload` audit rows cascade away. No undelete — re-upload the dump |
 | Comments (placeholder) | TBD | schema supports anonymous comments |

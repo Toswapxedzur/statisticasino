@@ -1,5 +1,37 @@
 // One-shot migration runner (MySQL).
 //
+// v9 (2026-05-27, "Option B: in-band metadata"):
+//   * Adds `casino_table.stakes_tier VARCHAR(16) NULL`.
+//   * For every existing casino_table row, fills the new column from
+//     the big blind via `deriveStakesTierFromBlinds` (BB ≤ 10 → "low"
+//     etc.). The casino we currently support (replaypoker.com) only
+//     ever served us "low" tier tables (1/2, 2/4, 5/10) so the live
+//     migration ends up setting every existing row to "low". The
+//     threshold-based derivation is future-proof for mid/high tier
+//     captures we haven't seen yet.
+//   * Also fills `betting_limit` with "No Limit" for any row that
+//     still has NULL (e.g. the historically-nameless tables that the
+//     v8 backfill couldn't classify). Per the v9 design note,
+//     Replay Poker is NL-only so this is correct for every legacy
+//     row. The COALESCE pattern leaves any explicitly-set non-NULL
+//     value untouched.
+//   * Gated end-to-end on INFORMATION_SCHEMA so re-runs are no-ops.
+//
+// v8 (2026-05-27, "table-level metadata"):
+//   * Introduces `casino_table` (see schema.sql) — one row per
+//     distinct tableId, carrying names, small/big blind, and
+//     betting-limit string.
+//   * Migration `migrateToV8()` (a) ensures `casino_table` exists,
+//     (b) backfills one row per distinct `hand_canonical.table_id`
+//     by parsing the existing `table_names_json` for the betting-
+//     limit suffix and decompressing one `frames_blob` per table for
+//     the numeric blinds, (c) DELETEs any hand whose table couldn't
+//     be backfilled (no `blinds` frame -> no stakes -> would violate
+//     the new NOT NULL on small_blind/big_blind), (d) adds the
+//     `fk_hand_canonical_table` FK, (e) drops the now-redundant
+//     `hand_canonical.table_names_json` column. Gated end-to-end on
+//     INFORMATION_SCHEMA so re-runs and fresh installs are no-ops.
+//
 // v7 (2026-05-22, "email verification + hardcoded admin"):
 //   * `user.password_hash` is now NULLABLE.
 //   * The previous env-driven admin auto-provisioning
@@ -36,8 +68,14 @@
 //
 // Driven by the `meta.schema_version` row.
 
+import { gunzipSync } from "node:zlib";
 import { query, execute, getPool } from "./db.js";
 import { HARDCODED_ADMIN_EMAIL, HARDCODED_ADMIN_USER_ID } from "./auth.js";
+import {
+  extractStakeFromFrames,
+  parseBettingLimitFromNames,
+  deriveStakesTierFromBlinds
+} from "./table-meta.js";
 
 // schema.sql resolution has TWO callers:
 //
@@ -97,11 +135,13 @@ export async function ensureMigrated() {
   // (or similar) to detect "already applied" so re-running is a no-op.
   await migrateToV5();
   await migrateToV7();
+  await migrateToV8();
+  await migrateToV9();
 
   // Stamp the version row (idempotent — schema.sql also INSERT IGNOREs
   // it, but we want to be defensive).
   await execute(
-    "INSERT INTO meta(meta_key, meta_value) VALUES ('schema_version', '7') "
+    "INSERT INTO meta(meta_key, meta_value) VALUES ('schema_version', '9') "
     + "ON DUPLICATE KEY UPDATE meta_value = VALUES(meta_value)"
   );
 
@@ -219,6 +259,186 @@ async function migrateToV7() {
     + " WHERE id = ? OR email = ?",
     [HARDCODED_ADMIN_USER_ID, HARDCODED_ADMIN_EMAIL]
   );
+}
+
+// v7 -> v8 upgrade: lift per-table metadata into a new `casino_table`
+// row and drop the denormalised `hand_canonical.table_names_json`
+// column. See top-of-file comment for the full sequence.
+//
+// Idempotent: every step is INFORMATION_SCHEMA-gated and the backfill
+// uses INSERT ... ON DUPLICATE KEY UPDATE so re-running is safe.
+async function migrateToV8() {
+  // schema.sql (CREATE TABLE IF NOT EXISTS casino_table) has already
+  // run by the time we get here, so the table exists either way.
+  // We still gate the rest of the migration on the legacy column —
+  // its presence is the v7-DB signal.
+  const legacyCol = await query(
+    "SELECT COLUMN_NAME FROM information_schema.COLUMNS "
+    + "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'hand_canonical' "
+    + "  AND COLUMN_NAME = 'table_names_json'"
+  );
+  if (legacyCol.length === 0) return;          // already on v8 (or fresh install)
+
+  // Step 1: for each distinct table_id, gather names + a sample
+  // frames_blob and write one casino_table row.
+  //
+  // We pick the EARLIEST canonical row per table for the sample blob
+  // so the blinds we record correspond to the first observation. Most
+  // cash tables have constant blinds across hands; tournaments would
+  // need a per-hand model, which we don't support today.
+  const aggRows = await query(
+    `SELECT
+       c.table_id                AS table_id,
+       MIN(c.first_ts)           AS first_seen_ts,
+       MAX(c.last_ts)            AS last_seen_ts,
+       (SELECT inner_c.frames_blob
+          FROM hand_canonical inner_c
+          WHERE inner_c.table_id = c.table_id
+          ORDER BY inner_c.first_ts ASC
+          LIMIT 1)                AS sample_blob
+     FROM hand_canonical c
+     GROUP BY c.table_id`
+  );
+
+  // Fetch all observed names per table separately (avoids the
+  // GROUP_CONCAT-with-JSON quoting hazard).
+  const nameRows = await query(
+    `SELECT table_id, table_names_json
+       FROM hand_canonical
+       WHERE table_names_json IS NOT NULL`
+  );
+  const namesByTable = new Map();
+  for (const r of nameRows) {
+    let arr;
+    try { arr = JSON.parse(r.table_names_json); } catch { continue; }
+    if (!Array.isArray(arr)) continue;
+    let bucket = namesByTable.get(r.table_id);
+    if (!bucket) { bucket = []; namesByTable.set(r.table_id, bucket); }
+    for (const n of arr) {
+      if (typeof n === "string" && n && bucket.indexOf(n) === -1) bucket.push(n);
+    }
+  }
+
+  const orphanTableIds = [];
+  for (const t of aggRows) {
+    const names = namesByTable.get(t.table_id) || [];
+    let stake = null;
+    try {
+      if (t.sample_blob) {
+        const frames = JSON.parse(gunzipSync(t.sample_blob).toString("utf8"));
+        stake = extractStakeFromFrames(frames);
+      }
+    } catch {
+      stake = null;
+    }
+    if (!stake) {
+      // No deducible blinds -> can't satisfy the new NOT NULL columns.
+      // Hands at this table get hard-deleted below.
+      orphanTableIds.push(t.table_id);
+      continue;
+    }
+    const bettingLimit = parseBettingLimitFromNames(names);
+    await execute(
+      `INSERT INTO casino_table
+         (id, names_json, small_blind, big_blind, betting_limit,
+          first_seen_ts, last_seen_ts)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         names_json    = VALUES(names_json),
+         small_blind   = VALUES(small_blind),
+         big_blind     = VALUES(big_blind),
+         betting_limit = VALUES(betting_limit),
+         first_seen_ts = LEAST(first_seen_ts, VALUES(first_seen_ts)),
+         last_seen_ts  = GREATEST(last_seen_ts, VALUES(last_seen_ts))`,
+      [
+        t.table_id,
+        names.length ? JSON.stringify(names) : null,
+        stake.smallBlind,
+        stake.bigBlind,
+        bettingLimit,
+        Number(t.first_seen_ts) || Date.now(),
+        Number(t.last_seen_ts) || Date.now()
+      ]
+    );
+  }
+
+  // Step 2: drop hands belonging to orphan tables. There's no row in
+  // casino_table for them, so the FK we're about to add would reject
+  // every one of them. hand_upload children cascade.
+  for (const tid of orphanTableIds) {
+    await execute("DELETE FROM hand_canonical WHERE table_id = ?", [tid]);
+  }
+
+  // Step 3: add the FK if it isn't already there.
+  const fkRows = await query(
+    "SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS "
+    + "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'hand_canonical' "
+    + "  AND CONSTRAINT_NAME = 'fk_hand_canonical_table'"
+  );
+  if (fkRows.length === 0) {
+    await execute(
+      "ALTER TABLE hand_canonical "
+      + "  ADD CONSTRAINT fk_hand_canonical_table FOREIGN KEY (table_id) "
+      + "    REFERENCES casino_table(id) ON DELETE CASCADE"
+    );
+  }
+
+  // Step 4: drop the legacy column.
+  await execute("ALTER TABLE hand_canonical DROP COLUMN table_names_json");
+}
+
+// v8 -> v9 upgrade: stash Option B side-data on `casino_table` and
+// blanket-fill the legacy NL-Hold'em assumption for pre-v9 rows.
+//
+// Idempotent in two layers:
+//   * The ALTER TABLE is gated on INFORMATION_SCHEMA so it only runs
+//     once.
+//   * The UPDATEs use COALESCE so rows that already have a value
+//     (set on first ingest under v9) keep it; only NULL columns get
+//     written.
+async function migrateToV9() {
+  // Step 1: add stakes_tier column if it isn't there yet.
+  const tierCol = await query(
+    "SELECT COLUMN_NAME FROM information_schema.COLUMNS "
+    + "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'casino_table' "
+    + "  AND COLUMN_NAME = 'stakes_tier'"
+  );
+  if (tierCol.length === 0) {
+    await execute(
+      "ALTER TABLE casino_table ADD COLUMN stakes_tier VARCHAR(16) NULL "
+      + "  AFTER betting_limit"
+    );
+  }
+
+  // Step 2: blanket NL Hold'em assumption for legacy rows. The
+  // historically-nameless tables (no `state` snapshot at the time
+  // of capture) have betting_limit = NULL — fill them with the
+  // assumption now that we've decided Replay Poker is NL-only.
+  //
+  // We do NOT touch rows whose betting_limit was already set by the
+  // v8 name-parsing backfill — those values were derived from real
+  // signal and stay authoritative.
+  await execute(
+    "UPDATE casino_table "
+    + "   SET betting_limit = 'No Limit' "
+    + " WHERE betting_limit IS NULL"
+  );
+
+  // Step 3: derive stakes_tier from big_blind for every row that
+  // doesn't have one. The derivation is centralised in
+  // table-meta.js so the live ingest path uses the exact same
+  // thresholds.
+  const rows = await query(
+    "SELECT id, big_blind FROM casino_table WHERE stakes_tier IS NULL"
+  );
+  for (const r of rows) {
+    const tier = deriveStakesTierFromBlinds(r.big_blind);
+    if (!tier) continue;     // shouldn't happen — big_blind is NOT NULL
+    await execute(
+      "UPDATE casino_table SET stakes_tier = ? WHERE id = ?",
+      [tier, r.id]
+    );
+  }
 }
 
 // Test/CLI helper: close the pool so a script that called

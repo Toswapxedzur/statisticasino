@@ -1,4 +1,16 @@
-// Smoke test for the v3 ingest pipeline.
+// Smoke test for the v5 ingest pipeline.
+//
+// v5 (2026-05-27, "Option B"): envelopes now carry in-band
+// `gameVariant` / `stakesTier` / `smallBlind` / `bigBlind` fields
+// (sourced from the WS `state` payload by the extension). The server
+// reads these instead of parsing the lobby-name string. The synthetic
+// envelopes here stamp them directly so the test exercises the
+// Option B path end-to-end. A `blinds` action is still included in
+// the frame slice so the sb/bb fallback path also works.
+//
+// v4 (2026-05-27): adds the game-variant + betting-limit filter and
+// the casino_table upsert.
+//
 //
 // Pass A — non-admin uploader. Builds five synthetic envelopes:
 //
@@ -49,9 +61,6 @@ await root.query(`DROP DATABASE IF EXISTS \`${SMOKE_DB}\``);
 await root.query(`CREATE DATABASE \`${SMOKE_DB}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
 await root.end();
 process.env.MYSQL_DATABASE = SMOKE_DB;
-// Don't auto-create the admin user during smokes (env may not have a password set).
-delete process.env.ADMIN_EMAIL;
-delete process.env.ADMIN_PASSWORD;
 
 const { ensureMigrated, shutdown } = await import("../src/lib/server/migrate.js");
 const { ingestContainer } = await import("../src/lib/server/ingest.js");
@@ -67,6 +76,17 @@ await ensureMigrated();
 //
 // The legacy shape (`dealHoleCards` with `seats[]`) is also accepted
 // by perspective.js as a back-compat path; we exercise BOTH below.
+// A blinds update is required as of v4 — stake extraction (sb/bb)
+// happens at ingest and refuses to write an envelope without one.
+// Seat 3 posts the small blind (1), seat 7 posts the big blind (2).
+const blindsUpdate = () => ({
+  action: "blinds",
+  players: [
+    { seatId: 3, bet: 1, deadBet: 0 },
+    { seatId: 7, bet: 2, deadBet: 0 }
+  ]
+});
+
 const heroFrame = (seatId, cards, handId) => ({
   ts: Date.now(),
   event: "output",
@@ -77,6 +97,7 @@ const heroFrame = (seatId, cards, handId) => ({
         { id: 3, userId: 1001, stack: 1000, state: "playing" },
         { id: 7, userId: 1002, stack: 1000, state: "playing" },
       ] },
+      blindsUpdate(),
       { action: "dealHoleCards", players: [
         { seatId: 3, cards: seatId === 3 ? cards : ["X", "X"] },
         { seatId: 7, cards: seatId === 7 ? cards : ["X", "X"] }
@@ -94,6 +115,7 @@ const genericFrame = (handId) => ({
         { id: 3, userId: 1001 },
         { id: 7, userId: 1002 }
       ] },
+      blindsUpdate(),
       { action: "dealHoleCards", players: [
         { seatId: 3, cards: ["X", "X"] },
         { seatId: 7, cards: ["X", "X"] }
@@ -111,7 +133,14 @@ function envelope({ tableId, handId, hero, cards, generic, ts, lifecycle }) {
     handKey: `${tableId}::${handId}`,
     handId,
     tableId,
+    // v5 (Option B): the extension stamps the bare server-authoritative
+    // name on every envelope, not the decorated lobby string. The
+    // game/stakes/blinds fields come straight off `state.*`.
     tableNames: ["Aquarium 2"],
+    gameVariant: "holdem",
+    stakesTier: "low",
+    smallBlind: 1,
+    bigBlind: 2,
     firstTs: ts,
     lastTs: ts,
     lifecycle: lifecycle || "finished",
@@ -164,6 +193,16 @@ expect("[A] Bob exists",          !!bobA,                                true);
 expect("[A] Alice handCount",     aliceA && aliceA.handCount,            1);
 expect("[A] Bob handCount",       bobA   && bobA.handCount,              1);
 expect("[A] no Generic player",   playersA.some((p) => p.name === "[Generic]"), false);
+
+// v5: per-table metadata is populated from the envelope's in-band
+// state fields (smallBlind / bigBlind / stakesTier / gameVariant)
+// and from the hardcoded NL-Hold'em assumption for betting limit.
+const aliceTable = aliceA && aliceA.tables[0];
+expect("[A] table smallBlind",    aliceTable && aliceTable.smallBlind,   1);
+expect("[A] table bigBlind",      aliceTable && aliceTable.bigBlind,     2);
+expect("[A] table bettingLimit",  aliceTable && aliceTable.bettingLimit, "No Limit");
+expect("[A] table stakesTier",    aliceTable && aliceTable.stakesTier,   "low");
+expect("[A] table names[0]",      aliceTable && aliceTable.names[0],     "Aquarium 2");
 
 // ---------------------- Pass B: admin uploader ----------------------
 //

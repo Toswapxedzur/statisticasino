@@ -4,6 +4,8 @@
  * site reads as a sibling of the extension — same navy background,
  * sky-cyan accent, off-white text, light-blue buttons. */
 
+@import "katex/dist/katex.min.css";
+
 :root {
   --bg: #0d141d;
   --surface: #131c28;

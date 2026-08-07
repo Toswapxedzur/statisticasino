@@ -23,7 +23,9 @@
     "@oslojs/crypto": "^1.0.1",
     "@oslojs/encoding": "^1.1.0",
     "gray-matter": "^4.0.3",
+    "katex": "^0.17.0",
     "marked": "^15.0.7",
+    "marked-katex-extension": "^5.1.9",
     "mysql2": "^3.22.3",
     "nodemailer": "^8.0.7"
   }

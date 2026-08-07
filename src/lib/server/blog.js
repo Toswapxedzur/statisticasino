@@ -28,6 +28,26 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import matter from "gray-matter";
 import { marked } from "marked";
+import markedKatex from "marked-katex-extension";
+
+// Server-side LaTeX rendering for stat-heavy posts. `$..$` becomes
+// inline math and `$$..$$` becomes display math (block-level). The
+// extension calls `katex.renderToString` and substitutes the produced
+// HTML into the marked output, so no client-side JS is required;
+// readers only need the KaTeX CSS shipped via app.css to see the
+// glyphs aligned correctly. `throwOnError: false` keeps a malformed
+// equation from crashing the page render — the offending source is
+// shown in red instead.
+marked.use(markedKatex({
+  throwOnError: false,
+  output: "html",
+  // Permissive `$..$` matching: allow inline math adjacent to parens,
+  // hyphens, em-dashes etc. Statistical prose frequently has things like
+  // `($8.19 \cdot 1.340^2$)` and `$0.20$–$0.35$`, both of which the
+  // standard rule rejects because the surrounding character is not in
+  // the strict delimiter set.
+  nonStandard: true
+}));
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // statisticasino/src/lib/server -> ../../.. -> statisticasino/

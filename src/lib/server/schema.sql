@@ -1,6 +1,46 @@
--- Statisticasino schema (v7 — MySQL).
+-- Statisticasino schema (v9 — MySQL).
 --
--- v7 changes (2026-05-22, "email verification + hardcoded admin"):
+-- v9 changes (2026-05-27, "Option B: in-band table metadata"):
+--   * Naming + variant + stakes-tier are now sourced from the
+--     authoritative Phoenix WebSocket `state` event payload (see
+--     casinoMalwareExtension/DATA_FORMAT.md §4.1) instead of from
+--     `document.title` + url-gating. The state event ships
+--     `{ name, game, stakes, blinds: {small,big}, bring: {min,max},
+--        rakeOptions: {...}, ante }` in-band on every join, so the
+--     server can extract everything it needs from `frames_blob`
+--     directly.
+--   * `casino_table` gains:
+--       - `stakes_tier`    — one of "low"/"mid"/"high" as the casino
+--                            reports it (`state.stakes`). For pre-v9
+--                            rows where no `state` snapshot was kept
+--                            we derive it from the big blind via
+--                            simple thresholds (see migrate.js v9).
+--   * Game variant is still NOT stored: ingest only accepts Hold'em
+--     (we reject on `state.game !== "holdem"`), so the variant is
+--     implicitly "Hold'em" for every row that survives.
+--
+-- v8 retained (2026-05-27, "table-level metadata"):
+--   * New `casino_table` table holds per-table metadata that used to
+--     either live denormalised on every hand or wasn't captured at all:
+--       - `names_json`     — array of observed lobby strings.
+--       - `small_blind`,
+--         `big_blind`      — numeric stakes extracted from the
+--                            `blinds` action's `players[].bet` values.
+--       - `betting_limit`  — one of "No Limit" / "Pot Limit" /
+--                            "Fixed Limit" / "Mixed Limit". On the
+--                            sole casino we currently support
+--                            (replaypoker.com) this is always
+--                            "No Limit" — the WS `state` payload
+--                            carries no limit field but the casino
+--                            only offers NL Hold'em rings.
+--   * `hand_canonical.table_names_json` is dropped; tables.js now joins
+--     `casino_table` to surface names + stakes + limit + tier per
+--     (player, table) branch in /data.
+--   * Migration `migrateToV8()` creates the table, backfills every
+--     existing `(table_id)` group from `hand_canonical.table_names_json`
+--     + the first stored frames_blob, then drops the old column.
+--
+-- v7 retained (2026-05-22, "email verification + hardcoded admin"):
 --   * `user.password_hash` is now NULLABLE. The hardcoded admin row
 --     (id `admin-hardcoded`, email `zhufengyuejohn@gmail.com`) is
 --     inserted by migrate.js with `password_hash = NULL`; the auth
@@ -95,6 +135,49 @@ CREATE TABLE IF NOT EXISTS casino_player (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------------
+-- Per-table metadata. One row per distinct `tableId` ever observed
+-- in `hand_canonical`. The id matches `hand_canonical.table_id`
+-- exactly so a join is a direct PK lookup.
+--
+-- `names_json` is the de-duplicated array of lobby strings we've ever
+-- seen for this table. Under Option B (v9) the source is the
+-- authoritative WS `state.name` field; `document.title` / `pageUrl`
+-- are NOT consulted. Most tables don't rename so the array is
+-- usually length 1.
+--
+-- `small_blind` / `big_blind` are the numeric stakes. Preferred
+-- source: `state.blinds.small` / `state.blinds.big` (v9). Fallback
+-- (legacy frames captured without a `state` event): extracted from
+-- the `blinds` action's `players[].bet` values. They are NOT NULL
+-- because the ingest path refuses to write a casino_table row
+-- without resolvable blinds.
+--
+-- `betting_limit` is one of "No Limit" / "Pot Limit" / "Fixed Limit"
+-- / "Mixed Limit". The WS `state` payload doesn't include this
+-- field, but Replay Poker only offers NL Hold'em rings, so v9
+-- ingest hardcodes "No Limit" for every row. The column stays NULLable
+-- as a future hedge for casinos that DO carry the limit in-band.
+--
+-- `stakes_tier` is "low" / "mid" / "high" as `state.stakes` reports.
+-- For pre-v9 rows where no `state` snapshot was preserved, the
+-- v9 migration derives it from `big_blind` via a simple threshold.
+--
+-- Game variant is not stored — ingest only accepts Hold'em
+-- (`state.game === "holdem"`).
+-- -----------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS casino_table (
+  id             VARCHAR(128) NOT NULL PRIMARY KEY,
+  names_json     TEXT,
+  small_blind    INT NOT NULL,
+  big_blind      INT NOT NULL,
+  betting_limit  VARCHAR(16),
+  stakes_tier    VARCHAR(16),
+  first_seen_ts  BIGINT NOT NULL,
+  last_seen_ts   BIGINT NOT NULL,
+  KEY idx_casino_table_stakes (big_blind, small_blind)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------------------
 -- A round captured from a single perspective. Same `(table_id, hand_id)`
 -- captured from two different perspectives -> two rows here, parented
 -- under two different `casino_player`s.
@@ -107,7 +190,6 @@ CREATE TABLE IF NOT EXISTS hand_canonical (
   hand_dedup_id           VARCHAR(160) NOT NULL,
   first_ts                BIGINT NOT NULL,
   last_ts                 BIGINT NOT NULL,
-  table_names_json        TEXT,
   hero_seat               INT,
   hero_hole_cards_json    VARCHAR(64),
   frames_blob             LONGBLOB NOT NULL,
@@ -120,6 +202,8 @@ CREATE TABLE IF NOT EXISTS hand_canonical (
   KEY idx_hand_canonical_first_ts (first_ts),
   CONSTRAINT fk_hand_canonical_player FOREIGN KEY (player_id)
     REFERENCES casino_player(id) ON DELETE CASCADE,
+  CONSTRAINT fk_hand_canonical_table FOREIGN KEY (table_id)
+    REFERENCES casino_table(id) ON DELETE CASCADE,
   CONSTRAINT fk_hand_canonical_uploader FOREIGN KEY (first_uploader_user_id)
     REFERENCES user(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -182,4 +266,4 @@ CREATE TABLE IF NOT EXISTS meta (
   meta_value VARCHAR(255) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT IGNORE INTO meta(meta_key, meta_value) VALUES ('schema_version', '7');
+INSERT IGNORE INTO meta(meta_key, meta_value) VALUES ('schema_version', '9');

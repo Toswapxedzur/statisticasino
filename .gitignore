@@ -9,3 +9,25 @@ build/
 # is rebuilt fresh on every `npm run build`, so checking it in just
 # bloats history with binary churn.
 static/downloads/casino-inspector.zip
+# build & env artifacts
+build/
+.gradle/
+run/
+run-data/
+runs/
+logs/
+.idea/
+*.iml
+.build/
+DerivedData/
+*.xcuserstate
+.swiftpm/xcode/
+node_modules/
+dist/
+.next/
+.astro/
+target/
+.venv/
+.venv-*/
+__pycache__/
+.DS_Store

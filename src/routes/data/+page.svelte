@@ -29,9 +29,42 @@
   function isGenericPlayer(p) { return p && p.name === GENERIC_NAME; }
   function playerDisplay(p)   { return isGenericPlayer(p) ? "Generic" : p.name; }
 
+  // Render every table the same way regardless of how its name was
+  // sourced: `<Tier> Stakes - <Name> - <SB>/<BB> - <Limit> Holdem`.
+  // The lobby name (from `state.name`, stored on `casino_table.names_json`)
+  // is just the middle slot; stakes/blinds/limit always come from the
+  // structured columns. When no name was ever observed we substitute the
+  // word "Table" so the slot stays present.
+  //
+  // We intentionally do NOT print pre-formatted name strings verbatim:
+  // some legacy rows had the full label baked into `names_json` (a one-
+  // off DB seed for unnamed tables). The scrub in scripts/scrub-table-
+  // names.js strips those back to NULL so this composer is the sole
+  // source of truth for what users see.
   function tableTitle(t) {
-    if (!t.names.length) return "Table";
-    return t.names.slice().reverse().join(" - ");
+    const parts = [];
+    if (t.stakesTier) {
+      const tier = t.stakesTier.charAt(0).toUpperCase() + t.stakesTier.slice(1);
+      parts.push(`${tier} Stakes`);
+    }
+    const name = (t.names && t.names.length)
+      ? t.names.slice().reverse().join(" / ")
+      : "Table";
+    parts.push(name);
+    if (t.smallBlind != null && t.bigBlind != null) {
+      parts.push(`${t.smallBlind}/${t.bigBlind}`);
+    }
+    // Ingest hardcodes "No Limit" for every row today (Replay Poker
+    // is NL-only). Render that as the standard "NL Holdem" suffix so
+    // the variant is visible at a glance.
+    const limit = t.bettingLimit || "No Limit";
+    const limitShort = limit === "No Limit"   ? "NL"
+                     : limit === "Pot Limit"  ? "PL"
+                     : limit === "Fixed Limit"? "FL"
+                     : limit === "Mixed Limit"? "ML"
+                     : limit;
+    parts.push(`${limitShort} Holdem`);
+    return parts.join(" - ");
   }
   function fmtDate(ts) {
     if (!ts) return "";
@@ -156,6 +189,35 @@
       triggerDownload(filename, "application/octet-stream", text);
     } catch (e) {
       actionError = `Export failed: ${e?.message || e}`;
+    } finally {
+      actionBusy = false;
+    }
+  }
+
+  // Server-flattened CSV bundle. Hand-walk happens on the server (no
+  // need to ship the replay engine to the browser context). Returns a
+  // zip the analyst saves locally and unzips into pandas / DuckDB.
+  async function exportSelectedCsv() {
+    if (selected.size === 0 || actionBusy) return;
+    actionBusy = true;
+    actionError = null;
+    try {
+      const res = await fetch("/data/export-csv", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ handKeys: [...selected] })
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(`HTTP ${res.status}: ${txt.slice(0, 240)}`);
+      }
+      const blob = await res.blob();
+      const filename = (res.headers.get("Content-Disposition") || "")
+        .match(/filename="?([^";]+)"?/)?.[1]
+        || `casino-export-${Date.now()}.zip`;
+      triggerDownload(filename, "application/zip", blob);
+    } catch (e) {
+      actionError = `CSV export failed: ${e?.message || e}`;
     } finally {
       actionBusy = false;
     }
@@ -306,6 +368,13 @@
               disabled={nothingSelected || actionBusy}
               onclick={exportSelectedReadable}>
         Export readable
+      </button>
+      <button class="btn btn-secondary"
+              type="button"
+              disabled={nothingSelected || actionBusy}
+              onclick={exportSelectedCsv}
+              title="Bundle of hands.csv / actions.csv / players.csv (zipped)">
+        Export CSV
       </button>
       <button class="btn btn-secondary"
               type="button"

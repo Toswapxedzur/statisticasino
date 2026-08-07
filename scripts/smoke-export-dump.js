@@ -41,8 +41,6 @@ await root.query(`DROP DATABASE IF EXISTS \`${SMOKE_DB}\``);
 await root.query(`CREATE DATABASE \`${SMOKE_DB}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
 await root.end();
 process.env.MYSQL_DATABASE = SMOKE_DB;
-delete process.env.ADMIN_EMAIL;
-delete process.env.ADMIN_PASSWORD;
 
 const { ensureMigrated, shutdown } = await import("../src/lib/server/migrate.js");
 const { ingestContainer } = await import("../src/lib/server/ingest.js");
@@ -50,9 +48,10 @@ const { loadHandsForExport } = await import("../src/lib/server/tables.js");
 
 await ensureMigrated();
 
-// Minimal finished-hand frames: startHand → dealHoleCards →
-// awardPot → finishHand. Hero seat 3, userId 1001 ("Alice" via
-// userIndex). Mirrors smoke-ingest.js, scaled down.
+// Minimal finished-hand frames: startHand → blinds → dealHoleCards →
+// awardPot → finishHand. Hero seat 3 posts the SB (1); seat 7 sits
+// at the table only to receive the BB (2) so stake extraction has a
+// distinct pair. userId 1001 ("Alice" via userIndex).
 function frames(handId) {
   return [{
     ts: 1000,
@@ -61,10 +60,16 @@ function frames(handId) {
       handId,
       updates: [
         { action: "startHand", id: handId, dealerSeat: 1, seats: [
-          { id: 3, userId: 1001, stack: 1000, state: "playing" }
+          { id: 3, userId: 1001, stack: 1000, state: "playing" },
+          { id: 7, userId: 1002, stack: 1000, state: "playing" }
+        ] },
+        { action: "blinds", players: [
+          { seatId: 3, bet: 1, deadBet: 0 },
+          { seatId: 7, bet: 2, deadBet: 0 }
         ] },
         { action: "dealHoleCards", players: [
-          { seatId: 3, cards: ["Ah", "Kd"] }
+          { seatId: 3, cards: ["Ah", "Kd"] },
+          { seatId: 7, cards: ["X", "X"] }
         ] }
       ]
     }
@@ -88,7 +93,11 @@ function envelope(handId, tableId) {
     handKey: `${tableId}::${handId}`,
     handId,
     tableId,
-    tableNames: [`Table ${tableId}`],
+    tableNames: [`Aquarium ${tableId}`],
+    gameVariant: "holdem",
+    stakesTier: "low",
+    smallBlind: 1,
+    bigBlind: 2,
     firstTs: 1000,
     lastTs: 1200,
     lifecycle: "finished",
@@ -155,7 +164,7 @@ ok("decoded handCount", decoded.handCount, 2);
 ok("decoded[0].tableId", decoded.hands[0].tableId, "T1");
 ok("decoded[0].lifecycle", decoded.hands[0].lifecycle, "finished");
 ok("decoded[0] frame count", decoded.hands[0].frames.length, 3);
-ok("decoded[0] tableNames", decoded.hands[0].tableNames, ["Table T1"]);
+ok("decoded[0] tableNames", decoded.hands[0].tableNames, ["Aquarium T1"]);
 // userIndex should carry "1001 → Alice" from the ingested player row
 const reverseLookup = Object.values(decoded.userIndex);
 ok("userIndex has Alice", reverseLookup.includes("Alice"), true);

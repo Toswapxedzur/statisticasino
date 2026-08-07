@@ -68,6 +68,18 @@
           Rejected as generic (no perspective):
           <strong>{form.summary.rejectedGeneric}</strong>
         </li>
+        {#if (form.summary.rejectedVariant ?? 0) > 0}
+          <li>
+            Rejected as non-Hold'em variant:
+            <strong>{form.summary.rejectedVariant}</strong>
+          </li>
+        {/if}
+        {#if (form.summary.rejectedNoStakes ?? 0) > 0}
+          <li>
+            Rejected (couldn't extract blinds):
+            <strong>{form.summary.rejectedNoStakes}</strong>
+          </li>
+        {/if}
         {#if form.summary.errors && form.summary.errors.length}
           <li style="color:var(--danger)">Errors: {form.summary.errors.length}</li>
         {/if}
@@ -110,7 +122,20 @@
         </p>
         {#if data.extensionZip}
           <p>
-            <a class="btn btn-primary" href="/downloads/casino-inspector.zip" download>
+            <!--
+              Cache-bust query string keyed on the zip's mtime.
+              Cloudflare and the user's browser both treat each new
+              build as a new URL, so they re-fetch instead of
+              serving an old cached copy from disk
+              (cache-control on /downloads/ is max-age=14400).
+              The `download` attribute keeps the saved filename as
+              `casino-inspector.zip` regardless of the query string.
+            -->
+            <a
+              class="btn btn-primary"
+              href="/downloads/casino-inspector.zip?v={Math.floor(data.extensionZip.mtime || 0)}"
+              download="casino-inspector.zip"
+            >
               Download casino-inspector.zip
               <span class="muted">({fmtSize(data.extensionZip.sizeBytes)})</span>
             </a>
@@ -187,11 +212,10 @@
             page.</li>
         </ol>
         <p class="muted">
-          Tip for repeat contributors: enable
-          <strong>Auto-flush</strong> in extension Settings and the
-          extension will POST finished hands to <code>/api/flush</code>
-          on a 5-minute schedule, no manual export needed. (Anonymous
-          uploads are accepted there too.)
+          Tip for repeat contributors: <strong>Auto-flush</strong> is
+          on by default in extension Settings, so each hand is POSTed
+          to <code>/api/flush</code> the moment it ends — no manual
+          export needed. (Anonymous uploads are accepted there too.)
         </p>
       </div>
     </li>

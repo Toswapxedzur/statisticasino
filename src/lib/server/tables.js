@@ -1,15 +1,26 @@
 // Read helpers that aggregate canonical hands into the three-level
-// tree the /data page renders (v2):
+// tree the /data page renders (v3):
 //
 //   players: [{
 //     id, name, casinoUserId,
 //     firstTs, lastTs, handCount,
 //     tables: [{
-//       tableId, names[], firstTs, lastTs, handCount,
+//       tableId, names[], smallBlind, bigBlind,
+//       bettingLimit, stakesTier,
+//       firstTs, lastTs, handCount,
 //       hands: [{ handKey, handId, firstTs, lastTs, heroSeat,
 //                 uploadCount, commentCount }, ...]
 //     }, ...]
 //   }, ...]
+//
+// v4 (2026-05-27, Option B): `stakesTier` surfaced from
+// `casino_table.stakes_tier` so the UI can render an informative
+// fallback title for tables we never observed a name for.
+//
+// v3 (2026-05-27): per-table metadata (`names`, `smallBlind`,
+// `bigBlind`, `bettingLimit`) now lives on `casino_table` and is
+// joined in instead of being parsed out of a denormalised JSON
+// column on every hand.
 //
 // Sort order (newest-first by recency at every level):
 //   * Players: descending last_seen_ts.
@@ -31,8 +42,8 @@ function parseNames(jsonStr) {
 export async function listPlayers() {
   const rows = await query(`
     SELECT
-      p.id           AS player_id,
-      p.name         AS player_name,
+      p.id            AS player_id,
+      p.name          AS player_name,
       p.casino_user_id,
       p.first_seen_ts AS player_first_seen_ts,
       p.last_seen_ts  AS player_last_seen_ts,
@@ -42,12 +53,17 @@ export async function listPlayers() {
       c.hand_dedup_id,
       c.first_ts,
       c.last_ts,
-      c.table_names_json,
       c.hero_seat,
+      t.names_json    AS table_names_json,
+      t.small_blind   AS table_small_blind,
+      t.big_blind     AS table_big_blind,
+      t.betting_limit AS table_betting_limit,
+      t.stakes_tier   AS table_stakes_tier,
       (SELECT COUNT(*) FROM hand_upload u WHERE u.hand_key = c.hand_key) AS upload_count,
       (SELECT COUNT(*) FROM comment cm WHERE cm.hand_key = c.hand_key AND cm.removed_at IS NULL) AS comment_count
     FROM hand_canonical c
     JOIN casino_player p ON p.id = c.player_id
+    JOIN casino_table  t ON t.id = c.table_id
     ORDER BY p.last_seen_ts DESC, c.first_ts ASC
   `);
 
@@ -72,15 +88,16 @@ export async function listPlayers() {
     if (!table) {
       table = {
         tableId: r.table_id,
-        names: [],
+        names: parseNames(r.table_names_json),
+        smallBlind: r.table_small_blind,
+        bigBlind: r.table_big_blind,
+        bettingLimit: r.table_betting_limit,
+        stakesTier: r.table_stakes_tier,
         firstTs: r.first_ts,
         lastTs: r.last_ts,
         hands: []
       };
       player.tables.set(r.table_id, table);
-    }
-    for (const n of parseNames(r.table_names_json)) {
-      if (table.names.indexOf(n) === -1) table.names.push(n);
     }
     table.firstTs = Math.min(table.firstTs, r.first_ts);
     table.lastTs = Math.max(table.lastTs, r.last_ts);
@@ -119,12 +136,18 @@ export async function loadHand(handKey) {
   const canonical = await queryOne(
     `SELECT
        c.hand_key, c.table_id, c.hand_id, c.first_ts, c.last_ts,
-       c.table_names_json, c.frames_blob, c.created_at,
+       c.frames_blob, c.created_at,
        c.hero_seat, c.hero_hole_cards_json,
        c.first_uploader_user_id,
-       p.id AS player_id, p.name AS player_name, p.casino_user_id
+       p.id AS player_id, p.name AS player_name, p.casino_user_id,
+       t.names_json    AS table_names_json,
+       t.small_blind   AS table_small_blind,
+       t.big_blind     AS table_big_blind,
+       t.betting_limit AS table_betting_limit,
+       t.stakes_tier   AS table_stakes_tier
      FROM hand_canonical c
      JOIN casino_player p ON p.id = c.player_id
+     JOIN casino_table  t ON t.id = c.table_id
      WHERE c.hand_key = ?`,
     [handKey]
   );
@@ -150,6 +173,10 @@ export async function loadHand(handKey) {
     firstTs: canonical.first_ts,
     lastTs: canonical.last_ts,
     tableNames: parseNames(canonical.table_names_json),
+    tableSmallBlind: canonical.table_small_blind,
+    tableBigBlind: canonical.table_big_blind,
+    tableBettingLimit: canonical.table_betting_limit,
+    tableStakesTier: canonical.table_stakes_tier,
     framesBlob: canonical.frames_blob,
     heroSeat: canonical.hero_seat,
     heroHoleCards,
@@ -188,11 +215,17 @@ export async function loadHandsForExport(handKeys) {
     const rows = await query(
       `SELECT
          c.hand_key, c.table_id, c.hand_id, c.first_ts, c.last_ts,
-         c.table_names_json, c.frames_blob,
+         c.frames_blob,
          c.hero_seat, c.hero_hole_cards_json, c.content_hash,
-         p.id AS player_id, p.name AS player_name, p.casino_user_id
+         p.id AS player_id, p.name AS player_name, p.casino_user_id,
+         t.names_json    AS table_names_json,
+         t.small_blind   AS table_small_blind,
+         t.big_blind     AS table_big_blind,
+         t.betting_limit AS table_betting_limit,
+         t.stakes_tier   AS table_stakes_tier
        FROM hand_canonical c
        JOIN casino_player p ON p.id = c.player_id
+       JOIN casino_table  t ON t.id = c.table_id
        WHERE c.hand_key IN (${placeholders})`,
       slice
     );
@@ -207,6 +240,10 @@ export async function loadHandsForExport(handKeys) {
         firstTs: r.first_ts,
         lastTs: r.last_ts,
         tableNames: parseNames(r.table_names_json),
+        tableSmallBlind: r.table_small_blind,
+        tableBigBlind: r.table_big_blind,
+        tableBettingLimit: r.table_betting_limit,
+        tableStakesTier: r.table_stakes_tier,
         framesBlob: r.frames_blob,
         heroSeat: r.hero_seat,
         heroHoleCards,

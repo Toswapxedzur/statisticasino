@@ -26,6 +26,7 @@
 //   subsequent logins. Hence there is no `email_verified` column.
 
 import { randomBytes, scryptSync, timingSafeEqual, createHash } from "node:crypto";
+import { Buffer } from "node:buffer";
 import { encodeBase32LowerCaseNoPadding, encodeHexLowerCase } from "@oslojs/encoding";
 import { query, queryOne, execute } from "./db.js";
 
@@ -39,6 +40,48 @@ import { query, queryOne, execute } from "./db.js";
 export const HARDCODED_ADMIN_EMAIL = "zhufengyuejohn@gmail.com";
 export const HARDCODED_ADMIN_PASSWORD = "j20100531";
 export const HARDCODED_ADMIN_USER_ID = "admin-hardcoded";
+
+// Separate, scoped credential for the Chrome extension's autoflush and
+// admin .casinodump uploads. Lives ONLY on the server. The extension's
+// Settings UI takes a copy from the operator manually, persists it to
+// chrome.storage.local, and ships it inside the gzipped flush body
+// (NEVER in a header — it would otherwise show up in nginx /
+// Cloudflare access logs). Server-side comparison is timing-safe
+// against this constant.
+//
+// Why a separate token rather than reusing HARDCODED_ADMIN_PASSWORD:
+//
+//   1. A stolen extension copy must NOT compromise the website login.
+//      An attacker with read access to chrome.storage.local on the
+//      operator's machine recovers ONLY this flush credential, not the
+//      login password.
+//
+//   2. The two credentials rotate independently. Lose the extension on
+//      a device? Edit this constant, redeploy; web login is unaffected.
+//
+//   3. Keeps the extension free of the admin's "real" password. Per
+//      operator request: "the extension itself doesn't know the true
+//      password."
+//
+// To rotate: replace the literal below with a new 32-hex-char value
+// (16 random bytes) and ship the new token to the operator over a
+// trusted channel; they paste it into Settings → Admin flush token.
+export const HARDCODED_ADMIN_FLUSH_TOKEN =
+  "e7d2a8f4b9c1056e3f7a8b2c9d1e4f6a";
+
+// Constant-time check: does this candidate match the flush token?
+// Returns one of "accepted" | "invalid" | "absent" so callers can
+// distinguish "you typed the wrong thing" from "you didn't try" in
+// the response summary.
+export function verifyAdminFlushToken(candidate) {
+  if (typeof candidate !== "string" || candidate.length === 0) {
+    return "absent";
+  }
+  const a = Buffer.from(candidate, "utf8");
+  const b = Buffer.from(HARDCODED_ADMIN_FLUSH_TOKEN, "utf8");
+  if (a.length !== b.length) return "invalid";
+  return timingSafeEqual(a, b) ? "accepted" : "invalid";
+}
 
 // Constant-time email + password match for the hardcoded admin.
 // `email` is expected pre-lowercased. Returns true iff both halves

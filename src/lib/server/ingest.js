@@ -1,8 +1,43 @@
-// Hand-envelope ingest (v3).
+// Hand-envelope ingest (v5).
 //
 // Accepts an `ExportContainer` (from the extension's flush / export
 // pipeline — see casinoMalwareExtension/serialize.js) and writes each
 // envelope into the DB.
+//
+// v5 rules (2026-05-27, "Option B: in-band metadata"):
+//
+//   * METADATA SOURCE = WS `state` PAYLOAD, EXTRACTED IN THE
+//     EXTENSION. The Phoenix `state` event arrives in-band when the
+//     extension joins a `table:<id>` socket and carries
+//     `{ name, game, stakes, blinds, ... }` from the server. We
+//     can't read it server-side because the per-hand frame slice
+//     (`startHand .. finishHand`) doesn't include it — the state
+//     event lands BEFORE startHand. So `tableize.js` reads it at
+//     the bucket level and `serialize.js` stamps the result onto
+//     every envelope: `env.tableNames`, `env.gameVariant`,
+//     `env.stakesTier`, `env.smallBlind`, `env.bigBlind`.
+//
+//   * GAME-VARIANT FILTER. `env.gameVariant` must equal "holdem"
+//     (case-insensitive) when present. If it's missing — pre-
+//     Option-B extension, or no `state` snapshot was captured —
+//     we admit on the NL-Hold'em-only assumption that holds for
+//     our one supported casino.
+//
+//   * BLINDS. Preferred source: `env.smallBlind` / `env.bigBlind`
+//     (from `state.blinds`). Fallback: the `blinds` action's
+//     `players[].bet` values extracted from the frame slice (legacy
+//     path, same code as v4). At least one path must succeed or we
+//     reject via `summary.rejectedNoStakes`.
+//
+//   * STAKES TIER. Preferred source: `env.stakesTier` (from
+//     `state.stakes` — "low" / "mid" / "high"). Fallback: derived
+//     from big_blind via `deriveStakesTierFromBlinds`. Stored on
+//     `casino_table.stakes_tier`.
+//
+//   * BETTING LIMIT. Hardcoded "No Limit" — Replay Poker, the sole
+//     casino we support, offers nothing else and the `state` payload
+//     carries no limit field. The column stays NULLable for future
+//     casinos that may signal it in-band.
 //
 // v3 rules (2026-05-21, "admin can upload generic dumps"):
 //
@@ -56,6 +91,10 @@ import { promisify } from "node:util";
 import * as zlib from "node:zlib";
 import { tx } from "./db.js";
 import { resolvePerspectivePlayer } from "./perspective.js";
+import {
+  extractStakeFromFrames,
+  deriveStakesTierFromBlinds
+} from "./table-meta.js";
 
 const gunzip = promisify(zlib.gunzip);
 
@@ -101,6 +140,70 @@ function envContentHash(envelope) {
 // is plain JSON-array bytes when we get here.
 function gzipFrames(frames) {
   return zlib.gzipSync(Buffer.from(JSON.stringify(frames)));
+}
+
+// Replay Poker — the sole casino we support — only offers NL Hold'em
+// rings, and the WS state payload doesn't carry a limit field. Every
+// row we accept gets hardcoded to this until a future casino's state
+// payload gives us a real signal.
+const ASSUMED_BETTING_LIMIT = "No Limit";
+
+// Upsert one casino_table row from the data we just extracted.
+//
+// Names: read-modify-write merge so multiple observed names (the
+// table got renamed mid-life — rare but possible) all accumulate.
+// New observations are appended; we never drop a name we've
+// previously stored.
+//
+// stakes_tier: prefer the authoritative `state.stakes`. Once a row
+// has a tier we keep it (the casino doesn't reclassify tables).
+//
+// betting_limit / small_blind / big_blind: first observation wins;
+// updates are no-ops via `col = col` in ON DUPLICATE KEY UPDATE.
+async function upsertCasinoTable(conn, meta) {
+  const [existingRows] = await conn.query(
+    "SELECT names_json, stakes_tier FROM casino_table WHERE id = ? LIMIT 1",
+    [meta.tableId]
+  );
+  const names = Array.isArray(meta.names) ? meta.names.slice() : [];
+  let stakesTier = meta.stakesTier;
+  if (existingRows.length > 0) {
+    const prev = existingRows[0];
+    try {
+      const prevNames = prev.names_json ? JSON.parse(prev.names_json) : [];
+      if (Array.isArray(prevNames)) {
+        for (const n of prevNames) {
+          if (typeof n === "string" && names.indexOf(n) === -1) names.push(n);
+        }
+      }
+    } catch { /* ignore corrupt prior JSON */ }
+    if (!stakesTier && prev.stakes_tier) stakesTier = prev.stakes_tier;
+  }
+
+  await conn.query(
+    `INSERT INTO casino_table
+       (id, names_json, small_blind, big_blind, betting_limit,
+        stakes_tier, first_seen_ts, last_seen_ts)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       names_json    = VALUES(names_json),
+       small_blind   = small_blind,
+       big_blind     = big_blind,
+       betting_limit = COALESCE(betting_limit, VALUES(betting_limit)),
+       stakes_tier   = COALESCE(stakes_tier,   VALUES(stakes_tier)),
+       first_seen_ts = LEAST(first_seen_ts, VALUES(first_seen_ts)),
+       last_seen_ts  = GREATEST(last_seen_ts, VALUES(last_seen_ts))`,
+    [
+      meta.tableId,
+      names.length ? JSON.stringify(names) : null,
+      meta.smallBlind,
+      meta.bigBlind,
+      ASSUMED_BETTING_LIMIT,
+      stakesTier,
+      meta.firstTs,
+      meta.lastTs
+    ]
+  );
 }
 
 // --------------------------------------------------- decode container
@@ -166,6 +269,8 @@ export async function ingestContainer(container, userId, opts = {}) {
     acceptedGeneric: 0,
     rejectedGeneric: 0,
     rejectedIncomplete: 0,
+    rejectedVariant: 0,
+    rejectedNoStakes: 0,
     duplicates: 0,
     errors: []
   };
@@ -196,6 +301,58 @@ export async function ingestContainer(container, userId, opts = {}) {
           continue;
         }
 
+        // 1b. Game-variant filter. The extension (tableize.js, post-
+        //     Option-B) stamps `gameVariant` from `state.game` onto
+        //     every envelope. If it's present and isn't holdem,
+        //     reject. Missing field => pre-Option-B extension or no
+        //     state snapshot captured => admit on the
+        //     casino-supports-only-holdem assumption.
+        const envVariant = typeof env.gameVariant === "string"
+          ? env.gameVariant.toLowerCase()
+          : null;
+        if (envVariant && envVariant !== "holdem") {
+          summary.rejectedVariant++;
+          continue;
+        }
+
+        // 1c. Resolve blinds. Envelope fields are authoritative
+        //     (from `state.blinds`); fall back to the `blinds`
+        //     action in the frame slice so legacy / state-less
+        //     captures still get sb/bb. Reject if neither produces
+        //     a usable pair — casino_table NOT NULLs.
+        let smallBlind = Number(env.smallBlind) || null;
+        let bigBlind   = Number(env.bigBlind)   || null;
+        if (!smallBlind || !bigBlind) {
+          const stake = extractStakeFromFrames(env.frames || []);
+          if (stake) {
+            smallBlind = stake.smallBlind;
+            bigBlind   = stake.bigBlind;
+          }
+        }
+        if (!smallBlind || !bigBlind) {
+          summary.rejectedNoStakes++;
+          continue;
+        }
+
+        // 1d. Stakes tier. Prefer `env.stakesTier` (from
+        //     `state.stakes`); fall back to the big-blind threshold
+        //     so legacy / state-less captures still get a
+        //     classification.
+        const stakesTier =
+          (typeof env.stakesTier === "string" && env.stakesTier.length > 0
+            ? env.stakesTier.toLowerCase()
+            : null)
+          || deriveStakesTierFromBlinds(bigBlind);
+
+        // 1e. Names list. The extension's `tableNames` is now sourced
+        //     from `state.name` (Option B); legacy values may have
+        //     come from `document.title` and are accepted as-is.
+        const names = Array.isArray(env.tableNames)
+          ? env.tableNames.filter((n) => typeof n === "string" && n.length > 0)
+          : (typeof env.tableName === "string" && env.tableName.length > 0
+              ? [env.tableName]
+              : []);
+
         // 2. Resolve the perspective. Three outcomes:
         //    a) `persp` is a real player -> ingest under that player.
         //    b) `persp` is null AND uploader is admin -> ingest under
@@ -221,11 +378,39 @@ export async function ingestContainer(container, userId, opts = {}) {
         }
 
         // 3. Find or create the casino_player row that owns this hand.
-        const [playerRows] = await conn.query(
-          "SELECT id, casino_user_id FROM casino_player WHERE name = ? LIMIT 1",
-          [playerName]
-        );
-        const playerRow = playerRows[0];
+        //
+        //    Lookup precedence (post-2026-05-28 fix for the dup-rows
+        //    bug described in chat):
+        //      1. casino_user_id, when the perspective resolver gave us
+        //         one. This is the stable casino-side identity and is
+        //         the same regardless of whether the username happened
+        //         to be in the flush-time userIndex.
+        //      2. name, otherwise. Used for rows with no resolvable
+        //         userId (the "Seat N @ tableId" branch of
+        //         resolvePerspectivePlayer) and for the synthetic
+        //         [Generic] bucket.
+        //
+        //    Without #1 the ingest would happily create a duplicate
+        //    casino_player row every time the userIndex was stale —
+        //    one named "RealName" from the first hot capture, one
+        //    named "User <N>" from later stale captures, even though
+        //    both rows share the same casino_user_id.
+        let playerRow = null;
+        if (playerCasinoUserId != null) {
+          const [byId] = await conn.query(
+            "SELECT id, name, casino_user_id FROM casino_player WHERE casino_user_id = ? LIMIT 1",
+            [playerCasinoUserId]
+          );
+          playerRow = byId[0] || null;
+        }
+        if (!playerRow) {
+          const [byName] = await conn.query(
+            "SELECT id, name, casino_user_id FROM casino_player WHERE name = ? LIMIT 1",
+            [playerName]
+          );
+          playerRow = byName[0] || null;
+        }
+
         let playerId;
         if (!playerRow) {
           playerId = newId();
@@ -242,6 +427,30 @@ export async function ingestContainer(container, userId, opts = {}) {
           );
         } else {
           playerId = playerRow.id;
+
+          // Auto-promote synthetic names ("User 1234", "Seat 3 @ ...")
+          // to the incoming real name when ingest finds a *better*
+          // candidate. "Better" = the new name is not itself synthetic.
+          // Wrapped in try/catch so a UNIQUE-name collision (some
+          // other row already holds the real name) silently leaves
+          // the synthetic name in place — the manual rename script
+          // can clean those up.
+          const synthetic = /^(?:User [0-9]+|Seat [0-9]+ @ .+)$/;
+          const incomingIsSynthetic = synthetic.test(playerName);
+          const existingIsSynthetic = synthetic.test(playerRow.name);
+          if (existingIsSynthetic && !incomingIsSynthetic
+              && playerName !== playerRow.name) {
+            try {
+              await conn.query(
+                "UPDATE casino_player SET name = ? WHERE id = ?",
+                [playerName, playerId]
+              );
+            } catch (_e) {
+              /* unique-key conflict: another row already owns this
+                 name; leave the synthetic in place. */
+            }
+          }
+
           await conn.query(
             "UPDATE casino_player "
             + "   SET last_seen_ts   = GREATEST(last_seen_ts, ?), "
@@ -276,9 +485,22 @@ export async function ingestContainer(container, userId, opts = {}) {
 
         const uploadHash = envContentHash(env);
         const uploadId = newId();
-        const namesJson = env.tableNames
-          ? JSON.stringify(env.tableNames)
-          : (env.tableName ? JSON.stringify([env.tableName]) : null);
+
+        // 4b. Upsert the parent casino_table row. We do this for
+        //     duplicates too so a renamed table's names_json grows
+        //     monotonically. JSON_MERGE_PRESERVE would be cleaner
+        //     but every server we target is MySQL 8 with default
+        //     behaviour, and a read-modify-write loop is fine at
+        //     ingest cadence.
+        await upsertCasinoTable(conn, {
+          tableId: String(env.tableId),
+          names,
+          smallBlind,
+          bigBlind,
+          stakesTier,
+          firstTs: env.firstTs || now,
+          lastTs: env.lastTs || now
+        });
 
         let isCanonical = 0;
         let handKey;
@@ -287,10 +509,10 @@ export async function ingestContainer(container, userId, opts = {}) {
           await conn.query(
             "INSERT INTO hand_canonical "
             + "  (hand_key, player_id, table_id, hand_id, hand_dedup_id, "
-            + "   first_ts, last_ts, table_names_json, "
+            + "   first_ts, last_ts, "
             + "   hero_seat, hero_hole_cards_json, "
             + "   frames_blob, content_hash, created_at, first_uploader_user_id) "
-            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
               handKey,
               playerId,
@@ -299,7 +521,6 @@ export async function ingestContainer(container, userId, opts = {}) {
               dedupId,
               env.firstTs || 0,
               env.lastTs || 0,
-              namesJson,
               heroSeat,
               heroHoleCardsJson,
               gzipFrames(env.frames || []),

@@ -38,4 +38,42 @@
     margin: 12px 0; padding: 4px 12px;
     color: var(--muted);
   }
+
+  /* Markdown tables (used for contingency tables, summary tables, etc.) */
+  .post-body :global(table) {
+    border-collapse: collapse;
+    margin: 14px 0;
+    font-size: 13.5px;
+    overflow-x: auto;
+    display: block;
+    max-width: 100%;
+  }
+  .post-body :global(thead) {
+    background: var(--surface);
+  }
+  .post-body :global(th), .post-body :global(td) {
+    border: 1px solid var(--border);
+    padding: 6px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+  .post-body :global(tbody tr:nth-child(even)) {
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  /* KaTeX math: inherit the post text color (KaTeX defaults to black) and
+     fit the rendered glyphs into our line-height without disrupting prose. */
+  .post-body :global(.katex) {
+    color: var(--text);
+    font-size: 1.02em;
+  }
+  .post-body :global(.katex-display) {
+    margin: 14px 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 4px 0;
+  }
+  .post-body :global(.katex-display > .katex) {
+    white-space: nowrap;
+  }
 </style>

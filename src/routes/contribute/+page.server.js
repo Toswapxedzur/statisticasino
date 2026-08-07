@@ -22,22 +22,32 @@ import { fail } from "@sveltejs/kit";
 import { existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { decodeContainer, ingestContainer } from "$lib/server/ingest.js";
+import { verifyAdminFlushToken } from "$lib/server/auth.js";
 
 const MAX_BYTES = 50 * 1024 * 1024;  // 50 MB hard cap on a single upload
 
-// Resolved at module-load time; SvelteKit re-imports the route on
-// every dev-server change anyway, so the cached value stays fresh.
-const ZIP_REL_PATH = "static/downloads/casino-inspector.zip";
+// In production (adapter-node) the file is served from
+// `build/client/downloads/`; in `npm run dev` it's served from
+// `static/downloads/`. We stat whichever exists so the cache-busting
+// query param in the rendered link matches the bytes the client
+// will actually download.
+const ZIP_REL_CANDIDATES = [
+  "build/client/downloads/casino-inspector.zip",
+  "static/downloads/casino-inspector.zip"
+];
 
 function readZipMeta() {
-  const abs = resolve(process.cwd(), ZIP_REL_PATH);
-  if (!existsSync(abs)) return null;
-  try {
-    const s = statSync(abs);
-    return { sizeBytes: s.size, mtime: s.mtimeMs };
-  } catch {
-    return null;
+  for (const rel of ZIP_REL_CANDIDATES) {
+    const abs = resolve(process.cwd(), rel);
+    if (!existsSync(abs)) continue;
+    try {
+      const s = statSync(abs);
+      return { sizeBytes: s.size, mtime: s.mtimeMs };
+    } catch {
+      // fall through to next candidate
+    }
   }
+  return null;
 }
 
 export async function load({ locals }) {
@@ -76,15 +86,27 @@ export const actions = {
     // no logged-in user. The casino-side "playername" tree node
     // is derived from the dump's userIndex, NOT from this account.
     //
-    // Admins additionally get permission to ingest generic captures
-    // (no perspective). isAdmin is read from the (server-authoritative)
-    // session so a non-admin can't fake the privilege from the client.
-    const isAdmin = !!(locals.user && locals.user.isAdmin);
+    // Admins get permission to ingest generic captures (no
+    // perspective). Two ways to assert admin here:
+    //   a) Signed-in admin (cookie): server-authoritative
+    //      `locals.user.isAdmin`, can't be faked client-side.
+    //   b) Embedded flush token: when the extension exports a
+    //      .casinodump it bakes in `container.adminToken`. The
+    //      operator can re-upload the same file via this form
+    //      without signing in and still get generic privileges.
+    //      Comparison is timing-safe against the server's
+    //      HARDCODED_ADMIN_FLUSH_TOKEN.
+    const cookieAdmin = !!(locals.user && locals.user.isAdmin);
+    const tokenAuth = verifyAdminFlushToken(container.adminToken);
+    const isAdmin = cookieAdmin || tokenAuth === "accepted";
+    if ("adminToken" in container) delete container.adminToken;
+
     const summary = await ingestContainer(
       container,
       locals.user ? locals.user.id : null,
       { isAdmin }
     );
+    summary.adminAuth = cookieAdmin ? "accepted" : tokenAuth;
     return { summary };
   }
 };

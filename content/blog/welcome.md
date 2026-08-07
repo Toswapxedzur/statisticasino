@@ -23,7 +23,7 @@ Let’s be completely transparent: this database is also designed to provide an 
 ### Zero Drawbacks to Participation
 There is absolutely no downside to running the extension, recording the data, and holding it. The `casinoMalwareExtension` is strictly read-only. It passively listens to HTTP and WebSocket traffic in the background and stores the grouped tables directly into your browser's `chrome.storage.local`. 
 
-Network egress is entirely user-initiated—nothing leaves your machine until you explicitly click "Export" or "Flush now." It requires negligible computing overhead, interferes with zero gameplay mechanics, and costs nothing to run, yet it yields a massive analytical payoff for the collective database.
+Network egress is opt-in and visible: the extension only POSTs to `/api/flush` when Auto-flush is enabled (it ships on by default for repeat contributors, but a single click in Settings disables it), and Auto-delete-after-flush is opt-in. You can also stick to manual "Export" / "Flush now" and never have the extension speak to the network on its own. It requires negligible computing overhead, interferes with zero gameplay mechanics, and costs nothing to run, yet it yields a massive analytical payoff for the collective database.
 
 ## The Blog: Where Investigations Live
 
