@@ -103,7 +103,15 @@ CREATE TABLE IF NOT EXISTS user (
   password_hash VARCHAR(255),
   display_name  VARCHAR(128),
   is_admin      TINYINT(1) NOT NULL DEFAULT 0,
-  created_at    BIGINT NOT NULL
+  created_at    BIGINT NOT NULL,
+  -- v10 (poker room): the single-currency "chips" wallet balance. Every
+  -- change to this column is mirrored by a row in `chip_ledger`. On
+  -- existing DBs these columns are added by migrateToV10 (ALTER); on a
+  -- fresh install they come from this CREATE.
+  chips              BIGINT NOT NULL DEFAULT 0,
+  -- ms-epoch of the last daily-bonus grant, NULL if never. Used to gate
+  -- the once-per-day login bonus.
+  last_daily_bonus_at BIGINT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS session (
@@ -261,9 +269,150 @@ CREATE TABLE IF NOT EXISTS email_verification (
   KEY idx_ev_email (email, expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- =================================================================
+-- v10 (2026-08-16, "poker room"): the site becomes a real-time
+-- multiplayer Texas Hold'em room. These tables are wholly independent
+-- of the casino-capture / stats side (user/session/casino_*/hand_*),
+-- which keeps working untouched.
+-- =================================================================
+
+-- -----------------------------------------------------------------
+-- Append-only audit of every chips movement. The authoritative
+-- balance is `user.chips`; this table is the "why" behind each change
+-- and never rewritten. `delta` is signed (+credit / -debit),
+-- `balance_after` is the wallet balance immediately after applying it
+-- (so a full statement can be reconstructed without replaying joins).
+-- `reason` is a short enum-like tag; `ref` optionally points at the
+-- table / hand / admin that caused the movement.
+-- -----------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS chip_ledger (
+  id             VARCHAR(64) NOT NULL PRIMARY KEY,
+  user_id        VARCHAR(64) NOT NULL,
+  delta          BIGINT NOT NULL,
+  balance_after  BIGINT NOT NULL,
+  reason         VARCHAR(32) NOT NULL,
+  ref            VARCHAR(128),
+  created_at     BIGINT NOT NULL,
+  -- v13: optional idempotency key for money operations that must be
+  -- exactly-once even if the COMMIT acknowledgement is lost (buy-in / rebuy).
+  -- The UNIQUE index makes a duplicate apply of the same logical operation
+  -- fail; the caller resolves by looking the key up. NULL for ops that don't
+  -- need it (grants, bonuses, cash-outs — those are idempotent by other means).
+  -- Many NULLs are allowed (NULL != NULL in a MySQL unique index).
+  op_key         VARCHAR(64),
+  KEY idx_chip_ledger_user (user_id, created_at),
+  UNIQUE KEY uq_chip_ledger_op_key (op_key),
+  CONSTRAINT fk_chip_ledger_user FOREIGN KEY (user_id)
+    REFERENCES user(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------------------
+-- A live game table shown in the lobby. This is OUR table config —
+-- distinct from `casino_table`, which holds metadata about scraped
+-- external casino.org tables. Blinds are in chips; buy-in bounds gate
+-- how much stack a player may bring. `is_active` hides a table from
+-- the lobby without deleting its hand history.
+-- -----------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS poker_table (
+  id           VARCHAR(64)  NOT NULL PRIMARY KEY,
+  name         VARCHAR(128) NOT NULL,
+  variant      VARCHAR(32)  NOT NULL DEFAULT 'holdem',
+  max_seats    INT NOT NULL DEFAULT 9,
+  small_blind  INT NOT NULL,
+  big_blind    INT NOT NULL,
+  min_buyin    INT NOT NULL,
+  max_buyin    INT NOT NULL,
+  is_active    TINYINT(1) NOT NULL DEFAULT 1,
+  sort_order   INT NOT NULL DEFAULT 0,
+  created_at   BIGINT NOT NULL,
+  -- v11 (PlayOK-style lobby): tables are player-created and ephemeral.
+  -- `created_by` is the user who made it (NULL for legacy/house rows);
+  -- `is_ephemeral` marks a player-made table; `closed_at` is set when the
+  -- table empties and its live instance is torn down. The ROW is kept
+  -- (poker_hand FKs to it) but the lobby only lists tables that have a
+  -- live in-memory instance, so closed rows never reappear.
+  created_by   VARCHAR(64),
+  is_ephemeral TINYINT(1) NOT NULL DEFAULT 0,
+  closed_at    BIGINT,
+  KEY idx_poker_table_active (is_active, sort_order),
+  CONSTRAINT fk_poker_table_creator FOREIGN KEY (created_by)
+    REFERENCES user(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------------------
+-- One row per COMPLETED hand played at one of our tables. `state_json`
+-- is the full serialized final engine HandState (board, hole cards,
+-- pots, payouts) so a hand can be replayed later. `hand_no` is a
+-- per-table monotonically increasing counter.
+-- -----------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS poker_hand (
+  id           VARCHAR(64) NOT NULL PRIMARY KEY,
+  table_id     VARCHAR(64) NOT NULL,
+  hand_no      BIGINT NOT NULL,
+  button_seat  INT,
+  board_json   VARCHAR(64),
+  pot_total    BIGINT NOT NULL DEFAULT 0,
+  started_at   BIGINT NOT NULL,
+  ended_at     BIGINT NOT NULL,
+  state_json   MEDIUMTEXT,
+  KEY idx_poker_hand_table (table_id, ended_at),
+  CONSTRAINT fk_poker_hand_table FOREIGN KEY (table_id)
+    REFERENCES poker_table(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------------------
+-- Per-seat outcome of a completed hand: which site account sat there,
+-- their hole cards, and net chips won/lost. Drives per-player hand
+-- history and accounting. `user_id` is SET NULL if the account is
+-- later deleted so the hand row survives.
+-- -----------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS poker_hand_player (
+  id          VARCHAR(64) NOT NULL PRIMARY KEY,
+  hand_id     VARCHAR(64) NOT NULL,
+  user_id     VARCHAR(64),
+  seat        INT NOT NULL,
+  display_name VARCHAR(128),
+  hole_cards  VARCHAR(8),
+  net         BIGINT NOT NULL DEFAULT 0,
+  KEY idx_php_hand (hand_id),
+  KEY idx_php_user (user_id, hand_id),
+  CONSTRAINT fk_php_hand FOREIGN KEY (hand_id)
+    REFERENCES poker_hand(id) ON DELETE CASCADE,
+  CONSTRAINT fk_php_user FOREIGN KEY (user_id)
+    REFERENCES user(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------------------
+-- v12: crash-safe escrow. Chips leave the wallet when a player sits and
+-- live as an in-memory seat stack; this table mirrors that "in play"
+-- amount durably so a hard crash can't destroy chips. One row per seated
+-- player (a seat holds at most one). The invariant is wallet + escrow =
+-- constant at every committed state: the escrow upsert/delete is written
+-- in the SAME transaction as the wallet debit/credit (see bank.js). On
+-- boot, reconcileEscrowOnBoot() refunds every row to its wallet and
+-- clears the table (ephemeral tables are not rebuilt).
+-- -----------------------------------------------------------------
+-- FKs are ON DELETE RESTRICT (not CASCADE): escrow is chip custody, so a user
+-- or table row must NOT be deletable while it still backs a live seat stack —
+-- a cascade would silently destroy chips that the in-memory LiveTable is still
+-- holding. Deleting an account/table must settle or forfeit its escrow first.
+CREATE TABLE IF NOT EXISTS poker_escrow (
+  table_id    VARCHAR(64) NOT NULL,
+  seat_no     INT         NOT NULL,
+  user_id     VARCHAR(64) NOT NULL,
+  stack       BIGINT      NOT NULL,
+  updated_at  BIGINT      NOT NULL,
+  PRIMARY KEY (table_id, seat_no),
+  KEY idx_poker_escrow_user (user_id),
+  CONSTRAINT fk_poker_escrow_user FOREIGN KEY (user_id)
+    REFERENCES user(id) ON DELETE RESTRICT,
+  CONSTRAINT fk_poker_escrow_table FOREIGN KEY (table_id)
+    REFERENCES poker_table(id) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS meta (
   meta_key   VARCHAR(64)  NOT NULL PRIMARY KEY,
   meta_value VARCHAR(255) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT IGNORE INTO meta(meta_key, meta_value) VALUES ('schema_version', '9');
+INSERT IGNORE INTO meta(meta_key, meta_value) VALUES ('schema_version', '13');

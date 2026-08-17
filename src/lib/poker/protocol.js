@@ -1,0 +1,62 @@
+// Isomorphic WebSocket message protocol for the poker room.
+//
+// Safe to import from BOTH the browser client and the Node server — it
+// contains only string constants and small helpers, no I/O. Keeping the
+// message-type names in one place stops the client and server drifting.
+//
+// Wire format: every frame is JSON `{ t: <type>, ...fields }`. `t` is one
+// of the constants below.
+
+// Client -> Server
+export const C2S = {
+  HELLO: "hello",              // {}
+  LOBBY_SUB: "lobby.sub",      // subscribe to live lobby updates
+  LOBBY_UNSUB: "lobby.unsub",
+  // PlayOK-style lobby (v11)
+  TABLE_CREATE: "table.create", // { name?, smallBlind, bigBlind, maxSeats, minBuyin, maxBuyin, buyin }
+  QUICK_PLAY: "quickplay",      // { buyin? } — instant auto-seat
+  LOBBY_CHAT: "lobby.chat",     // { text }
+  INVITE: "invite",             // { toUserId } — invite to my current table
+  INVITE_RESPOND: "invite.respond", // { inviteId, accept }
+  TABLE_JOIN: "table.join",    // { tableId }  — start watching a table
+  TABLE_LEAVE: "table.leave",  // { tableId }  — stop watching
+  TABLE_SIT: "table.sit",      // { tableId, seat, buyin }
+  TABLE_STAND: "table.stand",  // { tableId }  — leave your seat, cash out
+  TABLE_ACTION: "table.action",// { tableId, action: {type, amount?} }
+  TABLE_REBUY: "table.rebuy",  // { tableId, amount }
+  TABLE_SITOUT: "table.sitout",// { tableId, sitOut: bool }
+  CHAT: "chat",                // { tableId, text }
+  PONG: "pong"
+};
+
+// Server -> Client
+export const S2C = {
+  HELLO_OK: "hello.ok",        // { user: {id, name, isAdmin}, chips }
+  LOBBY: "lobby",              // { tables:[LobbyTable], players:[LobbyPlayer], leaderboard:[{name,chips}] }
+  LOBBY_CHAT: "lobby.chat",    // { from, text, ts }
+  TABLE_CREATED: "table.created", // { tableId } — navigate here (create / quickplay / invite-accept)
+  INVITE: "invite",            // { inviteId, fromName, fromUserId, tableId, tableName } — incoming
+  TABLE_STATE: "table.state",  // { tableId, table: <public view> }
+  TABLE_PRIVATE: "table.private", // { tableId, seat, holeCards }
+  TABLE_TURN: "table.turn",    // { tableId, seat, deadline, callAmount, currentBet, minRaise, potTotal, actions:[...] } — only to the acting user
+  TABLE_LEFT: "table.left",    // { tableId }
+  CHIPS: "chips",              // { chips }  — wallet balance changed
+  CHAT: "chat",                // { tableId, from, text, ts }
+  TOAST: "toast",              // { level, text }
+  ERROR: "error",             // { code?, msg }
+  PING: "ping"
+};
+
+export function encode(type, fields = {}) {
+  return JSON.stringify({ t: type, ...fields });
+}
+
+export function decode(raw) {
+  try {
+    const msg = JSON.parse(raw);
+    if (msg && typeof msg.t === "string") return msg;
+  } catch {
+    /* fall through */
+  }
+  return null;
+}

@@ -18,6 +18,7 @@ import {
   HARDCODED_ADMIN_USER_ID
 } from "$lib/server/auth.js";
 import { setSessionCookie } from "$lib/server/cookies.js";
+import { ensureStartingGrant } from "$lib/server/wallet.js";
 
 export async function load({ locals }) {
   if (locals.user) throw redirect(303, "/account");
@@ -35,7 +36,10 @@ export const actions = {
     if (isHardcodedAdmin(email, password)) {
       const { token, expiresAt } = await createSession(HARDCODED_ADMIN_USER_ID);
       setSessionCookie(cookies, token, expiresAt);
-      throw redirect(303, "/account");
+      // Backfill the starting grant for the admin (and any pre-v10
+      // account) on login; idempotent, so a no-op once granted.
+      await ensureStartingGrant(HARDCODED_ADMIN_USER_ID);
+      throw redirect(303, "/");
     }
 
     // Ordinary path. The admin shell row's password_hash is NULL so
@@ -49,6 +53,7 @@ export const actions = {
 
     const { token, expiresAt } = await createSession(user.id);
     setSessionCookie(cookies, token, expiresAt);
-    throw redirect(303, "/account");
+    await ensureStartingGrant(user.id);
+    throw redirect(303, "/");
   }
 };

@@ -188,7 +188,11 @@ statisticasino/
 
 ## Production
 
-`npm run build` produces a Node server in `build/`. Run:
+`npm run build` produces a Node server in `build/`. Start it with **`npm
+start`** (i.e. `node server.js`) — **not** `node build`. The poker room
+needs a WebSocket server, and adapter-node's `build/handler.js` only serves
+HTTP; `server.js` wraps it and attaches the poker gateway (`/ws`) on the
+same port. It requires `src/` to be present alongside `build/` at runtime.
 
 ```bash
 MYSQL_HOST=rm-XXXX.mysql.cn-shenzhen.rds.aliyuncs.com \
@@ -199,8 +203,12 @@ MYSQL_DATABASE=statisticasino \
 GMAIL_USER=you@gmail.com \
 GMAIL_APP_PASSWORD='abcd efgh ijkl mnop' \
 ORIGIN=https://stats.example.org \
-node build
+npm start          # node server.js — HTTP + poker WebSocket on one port
 ```
+
+`server.js` also drains poker tables on `SIGTERM`/`SIGINT` (refunds seated
+chips to wallets) before exiting, so a graceful restart conserves chips; a
+hard crash/`SIGKILL` does not (see `DEPLOYMENT.md` §2.5.1).
 
 The admin's email + password are baked into `src/lib/server/auth.js`
 (`HARDCODED_ADMIN_*`) — there is no env var for them. If `GMAIL_USER`
@@ -217,7 +225,8 @@ remote MySQL server. The constraints are mild:
 
 | Requirement | Why | Hosts that work | Hosts that don't |
 | - | - | - | - |
-| Long-lived Node process | `node build` is a request-loop server, not a request-scoped lambda. | Aliyun ECS, DigitalOcean droplet, Render, Fly, Railway, Docker on anything | Cloudflare Workers, Vercel Edge Functions |
+| Long-lived Node process | `server.js` is a request-loop server (HTTP + WebSocket), not a request-scoped lambda. | Aliyun ECS, DigitalOcean droplet, Render, Fly, Railway, Docker on anything | Cloudflare Workers, Vercel Edge Functions |
+| WebSocket passthrough | The poker room upgrades `/ws`; the proxy must forward `Upgrade`/`Connection`. | nginx, caddy, traefik, Cloudflare (proxies WS) | Proxies that strip upgrades |
 | Outbound TCP to MySQL | The app server connects out to RDS:3306. | Anything with outbound networking | Sandboxed function runtimes that block outbound TCP |
 | Reverse proxy with TLS | Browsers + the extension's service worker only do HTTPS. | caddy, nginx, traefik | (none) |
 

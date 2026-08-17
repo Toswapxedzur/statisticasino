@@ -9,6 +9,7 @@
     "build": "npm run build:ext-zip && vite build",
     "build:ext-zip": "node scripts/build-extension-zip.js",
     "preview": "vite preview",
+    "start": "node server.js",
     "migrate": "node scripts/migrate.js"
   },
   "devDependencies": {
@@ -27,6 +28,7 @@
     "marked": "^15.0.7",
     "marked-katex-extension": "^5.1.9",
     "mysql2": "^3.22.3",
-    "nodemailer": "^8.0.7"
+    "nodemailer": "^8.0.7",
+    "ws": "^8.21.3"
   }
 }

@@ -67,7 +67,10 @@ async function buildPool() {
     ...config,
     ssl,
     waitForConnections: true,
-    connectionLimit: Number(env.MYSQL_POOL_LIMIT || 10),
+    // Floor of 2: the poker server holds ONE connection for the process-lifetime
+    // instance lease (see bank.js acquireInstanceLease), so a pool of 1 would
+    // deadlock at boot when reconciliation asks for a second connection.
+    connectionLimit: Math.max(2, Number(env.MYSQL_POOL_LIMIT || 10)),
     // Keep a sensible default for the gzipped frame blobs; mysql2
     // splits large packets but the server has its own max_allowed_packet
     // (default 64 MB on RDS) which is plenty for our 50 MB upload cap.

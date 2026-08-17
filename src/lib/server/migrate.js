@@ -137,11 +137,15 @@ export async function ensureMigrated() {
   await migrateToV7();
   await migrateToV8();
   await migrateToV9();
+  await migrateToV10();
+  await migrateToV11();
+  await migrateToV12();
+  await migrateToV13();
 
   // Stamp the version row (idempotent — schema.sql also INSERT IGNOREs
   // it, but we want to be defensive).
   await execute(
-    "INSERT INTO meta(meta_key, meta_value) VALUES ('schema_version', '9') "
+    "INSERT INTO meta(meta_key, meta_value) VALUES ('schema_version', '13') "
     + "ON DUPLICATE KEY UPDATE meta_value = VALUES(meta_value)"
   );
 
@@ -438,6 +442,155 @@ async function migrateToV9() {
       "UPDATE casino_table SET stakes_tier = ? WHERE id = ?",
       [tier, r.id]
     );
+  }
+}
+
+// v9 -> v10 upgrade: the poker room. Adds the `chips` wallet columns to
+// `user` and (via schema.sql's CREATE TABLE IF NOT EXISTS) the
+// chip_ledger / poker_table / poker_hand / poker_hand_player tables.
+//
+// Only the `user` ALTERs need imperative handling here — the new tables
+// are created idempotently by schema.sql before this runs. Every step is
+// INFORMATION_SCHEMA-gated so fresh installs and re-runs are no-ops.
+//
+// Note: existing accounts get chips = 0 (the column default). The
+// starting-grant is applied lazily at first login / on demand by the
+// wallet layer, not backfilled here, so the ledger stays the single
+// source of truth for "why does this user have chips".
+async function migrateToV10() {
+  const cols = await query(
+    "SELECT COLUMN_NAME FROM information_schema.COLUMNS "
+    + "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' "
+    + "  AND COLUMN_NAME IN ('chips', 'last_daily_bonus_at')"
+  );
+  const have = new Set(cols.map((r) => r.COLUMN_NAME));
+
+  if (!have.has("chips")) {
+    await execute(
+      "ALTER TABLE user ADD COLUMN chips BIGINT NOT NULL DEFAULT 0 AFTER created_at"
+    );
+  }
+  if (!have.has("last_daily_bonus_at")) {
+    await execute(
+      "ALTER TABLE user ADD COLUMN last_daily_bonus_at BIGINT NULL AFTER chips"
+    );
+  }
+}
+
+// v10 -> v11 upgrade: PlayOK-style ephemeral, player-created tables.
+//
+// Adds `created_by` / `is_ephemeral` / `closed_at` to poker_table and the
+// creator FK. Also RETIRES the old admin-seeded fixed tables (created_by
+// NULL, is_ephemeral 0, still open) by marking them inactive+closed, since
+// the new lobby only lists player-created tables. Their rows stay for
+// poker_hand FK integrity. Every step is INFORMATION_SCHEMA-gated so
+// re-runs and fresh installs are no-ops.
+async function migrateToV11() {
+  const cols = await query(
+    "SELECT COLUMN_NAME FROM information_schema.COLUMNS "
+    + "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'poker_table' "
+    + "  AND COLUMN_NAME IN ('created_by', 'is_ephemeral', 'closed_at')"
+  );
+  const have = new Set(cols.map((r) => r.COLUMN_NAME));
+
+  if (!have.has("created_by")) {
+    await execute("ALTER TABLE poker_table ADD COLUMN created_by VARCHAR(64) NULL AFTER created_at");
+  }
+  if (!have.has("is_ephemeral")) {
+    await execute("ALTER TABLE poker_table ADD COLUMN is_ephemeral TINYINT(1) NOT NULL DEFAULT 0 AFTER created_by");
+  }
+  if (!have.has("closed_at")) {
+    await execute("ALTER TABLE poker_table ADD COLUMN closed_at BIGINT NULL AFTER is_ephemeral");
+  }
+
+  // Add the creator FK if it isn't present yet.
+  const fk = await query(
+    "SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS "
+    + "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'poker_table' "
+    + "  AND CONSTRAINT_NAME = 'fk_poker_table_creator'"
+  );
+  if (fk.length === 0) {
+    await execute(
+      "ALTER TABLE poker_table ADD CONSTRAINT fk_poker_table_creator "
+      + "FOREIGN KEY (created_by) REFERENCES user(id) ON DELETE SET NULL"
+    );
+  }
+
+  // Retire legacy seeded/house tables — the pure-ephemeral lobby doesn't
+  // list them. Only touch still-open, non-ephemeral, creator-less rows.
+  await execute(
+    "UPDATE poker_table SET is_active = 0, closed_at = ? "
+    + "WHERE is_ephemeral = 0 AND created_by IS NULL AND closed_at IS NULL",
+    [Date.now()]
+  );
+}
+
+// v11 -> v12 upgrade: crash-safe escrow. The `poker_escrow` table is
+// created by the schema.sql pass above (CREATE TABLE IF NOT EXISTS runs on
+// every boot, so existing DBs get it too); this function exists to keep the
+// migration chain explicit and version-stamped. Idempotent by construction.
+async function migrateToV12() {
+  const rows = await query(
+    "SELECT TABLE_NAME FROM information_schema.TABLES "
+    + "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'poker_escrow'"
+  );
+  if (rows.length === 0) {
+    await execute(
+      "CREATE TABLE IF NOT EXISTS poker_escrow ("
+      + " table_id VARCHAR(64) NOT NULL, seat_no INT NOT NULL,"
+      + " user_id VARCHAR(64) NOT NULL, stack BIGINT NOT NULL,"
+      + " updated_at BIGINT NOT NULL, PRIMARY KEY (table_id, seat_no),"
+      + " KEY idx_poker_escrow_user (user_id),"
+      + " CONSTRAINT fk_poker_escrow_user FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE RESTRICT,"
+      + " CONSTRAINT fk_poker_escrow_table FOREIGN KEY (table_id) REFERENCES poker_table(id) ON DELETE RESTRICT"
+      + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+    return;
+  }
+  // Escrow existed from an interim build with ON DELETE CASCADE — a cascade
+  // would silently destroy chips still held by a live seat. Rebuild the FKs as
+  // RESTRICT. Idempotent: only acts on FKs whose DELETE_RULE is CASCADE.
+  const fks = await query(
+    "SELECT rc.CONSTRAINT_NAME, rc.DELETE_RULE "
+    + "FROM information_schema.REFERENTIAL_CONSTRAINTS rc "
+    + "WHERE rc.CONSTRAINT_SCHEMA = DATABASE() AND rc.TABLE_NAME = 'poker_escrow'"
+  );
+  const has = (name) => fks.some((f) => f.CONSTRAINT_NAME === name);
+  const ruleFor = (name) => fks.find((f) => f.CONSTRAINT_NAME === name)?.DELETE_RULE;
+  // Ensure each FK exists AND is RESTRICT. Handling the MISSING case (not just
+  // CASCADE) makes this self-healing if a prior run crashed between DROP and
+  // ADD (DDL auto-commits, so the constraint could be absent).
+  const ensureRestrict = async (name, col, ref) => {
+    if (has(name)) {
+      if (ruleFor(name) !== "CASCADE") return; // already RESTRICT/NO ACTION
+      await execute(`ALTER TABLE poker_escrow DROP FOREIGN KEY ${name}`);
+    }
+    await execute(
+      `ALTER TABLE poker_escrow ADD CONSTRAINT ${name} `
+      + `FOREIGN KEY (${col}) REFERENCES ${ref} ON DELETE RESTRICT`
+    );
+  };
+  await ensureRestrict("fk_poker_escrow_user", "user_id", "user(id)");
+  await ensureRestrict("fk_poker_escrow_table", "table_id", "poker_table(id)");
+}
+
+// v12 -> v13 upgrade: idempotency keys on chip_ledger. Adds the nullable
+// `op_key` column + its UNIQUE index so buy-in/rebuy can be exactly-once across
+// a lost COMMIT acknowledgement. Both steps INFORMATION_SCHEMA-gated.
+async function migrateToV13() {
+  const cols = await query(
+    "SELECT COLUMN_NAME FROM information_schema.COLUMNS "
+    + "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'chip_ledger' AND COLUMN_NAME = 'op_key'"
+  );
+  if (cols.length === 0) {
+    await execute("ALTER TABLE chip_ledger ADD COLUMN op_key VARCHAR(64) NULL AFTER ref");
+  }
+  const idx = await query(
+    "SELECT INDEX_NAME FROM information_schema.STATISTICS "
+    + "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'chip_ledger' AND INDEX_NAME = 'uq_chip_ledger_op_key'"
+  );
+  if (idx.length === 0) {
+    await execute("ALTER TABLE chip_ledger ADD UNIQUE KEY uq_chip_ledger_op_key (op_key)");
   }
 }
 

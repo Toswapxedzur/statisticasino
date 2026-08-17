@@ -34,9 +34,11 @@ If you're picking this up cold, read **§1 (architecture)** and
 - **Reverse proxy**: nginx 1.26.2 listening on `:80`, single vhost in
   `/etc/nginx/conf.d/statisticasino.conf`. TLS is terminated at
   Cloudflare for now; the origin speaks plain HTTP only.
-- **App**: SvelteKit (adapter-node) running as `node /opt/statisticasino/build`,
-  managed by systemd unit `statisticasino.service`, listens on
-  `127.0.0.1:3000`.
+- **App**: SvelteKit (adapter-node) started via `node /opt/statisticasino/server.js`
+  (**not** `node build` — see §2.5.1), managed by systemd unit
+  `statisticasino.service`, listens on `127.0.0.1:3000`. `server.js` serves
+  the normal HTTP handler **and** the poker WebSocket gateway (`/ws`) on the
+  same port.
 - **Database**: Aliyun RDS for MySQL 8 in `cn-shenzhen`. The HK ECS's
   egress IP must be allowlisted in the RDS console; cross-region
   latency is single-digit ms.
@@ -98,6 +100,13 @@ ECS — the box only has 1.7Gi of RAM and Vite's build is heavier than
 that comfortably allows. We also exclude `.env` so secrets only live
 on the server.
 
+**The rsync above already ships `server.js` and `src/`, and both are
+required at runtime.** `server.js` (the prod entrypoint, §2.5.1) mounts
+`build/handler.js` for HTTP and dynamically imports the plain-node poker
+modules under `src/lib/server/poker/` (gateway → hub → table → store) plus
+`src/lib/poker/protocol.js` for the WebSocket layer. Do **not** add `src/`
+to the rsync excludes.
+
 ### 2.4 Configure secrets and install runtime deps
 
 Write `/opt/statisticasino/.env` directly on the box (do **not** rsync
@@ -149,7 +158,7 @@ forgot to allowlist the ECS egress IP in RDS (§2.1).
 
 ```ini
 [Unit]
-Description=Statisticasino SvelteKit (adapter-node)
+Description=Statisticasino / Riverside (SvelteKit adapter-node + poker WS)
 After=network-online.target
 Wants=network-online.target
 
@@ -158,11 +167,14 @@ Type=simple
 WorkingDirectory=/opt/statisticasino
 EnvironmentFile=/opt/statisticasino/.env
 Environment=NODE_ENV=production
-ExecStart=/usr/bin/node /opt/statisticasino/build
+# Entrypoint is server.js, NOT `node build` — see §2.5.1. WorkingDirectory
+# must be /opt/statisticasino so server.js resolves ./build and ./src.
+ExecStart=/usr/bin/node /opt/statisticasino/server.js
 Restart=always
 RestartSec=2
-# adapter-node does not install a SIGTERM handler that closes the
-# mysql2 pool, so the default 90s stop timeout stalls every redeploy.
+# server.js installs a SIGTERM/SIGINT handler that drains poker tables
+# (refunds seated chips to wallets) and closes the HTTP+WS server, with a
+# 3s hard-exit fallback. TimeoutStopSec stays a safety net above that.
 TimeoutStopSec=10
 KillSignal=SIGTERM
 KillMode=mixed
@@ -181,7 +193,68 @@ systemctl enable --now statisticasino
 systemctl is-active statisticasino    # active
 ss -tlnp | grep 3000                  # node listening on 127.0.0.1:3000
 curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:3000/   # 200
+journalctl -u statisticasino -n 5 | grep riverside   # "[riverside] http + ws listening on 0.0.0.0:3000"
 ```
+
+### 2.5.1 Prod entrypoint: `server.js` (not `node build`)
+
+The poker room needs a WebSocket server. adapter-node's `build/handler.js`
+is a bare HTTP request handler — `node build` can only serve HTTP, so it
+cannot also accept WS upgrades. `server.js` creates the `http.Server`
+ourselves, mounts the SvelteKit handler for normal requests, and attaches
+the poker gateway for `/ws` upgrades on the **same** port. `npm start` runs
+exactly this (`"start": "node server.js"`); systemd's `ExecStart` (§2.5)
+points at it directly.
+
+Consequences for deploys:
+
+- **Ship `src/` too.** `server.js` dynamically imports the plain-node poker
+  modules from `src/lib/server/poker/` — the §2.3 rsync already includes
+  them; just don't exclude `src/`.
+- **nginx needs no change.** The existing `location /` block (§2.6) already
+  forwards `Upgrade`/`Connection`, so `/ws` rides the same proxy. Cloudflare
+  proxies WebSockets transparently.
+- **Chips survive restarts AND crashes (crash-safe escrow).** A buy-in debits
+  the wallet, and the on-table stack is mirrored to the durable `poker_escrow`
+  table IN THE SAME transaction (see `src/lib/server/poker/bank.js`), so
+  `wallet + escrow` is conserved at every committed DB state. On `SIGTERM`/
+  `SIGINT` (every `systemctl restart`) `hub.shutdown()` drains seats back to
+  wallets. On a HARD crash (`SIGKILL`/OOM/power loss) the drain is skipped, but
+  on next boot `reconcileEscrowOnBoot()` (server.js, before `listen`) refunds
+  every escrow row to its wallet and closes stale ephemeral tables. Either way,
+  no chips are destroyed.
+- **Exactly-once money ops (idempotency keys).** Buy-in and rebuy carry a
+  unique `chip_ledger.op_key` (v13, `UNIQUE`). If a COMMIT acknowledgement is
+  lost (connection dropped after the DB committed but before Node saw the ack),
+  the operation is resolved by looking the key up: committed ⇒ return the
+  durable result, never re-apply. Cash-out is escrow-authoritative and gated on
+  the escrow row, so a retried Stand credits 0 rather than paying twice;
+  `creditAndRemove` retries the (idempotent) cash-out instead of assuming
+  failure, so a lost ack resolves to "already paid, seat gone" and only a
+  persistent outage restores the seat.
+- **Single-instance lease — safe against a second live process.** On boot the
+  server takes a process-lifetime `GET_LOCK('riverside_poker_singleton')` on a
+  held connection (`acquireInstanceLease`). It reconciles escrow and attaches
+  the poker gateway ONLY if it holds the lease; a second process on the same DB
+  (a botched rolling deploy, or a dev server pointed at prod) logs
+  "serving HTTP only (poker disabled)" and never touches the other's live
+  escrow. The lease is released on `SIGTERM`/`SIGINT` so the next process
+  acquires it immediately. `systemd` stop-then-start is still the intended
+  flow, but overlapping processes are now fail-safe, not corrupting. The dev
+  server additionally refuses to reconcile unless the effective DB host
+  (DATABASE_URL or MYSQL_HOST) is loopback, so `npm run dev` can never touch
+  prod escrow.
+- **Known residuals (accepted for a no-money room; none destroy chips).**
+  (a) If the post-hand escrow snapshot fails 3× in a row (a DB outage exactly at
+  hand end), the next crash would refund pre-hand splits rather than the actual
+  result — supply is still conserved, and it's logged. (b) A boot whose reconcile
+  leaves `failed>0` still starts serving poker; the stranded rows refund on the
+  next clean boot. (c) If the lease connection itself dies mid-run, MySQL drops
+  the lock — logged loudly; restart to re-acquire cleanly. Revisit these only if
+  this ever becomes a real-money system.
+
+To sanity-check the WS path end to end after `systemctl restart`, from the
+box: `curl -sS -o /dev/null -w '%{http_code}\n' --http1.1 -H 'Connection: Upgrade' -H 'Upgrade: websocket' -H 'Sec-WebSocket-Key: x' -H 'Sec-WebSocket-Version: 13' http://127.0.0.1:3000/ws` should return `101`.
 
 ### 2.6 nginx
 
@@ -354,7 +427,9 @@ survive (the password isn't mixed into the code-hash).
 | - | - | - |
 | `/opt/statisticasino/` | root | App code (rsynced from local) |
 | `/opt/statisticasino/.env` | root, `0600` | Production secrets (DB, admin, ORIGIN) |
-| `/opt/statisticasino/build/` | root | adapter-node output (`node build` runs this) |
+| `/opt/statisticasino/server.js` | root | Prod entrypoint — HTTP + poker WS (`ExecStart` runs this, §2.5.1) |
+| `/opt/statisticasino/build/` | root | adapter-node output (`server.js` mounts `build/handler.js`) |
+| `/opt/statisticasino/src/` | root | Plain-node poker WS modules imported by `server.js` at runtime (§2.5.1) |
 | `/opt/statisticasino/node_modules/` | root | Runtime deps (`npm ci --omit=dev`) |
 | `/etc/systemd/system/statisticasino.service` | root | systemd unit (§2.5) |
 | `/etc/nginx/conf.d/statisticasino.conf` | root | Site vhost (§2.6) |
