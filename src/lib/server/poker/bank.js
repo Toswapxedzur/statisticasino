@@ -21,12 +21,36 @@
 // (so tests can swap an escrow-aware in-memory fake): buyIn / rebuy / cashOut
 // / syncStacks. Plain-node-ESM clean so it runs under prod server.js + Vite.
 
-import { randomBytes } from "node:crypto";
+import { randomBytes, createHash } from "node:crypto";
 import { tx, getPool } from "../db.js";
 import { applyDelta, REASON, balanceForOpKey } from "../wallet.js";
 
 function newOpKey() {
   return randomBytes(16).toString("hex");
+}
+
+// Resolve the ledger op_key for a money operation. A client-supplied id
+// (request-boundary idempotency: the browser reuses one id across resends of
+// the SAME action) is NAMESPACED by userId + purpose and hashed to a fixed
+// length. Namespacing means a client can only ever dedupe against its OWN
+// operations — it can't forge another user's key — and a sit vs a rebuy that
+// happen to reuse an id stay distinct. No/invalid client id ⇒ a fresh random
+// key (still gives lost-ack resolution within that single call).
+function keyFor(userId, purpose, clientOpId) {
+  if (typeof clientOpId === "string" && clientOpId.length >= 8 && clientOpId.length <= 200) {
+    return createHash("sha256").update(`${userId}:${purpose}:${clientOpId}`).digest("hex");
+  }
+  return newOpKey();
+}
+
+async function escrowStackFor(tableId, seatNo, userId) {
+  return tx(async (conn) => {
+    const [rows] = await conn.query(
+      "SELECT stack FROM poker_escrow WHERE table_id = ? AND seat_no = ? AND user_id = ?",
+      [tableId, seatNo, userId]
+    );
+    return rows.length ? Number(rows[0].stack) : null;
+  });
 }
 
 // Run a money operation exactly-once under a lost COMMIT acknowledgement. If
@@ -52,8 +76,8 @@ async function runIdempotent(opKey, fn) {
 // seat number — a duplicate key surfaces as an error the caller treats as a
 // failed sit (the orphan escrow is refunded at the next boot reconcile).
 // Returns the new wallet balance.
-export async function buyIn(userId, amount, tableId, seatNo) {
-  const opKey = newOpKey();
+export async function buyIn(userId, amount, tableId, seatNo, clientOpId = null) {
+  const opKey = keyFor(userId, "sit", clientOpId);
   return runIdempotent(opKey, () => tx(async (conn) => {
     const balance = await applyDelta(conn, userId, -amount, REASON.TABLE_BUYIN, tableId, opKey);
     await conn.execute(
@@ -69,22 +93,44 @@ export async function buyIn(userId, amount, tableId, seatNo) {
 // atomically. The UPDATE is guarded on user_id so it can never touch another
 // occupant's row; affectedRows 0 (seat gone / not ours) throws and rolls the
 // debit back. Returns the new wallet balance.
-export async function rebuy(userId, amount, tableId, seatNo) {
-  const opKey = newOpKey();
-  return runIdempotent(opKey, () => tx(async (conn) => {
-    const balance = await applyDelta(conn, userId, -amount, REASON.TABLE_BUYIN, tableId, opKey);
-    const [res] = await conn.execute(
-      `UPDATE poker_escrow SET stack = stack + ?, updated_at = ?
-       WHERE table_id = ? AND seat_no = ? AND user_id = ?`,
-      [amount, Date.now(), tableId, seatNo, userId]
-    );
-    if ((res.affectedRows ?? 0) === 0) {
-      const e = new Error("escrow row missing for rebuy");
-      e.code = "ESCROW_MISSING";
-      throw e; // rolls back the debit
+// Returns { balance, stack } — the wallet balance AND the seat's resulting
+// escrow stack (authoritative). The caller sets seat.stack FROM `stack` (not by
+// incrementing) so a resend can't double-increment memory: whatever the escrow
+// says, memory matches. Idempotent by op_key: a committed-but-unacked or
+// duplicate resend resolves to the current committed balance + stack.
+export async function rebuy(userId, amount, tableId, seatNo, clientOpId = null) {
+  const opKey = keyFor(userId, "rebuy", clientOpId);
+  try {
+    return await tx(async (conn) => {
+      const balance = await applyDelta(conn, userId, -amount, REASON.TABLE_BUYIN, tableId, opKey);
+      const [rows] = await conn.query(
+        "SELECT stack FROM poker_escrow WHERE table_id = ? AND seat_no = ? AND user_id = ? FOR UPDATE",
+        [tableId, seatNo, userId]
+      );
+      if (!rows.length) {
+        const e = new Error("escrow row missing for rebuy");
+        e.code = "ESCROW_MISSING";
+        throw e; // rolls back the debit
+      }
+      const stack = Number(rows[0].stack) + amount;
+      await conn.execute(
+        "UPDATE poker_escrow SET stack = ?, updated_at = ? WHERE table_id = ? AND seat_no = ? AND user_id = ?",
+        [stack, Date.now(), tableId, seatNo, userId]
+      );
+      return { balance, stack };
+    });
+  } catch (err) {
+    // Idempotent resolve: if this op_key already committed, the debit + escrow
+    // bump are durable — return the CURRENT authoritative balance + stack so a
+    // resend (lost ack / double-click) neither double-charges nor diverges.
+    let bal = null;
+    try { bal = await balanceForOpKey(opKey); } catch { /* can't resolve now */ }
+    if (bal != null) {
+      const stack = await escrowStackFor(tableId, seatNo, userId);
+      return { balance: bal, stack: stack ?? 0 };
     }
-    return balance;
-  }));
+    throw err;
+  }
 }
 
 // Cash-out: ESCROW-AUTHORITATIVE + idempotent. Lock the seat's escrow row; if

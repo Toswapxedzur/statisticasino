@@ -38,7 +38,7 @@ function makeWallet(init) {
       const r = escrow.get(`${tableId}:${seatNo}`);
       if (!r || r.userId !== uid) { const e = new Error("escrow missing"); e.code = "ESCROW_MISSING"; throw e; }
       r.stack += amt;
-      return b;
+      return { balance: b, stack: r.stack };
     },
     async cashOut(tableId, seatNo, expectUserId = null) {
       const key = `${tableId}:${seatNo}`;

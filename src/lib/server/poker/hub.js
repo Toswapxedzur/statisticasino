@@ -578,7 +578,7 @@ class PokerHub {
   async routeTableAction(conn, table, msg) {
     switch (msg.t) {
       case C2S.TABLE_SIT:
-        await table.sit(conn, msg.seat, msg.buyin);
+        await table.sit(conn, msg.seat, msg.buyin, { opId: msg.opId });
         await this.pushLobby();
         break;
       case C2S.TABLE_STAND:
@@ -590,7 +590,7 @@ class PokerHub {
         await table.act(conn, msg.action);
         break;
       case C2S.TABLE_REBUY:
-        await table.rebuy(conn, msg.amount);
+        await table.rebuy(conn, msg.amount, msg.opId);
         await this.pushLobby();
         break;
       case C2S.TABLE_SITOUT:

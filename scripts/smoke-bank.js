@@ -145,6 +145,29 @@ try {
     console.log("  [5] single-instance lease OK");
   }
 
+  // [8] request-boundary op-keys (#2): a client-supplied opId reused across a
+  // resend dedupes at the bank layer — no double-charge, no memory divergence.
+  const CK = "client-" + randomBytes(8).toString("hex");
+  const b0 = await getBalance(U0);
+  await buyIn(U0, 100, tid, 3, CK);            // first sit
+  const b1 = await getBalance(U0);
+  assert.equal(b1, b0 - 100, "client-key buyIn debited once");
+  await buyIn(U0, 100, tid, 3, CK);            // resend with the SAME client opId
+  assert.equal(await getBalance(U0), b1, "sit resend did NOT double-charge");
+  assert.equal(await escrowStack(tid, 3), 100, "escrow not doubled by the resend");
+
+  const RK = "client-" + randomBytes(8).toString("hex");
+  const r0 = await getBalance(U0);
+  const rr1 = await rebuy(U0, 50, tid, 3, RK);
+  assert.equal(rr1.stack, 150, "rebuy returns the authoritative stack");
+  assert.equal(await getBalance(U0), r0 - 50, "client-key rebuy debited once");
+  const rr2 = await rebuy(U0, 50, tid, 3, RK); // resend with the SAME client opId
+  assert.equal(await getBalance(U0), r0 - 50, "rebuy resend did NOT double-charge");
+  assert.equal(rr2.stack, 150, "rebuy resend returns the same authoritative stack");
+  assert.equal(await escrowStack(tid, 3), 150, "escrow stack unchanged by the resend");
+  await cashOut(tid, 3, U0); // cleanup
+  console.log("  [6] request-boundary op-keys (sit/rebuy resend) OK");
+
   console.log("[smoke-bank] ALL OK");
 } finally {
   await execute("DELETE FROM poker_escrow WHERE table_id = ?", [tid]).catch(() => {});

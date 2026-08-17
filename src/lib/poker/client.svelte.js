@@ -29,6 +29,10 @@ class PokerClient {
   _watching = new Set();
   _backoff = 500;
   _reconnectTimer = null;
+  // Pending money ops keyed by "sit:<tid>" / "rebuy:<tid>". Each holds a stable
+  // request-boundary opId reused across resends (double-click, reconnect) so the
+  // server dedupes them; cleared once the op resolves.
+  _pendingMoney = {};
 
   connect() {
     if (!browser || this.ws) return;
@@ -49,6 +53,9 @@ class PokerClient {
       this._raw(encode(C2S.HELLO));
       if (this._wantLobby) this._raw(encode(C2S.LOBBY_SUB));
       for (const id of this._watching) this._raw(encode(C2S.TABLE_JOIN, { tableId: id }));
+      // Re-send any unresolved money op with its ORIGINAL opId — the server
+      // resolves a duplicate rather than double-charging, so this is safe.
+      for (const { c2s, msg } of Object.values(this._pendingMoney)) this._raw(encode(c2s, msg));
     };
 
     ws.onmessage = (ev) => this._onMessage(ev.data);
@@ -109,6 +116,10 @@ class PokerClient {
         if (this.turns[msg.tableId] && !(mine && mine.isToAct)) {
           const tn = { ...this.turns }; delete tn[msg.tableId]; this.turns = tn;
         }
+        // Money ops resolved: I'm seated ⇒ my sit landed; any state update for a
+        // table reflects a rebuy I sent. Stop tracking them for resend.
+        if (mine) delete this._pendingMoney[`sit:${msg.tableId}`];
+        delete this._pendingMoney[`rebuy:${msg.tableId}`];
         break;
       }
       case S2C.TABLE_PRIVATE:
@@ -124,6 +135,8 @@ class PokerClient {
         const p = { ...this.privates }; delete p[msg.tableId];
         const tn = { ...this.turns }; delete tn[msg.tableId];
         this.tables = t; this.privates = p; this.turns = tn;
+        delete this._pendingMoney[`sit:${msg.tableId}`];
+        delete this._pendingMoney[`rebuy:${msg.tableId}`];
         break;
       }
       case S2C.CHIPS:
@@ -142,6 +155,10 @@ class PokerClient {
       case S2C.ERROR:
         this.lastError = msg.msg;
         this.toast = { level: "error", text: msg.msg };
+        // A rejected money op won't produce a seating/state confirmation; drop
+        // pending ops so we don't resend a definitively-failed action. A fresh
+        // user attempt gets a new opId (a new intent).
+        this._pendingMoney = {};
         break;
       case S2C.PING:
         this._raw(encode(C2S.PONG));
@@ -167,12 +184,36 @@ class PokerClient {
   // -------------------------------------------------- table
 
   joinTable(tableId) { this._watching.add(tableId); this.connect(); this._raw(encode(C2S.TABLE_JOIN, { tableId })); }
-  leaveTable(tableId) { this._watching.delete(tableId); this._raw(encode(C2S.TABLE_LEAVE, { tableId })); }
+  leaveTable(tableId) {
+    this._watching.delete(tableId);
+    delete this._pendingMoney[`sit:${tableId}`];
+    delete this._pendingMoney[`rebuy:${tableId}`];
+    this._raw(encode(C2S.TABLE_LEAVE, { tableId }));
+  }
 
-  sit(tableId, seat, buyin) { this._raw(encode(C2S.TABLE_SIT, { tableId, seat, buyin })); }
-  stand(tableId) { this._raw(encode(C2S.TABLE_STAND, { tableId })); }
+  _opId() {
+    if (browser && globalThis.crypto?.randomUUID) return crypto.randomUUID();
+    return `op-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+  // Send a money op with a stable request-boundary opId. Rapid re-fires (double-
+  // click) before it resolves reuse the same opId, and it's re-sent verbatim on
+  // reconnect — the server dedupes by the key, so it can't double-charge.
+  _sendMoney(key, c2s, base) {
+    const existing = this._pendingMoney[key];
+    const opId = existing ? existing.msg.opId : this._opId();
+    const msg = { ...base, opId };
+    this._pendingMoney[key] = { c2s, msg };
+    this._raw(encode(c2s, msg));
+  }
+
+  sit(tableId, seat, buyin) { this.connect(); this._sendMoney(`sit:${tableId}`, C2S.TABLE_SIT, { tableId, seat, buyin }); }
+  stand(tableId) {
+    delete this._pendingMoney[`sit:${tableId}`];
+    delete this._pendingMoney[`rebuy:${tableId}`];
+    this._raw(encode(C2S.TABLE_STAND, { tableId }));
+  }
   act(tableId, action) { this._raw(encode(C2S.TABLE_ACTION, { tableId, action })); }
-  rebuy(tableId, amount) { this._raw(encode(C2S.TABLE_REBUY, { tableId, amount })); }
+  rebuy(tableId, amount) { this._sendMoney(`rebuy:${tableId}`, C2S.TABLE_REBUY, { tableId, amount }); }
   sitOut(tableId, sitOut) { this._raw(encode(C2S.TABLE_SITOUT, { tableId, sitOut })); }
   sendChat(tableId, text) { this._raw(encode(C2S.CHAT, { tableId, text })); }
 }

@@ -794,7 +794,9 @@ export class LiveTable {
     let balance;
     try {
       // Atomic: debit the wallet + create this seat's escrow row (= buyin).
-      balance = await this.wallet.buyIn(conn.user.id, buyin, this.id, seatNo);
+      // opts.opId is the client's request-boundary idempotency key (a resend of
+      // the same sit resolves rather than double-charging).
+      balance = await this.wallet.buyIn(conn.user.id, buyin, this.id, seatNo, opts.opId);
     } catch (err) {
       if (err?.code === "INSUFFICIENT_CHIPS") {
         return fail("Not enough chips.", "INSUFFICIENT_CHIPS");
@@ -846,11 +848,11 @@ export class LiveTable {
     this.maybeStartHand();
   }
 
-  rebuy(conn, amount) {
-    return this._run(() => this._rebuy(conn, amount));
+  rebuy(conn, amount, opId) {
+    return this._run(() => this._rebuy(conn, amount, opId));
   }
 
-  async _rebuy(conn, amount) {
+  async _rebuy(conn, amount, opId) {
     const seat = this.seatForUser(conn.user?.id);
     if (!seat) return this._error(conn, "You are not seated.");
     if (seat.inHand) {
@@ -864,10 +866,11 @@ export class LiveTable {
       return this._error(conn, "Rebuy would exceed the max buy-in.");
     }
 
-    let balance;
+    let res;
     try {
       // Atomic: debit the wallet + add to THIS seat's escrow row (owner-matched).
-      balance = await this.wallet.rebuy(conn.user.id, amount, this.id, seat.seat);
+      // opId is the client's request-boundary idempotency key.
+      res = await this.wallet.rebuy(conn.user.id, amount, this.id, seat.seat, opId);
     } catch (err) {
       if (err?.code === "INSUFFICIENT_CHIPS") {
         return this._error(conn, "Not enough chips.", "INSUFFICIENT_CHIPS");
@@ -875,8 +878,10 @@ export class LiveTable {
       return this._error(conn, err?.message || "Rebuy failed.");
     }
 
-    seat.stack += amount;
-    this.sendChips(conn.user.id, balance);
+    // Set from the AUTHORITATIVE escrow stack, not by incrementing, so a resend
+    // (same opId) that resolves to the already-applied result can't double-count.
+    seat.stack = res.stack;
+    this.sendChips(conn.user.id, res.balance);
     this.broadcast();
     this.maybeStartHand();
   }
