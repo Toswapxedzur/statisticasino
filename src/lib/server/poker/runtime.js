@@ -210,6 +210,7 @@ export class GameTable extends LiveTable {
       id: this.id,
       config: this.config,
       game: this.game.key,
+      rules: this.gameConfig, // house-rule knobs (blackjack: soft17, pays, decks, …)
       phase: this.hand || this.result ? "running" : "waiting",
       handNo: this.handNo,
       bankerSeat: this.bankerSeat,

@@ -295,9 +295,18 @@ class PokerHub {
     const beBanker = !!cfg.beBanker;
     if (buyin < minBuyin) return { error: "Your buy-in is too small." };
     if (!beBanker && buyin > maxBuyin) return { error: "Your buy-in is out of range." };
+    // House-rule knobs (all optional; the module applies sane defaults).
+    const decks = [1, 2, 6, 8].includes(Number(cfg.decks)) ? Number(cfg.decks) : 1;
+    const rules = {
+      dealerHitsSoft17: !!cfg.dealerHitsSoft17,
+      blackjackPays: cfg.blackjackPays === "6:5" ? "6:5" : "3:2",
+      decks,
+      surrender: !!cfg.surrender,
+      peek: cfg.peek === false ? false : true
+    };
     return {
       game: "blackjack", variant: "blackjack",
-      sb: minBet, bb: minBet, maxSeats, minBuyin, maxBuyin, buyin, beBanker
+      sb: minBet, bb: minBet, maxSeats, minBuyin, maxBuyin, buyin, beBanker, rules
     };
   }
 
@@ -341,7 +350,7 @@ class PokerHub {
     };
     const isBlackjack = cfg.game === "blackjack";
     const table = isBlackjack
-      ? new GameTable(liveConfig, this, { game: blackjack, gameConfig: { minBet: rowCfg.smallBlind } })
+      ? new GameTable(liveConfig, this, { game: blackjack, gameConfig: { minBet: rowCfg.smallBlind, ...(cfg.rules || {}) } })
       : new LiveTable(liveConfig, this);
     table.createdBy = conn.user.id;
     table.creatorName = conn.user.displayName || conn.user.email;
@@ -412,7 +421,7 @@ class PokerHub {
     if (bal < v.buyin) return this._err(conn, "Not enough chips for that buy-in.", "INSUFFICIENT_CHIPS");
     await this._spawnTable(
       conn,
-      { name: cfg.name, game: v.game, variant: v.variant, beBanker: v.beBanker, maxSeats: v.maxSeats, smallBlind: v.sb, bigBlind: v.bb, minBuyin: v.minBuyin, maxBuyin: v.maxBuyin },
+      { name: cfg.name, game: v.game, variant: v.variant, beBanker: v.beBanker, rules: v.rules, maxSeats: v.maxSeats, smallBlind: v.sb, bigBlind: v.bb, minBuyin: v.minBuyin, maxBuyin: v.maxBuyin },
       v.buyin
     );
   }

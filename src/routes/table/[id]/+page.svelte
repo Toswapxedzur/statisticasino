@@ -25,6 +25,19 @@
   let config = $derived(view?.config || data.table);
   // Blackjack tables carry game:"blackjack" in the view and variant "blackjack".
   let isBlackjack = $derived((view?.game || config?.variant) === "blackjack");
+  let rules = $derived(view?.rules || null);
+
+  // Add-bot control: tiers depend on the game; keep the selection valid.
+  const botTiers = $derived(
+    isBlackjack
+      ? [["basic", "Basic"], ["aggressive", "Aggressive"], ["timid", "Timid"]]
+      : [["reg", "Reg"], ["fish", "Fish"]]
+  );
+  let botTier = $state("reg");
+  $effect(() => { if (!botTiers.some(([k]) => k === botTier)) botTier = botTiers[0][0]; });
+  let seatCount = $derived(view ? (view.seats || []).length : 0);
+  let hasOpenSeat = $derived(seatCount < (config?.maxSeats ?? 0));
+  function addBot() { poker.addBot(tableId, botTier); }
 
   // My seat (if any) drives the seated-player controls.
   let mySeat = $derived(
@@ -101,7 +114,7 @@
   <h2>{data.table.name}</h2>
   <span class="stakes">
     {#if isBlackjack}
-      Blackjack · min bet {config.smallBlind}
+      Blackjack · min bet {config.smallBlind}{#if rules} · {rules.blackjackPays} · {rules.decks} deck{rules.decks > 1 ? "s" : ""} · {rules.dealerHitsSoft17 ? "H17" : "S17"}{rules.surrender ? " · surrender" : ""}{rules.peek === false ? " · no-peek" : ""}{/if}
     {:else}
       {variantLabel(config.variant)} · {config.smallBlind}/{config.bigBlind}
     {/if}
@@ -142,6 +155,16 @@
       </button>
       <button class="btn" onclick={openRebuy} disabled={rebuyMax <= 0}>Rebuy</button>
     </section>
+
+    {#if hasOpenSeat}
+      <section class="bot-controls">
+        <span class="muted small">Add a bot:</span>
+        <select bind:value={botTier} aria-label="Bot difficulty">
+          {#each botTiers as [k, label]}<option value={k}>{label}</option>{/each}
+        </select>
+        <button class="btn btn-secondary" onclick={addBot}>Add bot</button>
+      </section>
+    {/if}
   {/if}
 {:else}
   <section class="felt-shell">
@@ -207,6 +230,14 @@
   .seat-controls {
     display: flex; gap: 10px; justify-content: center; margin: 14px 0 6px; flex-wrap: wrap;
   }
+  .bot-controls {
+    display: flex; gap: 8px; align-items: center; justify-content: center; margin: 6px 0 10px; flex-wrap: wrap;
+  }
+  .bot-controls select {
+    padding: 6px 10px; border-radius: 8px;
+    border: 1px solid var(--border, #333); background: #0e0e12; color: var(--text, #eee);
+  }
+  .bot-controls .small { font-size: 12.5px; }
 
   .felt-shell { display: flex; justify-content: center; padding: 10px 0 30px; }
   .felt {

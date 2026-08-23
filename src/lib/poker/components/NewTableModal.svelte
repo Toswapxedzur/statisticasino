@@ -30,6 +30,13 @@
   let beBanker = $state(false);
   let buyin = $state(0);
 
+  // Blackjack house rules
+  let bjPays = $state("3:2");
+  let bjDecks = $state(6);
+  let bjSoft17 = $state(false); // false = dealer stands on soft 17
+  let bjSurrender = $state(false);
+  let bjPeek = $state(true); // true = American peek; false = European no-peek
+
   const isCustom = $derived(stake === "custom");
 
   const smallBlind = $derived(
@@ -78,6 +85,11 @@
         ...(trimmed ? { name: trimmed } : {}),
         variant: "blackjack",
         beBanker,
+        blackjackPays: bjPays,
+        decks: bjDecks,
+        dealerHitsSoft17: bjSoft17,
+        surrender: bjSurrender,
+        peek: bjPeek,
         smallBlind: minBet,
         maxSeats,
         minBuyin,
@@ -194,6 +206,31 @@
           ? "You bank the table with your bankroll and win/lose against every player."
           : "A wealthy bot will bank the table so you can just play."}
       </p>
+
+      <div class="field">
+        Blackjack pays
+        <div class="chips">
+          <button type="button" class="chip" class:on={bjPays === "3:2"} onclick={() => (bjPays = "3:2")}>3:2</button>
+          <button type="button" class="chip" class:on={bjPays === "6:5"} onclick={() => (bjPays = "6:5")}>6:5</button>
+        </div>
+      </div>
+      <div class="field">
+        Decks
+        <div class="chips">
+          {#each [1, 2, 6, 8] as d}
+            <button type="button" class="chip" class:on={bjDecks === d} onclick={() => (bjDecks = d)}>{d}</button>
+          {/each}
+        </div>
+      </div>
+      <div class="field">
+        Soft 17
+        <div class="chips">
+          <button type="button" class="chip" class:on={!bjSoft17} onclick={() => (bjSoft17 = false)}>Dealer stands</button>
+          <button type="button" class="chip" class:on={bjSoft17} onclick={() => (bjSoft17 = true)}>Dealer hits</button>
+        </div>
+      </div>
+      <label class="toggle"><input type="checkbox" bind:checked={bjSurrender} /><span>Allow late surrender</span></label>
+      <label class="toggle"><input type="checkbox" bind:checked={bjPeek} /><span>Dealer peeks for blackjack (American)</span></label>
     {/if}
 
     <div class="field">

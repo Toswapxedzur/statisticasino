@@ -215,6 +215,8 @@ class PokerClient {
   act(tableId, action) { this._raw(encode(C2S.TABLE_ACTION, { tableId, action })); }
   rebuy(tableId, amount) { this._sendMoney(`rebuy:${tableId}`, C2S.TABLE_REBUY, { tableId, amount }); }
   sitOut(tableId, sitOut) { this._raw(encode(C2S.TABLE_SITOUT, { tableId, sitOut })); }
+  addBot(tableId, tier, seat) { this.connect(); this._raw(encode(C2S.TABLE_ADD_BOT, { tableId, ...(tier ? { tier } : {}), ...(seat != null ? { seat } : {}) })); }
+  removeBot(tableId, seat) { this._raw(encode(C2S.TABLE_REMOVE_BOT, { tableId, seat })); }
   sendChat(tableId, text) { this._raw(encode(C2S.CHAT, { tableId, text })); }
 }
 
