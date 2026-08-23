@@ -26,3 +26,15 @@ export const BACCARAT_TIERS = betGameTiers([
   { key: "player", name: "Player", betOption: "player" },
   { key: "tie", name: "Tie", betOption: "tie" }
 ]);
+
+export const ROULETTE_TIERS = betGameTiers([
+  { key: "red", name: "Red", betOption: "red" }, // even-money grinder — the default
+  { key: "black", name: "Black", betOption: "black" },
+  { key: "lucky", name: "Lucky 7", betOption: "n7" } // straight-up 35:1 gambler
+]);
+
+export const SIC_BO_TIERS = betGameTiers([
+  { key: "small", name: "Small", betOption: "small" }, // even-money grinder — the default
+  { key: "big", name: "Big", betOption: "big" },
+  { key: "triple", name: "Any Triple", betOption: "anytriple" } // 30:1 gambler
+]);

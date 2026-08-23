@@ -18,14 +18,16 @@ import { TIERS } from "./tiers.js";
 import { blackjackStrategy, BJ_TIERS } from "./blackjack-strategy.js";
 import { casinoHoldemStrategy, CH_TIERS } from "./casino-holdem-strategy.js";
 import { threeCardStrategy, TC_TIERS } from "./three-card-strategy.js";
-import { betGameStrategy, BACCARAT_TIERS } from "./bet-game-strategy.js";
+import { betGameStrategy, BACCARAT_TIERS, ROULETTE_TIERS, SIC_BO_TIERS } from "./bet-game-strategy.js";
 
 // Which brain + tier set a bot uses at a banked game (poker uses the default).
 const GAME_BRAINS = {
   blackjack: { strategy: blackjackStrategy, tiers: BJ_TIERS, def: "basic" },
   "casino-holdem": { strategy: casinoHoldemStrategy, tiers: CH_TIERS, def: "basic" },
   "three-card": { strategy: threeCardStrategy, tiers: TC_TIERS, def: "basic" },
-  baccarat: { strategy: betGameStrategy, tiers: BACCARAT_TIERS, def: "banker" }
+  baccarat: { strategy: betGameStrategy, tiers: BACCARAT_TIERS, def: "banker" },
+  roulette: { strategy: betGameStrategy, tiers: ROULETTE_TIERS, def: "red" },
+  "sic-bo": { strategy: betGameStrategy, tiers: SIC_BO_TIERS, def: "small" }
 };
 
 // Reserved, non-routable domain (RFC 6761 `.invalid`) — guarantees no bot email
@@ -178,8 +180,12 @@ export class BotManager {
     if (!persona) return null;
     const identity = await this._ensureIdentity(persona);
 
-    // Deep enough to cover every seat betting the table max and winning 3:2.
-    const bankroll = Math.max(100000, (table.config.maxBuyin || 0) * (table.config.maxSeats || 6) * 3);
+    // Deep enough to cover every seat betting the table max and winning the
+    // game's BIGGEST payout — 3:2 blackjack, but 8:1 baccarat tie, 35:1 roulette
+    // straight-up, 30:1 sic-bo triple. A module declares `maxPayoutMultiple`;
+    // card-comparison games keep the ~3:1 default.
+    const payoutMult = table.game?.maxPayoutMultiple ?? 3;
+    const bankroll = Math.max(100000, (table.config.maxBuyin || 0) * (table.config.maxSeats || 6) * payoutMult);
     await this._ensureFunded(identity.id, bankroll + 1000);
 
     const botConn = new BotConn({

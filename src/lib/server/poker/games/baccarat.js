@@ -74,6 +74,7 @@ export const baccarat = bankedBetGame({
   key: "baccarat",
   name: "Baccarat",
   deck: () => shoe(1),
+  maxPayoutMultiple: DEFAULTS.tiePayout, // 8:1 tie is the biggest single win
   defaults: DEFAULTS,
   betOptions,
   resolve,

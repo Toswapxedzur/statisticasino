@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import { betGameStrategy, BACCARAT_TIERS } from "./bet-game-strategy.js";
 import { GameTable } from "../runtime.js";
 import { baccarat } from "../games/baccarat.js";
+import { roulette } from "../games/roulette.js";
 import { BotManager } from "./manager.js";
 
 function mulberry32(seed) {
@@ -61,4 +62,31 @@ test("bot bettors + bot banker play Baccarat, chips conserved", async () => {
   }
   assert.ok(rounds >= 20, `rounds (${rounds})`);
   console.log(`  baccarat: ${rounds} rounds, conserved at ${INITIAL}`);
+});
+
+test("roulette bot banker is funded for the 35:1 worst case and stays solvent", async () => {
+  const bank = makeBank();
+  const pending = [];
+  const mgr = new BotManager({ auth: makeAuth(), wallet: bank, rng: mulberry32(9), schedule: (fn) => { pending.push(fn); return null; } });
+  const RCFG = { id: "RO", name: "RO", variant: "roulette", max_seats: 6, small_blind: 5, big_blind: 5, min_buyin: 100, max_buyin: 4000 };
+  const table = new GameTable(RCFG, null, { wallet: bank, store: makeStore(), game: roulette, now: () => 1, setTimer: () => 0, clearTimer: () => {}, rng: mulberry32(0x0ddba11), autoStart: false });
+  await mgr.attachBanker(table);
+  // Banker funded for every seat betting the table max on a 35:1 number.
+  const bankerSeat = table.seats.get(table.bankerSeat);
+  assert.equal(bankerSeat.stack, RCFG.max_buyin * RCFG.max_seats * 35, "funded at maxBuyin×seats×35");
+
+  assert.ok(await mgr.attach(table, "lucky")); // straight-up n7 gambler
+  assert.ok(await mgr.attach(table, "red"));
+  const INITIAL = bank.total();
+  let rounds = 0;
+  for (let r = 0; r < 40 && table._canStartRound(); r += 1) {
+    await table.beginHand();
+    let g = 0;
+    while (table.hand) { assert.ok(g++ < 500); if (!pending.length) assert.fail("bot should act"); await pending.shift()(); }
+    rounds += 1;
+    assert.equal(bank.total(), INITIAL, `conserved after round ${r + 1}`);
+    assert.ok(table.seats.get(table.bankerSeat).stack >= 0, "banker never goes negative");
+  }
+  assert.ok(rounds >= 20, `rounds (${rounds})`);
+  console.log(`  roulette: ${rounds} rounds, conserved at ${INITIAL}`);
 });

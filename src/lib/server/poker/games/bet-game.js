@@ -36,6 +36,9 @@ export function bankedBetGame(spec) {
     name: spec.name,
     family: "banked",
     usesBanker: true,
+    // Biggest payout multiple any single bet can win — the banker is funded for
+    // it so a max bet on the longest-odds option is always covered.
+    maxPayoutMultiple: spec.maxPayoutMultiple ?? 3,
     minPlayers: spec.minPlayers ?? 1,
     deck: spec.deck || (() => []),
 

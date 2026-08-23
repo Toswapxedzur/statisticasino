@@ -7,12 +7,16 @@ import { blackjack } from "./blackjack.js";
 import { casinoHoldem } from "./casino-holdem.js";
 import { threeCard } from "./three-card.js";
 import { baccarat } from "./baccarat.js";
+import { roulette } from "./roulette.js";
+import { sicBo } from "./sic-bo.js";
 
 export const GAMES = {
   blackjack,
   "casino-holdem": casinoHoldem,
   "three-card": threeCard,
-  baccarat
+  baccarat,
+  roulette,
+  "sic-bo": sicBo
 };
 
 export const BANKED_GAME_KEYS = Object.keys(GAMES);
