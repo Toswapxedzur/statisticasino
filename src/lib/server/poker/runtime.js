@@ -188,6 +188,7 @@ export class GameTable extends LiveTable {
 
   // Generic seat list + the game's own public overlay.
   publicView() {
+    const actor = this.hand ? this.game.actorSeat(this.hand) : null;
     const seats = [];
     for (const [seatNo, s] of this.seats) {
       seats.push({
@@ -198,7 +199,8 @@ export class GameTable extends LiveTable {
         sittingOut: !!s.sittingOut,
         connected: this.isConnected(s),
         inHand: !!s.inHand,
-        isBanker: seatNo === this.bankerSeat
+        isBanker: seatNo === this.bankerSeat,
+        isToAct: seatNo === actor // clients clear the turn menu when this is false
       });
     }
     seats.sort((a, b) => a.seat - b.seat);

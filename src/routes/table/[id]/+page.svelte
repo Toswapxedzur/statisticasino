@@ -4,8 +4,11 @@
   import { SITE_NAME } from "$lib/config.js";
   import PokerTable from "$lib/poker/components/PokerTable.svelte";
   import ActionBar from "$lib/poker/components/ActionBar.svelte";
+  import BlackjackTable from "$lib/poker/components/BlackjackTable.svelte";
+  import BlackjackActionBar from "$lib/poker/components/BlackjackActionBar.svelte";
   import BuyInModal from "$lib/poker/components/BuyInModal.svelte";
   import TableChat from "$lib/poker/components/TableChat.svelte";
+  import { variantLabel } from "$lib/poker/games.js";
 
   let { data } = $props();
   const tableId = data.table.id;
@@ -20,6 +23,8 @@
   // Config has the same shape as the SSR-loaded table row; prefer the live
   // view's config once it arrives, fall back to the server-rendered one.
   let config = $derived(view?.config || data.table);
+  // Blackjack tables carry game:"blackjack" in the view and variant "blackjack".
+  let isBlackjack = $derived((view?.game || config?.variant) === "blackjack");
 
   // My seat (if any) drives the seated-player controls.
   let mySeat = $derived(
@@ -94,7 +99,12 @@
 <section class="table-top">
   <a href="/" class="back">‹ Lobby</a>
   <h2>{data.table.name}</h2>
-  <span class="stakes">NL Hold'em · {config.smallBlind}/{config.bigBlind}
+  <span class="stakes">
+    {#if isBlackjack}
+      Blackjack · min bet {config.smallBlind}
+    {:else}
+      {variantLabel(config.variant)} · {config.smallBlind}/{config.bigBlind}
+    {/if}
     · buy-in {config.minBuyin.toLocaleString()}–{config.maxBuyin.toLocaleString()}</span>
   {#if !me}
     <span class="signin">Watching — <a href="/account/login">Sign in to play</a></span>
@@ -106,16 +116,22 @@
 {/if}
 
 {#if view}
-  <PokerTable {view} {me} {privates} onSit={openBuyIn} />
-
-  {#if turn}
-    <ActionBar
-      {turn}
-      {config}
-      potTotal={view.potTotal}
-      {myStack}
-      onAct={(a) => poker.act(tableId, a)}
-    />
+  {#if isBlackjack}
+    <BlackjackTable {view} {me} onSit={openBuyIn} />
+    {#if turn}
+      <BlackjackActionBar {turn} onAct={(a) => poker.act(tableId, a)} />
+    {/if}
+  {:else}
+    <PokerTable {view} {me} {privates} onSit={openBuyIn} />
+    {#if turn}
+      <ActionBar
+        {turn}
+        {config}
+        potTotal={view.potTotal}
+        {myStack}
+        onAct={(a) => poker.act(tableId, a)}
+      />
+    {/if}
   {/if}
 
   {#if isSeated}

@@ -17,8 +17,17 @@
   import NewTableModal from "$lib/poker/components/NewTableModal.svelte";
   import LobbyPlayers from "$lib/poker/components/LobbyPlayers.svelte";
   import LobbyChat from "$lib/poker/components/LobbyChat.svelte";
+  import { GAME_MODES, variantShort, modeOf } from "$lib/poker/games.js";
 
   let { data } = $props();
+
+  // Which game mode the lobby is showing (Poker vs Blackjack). Drives the table
+  // list filter and the default game for the New Table modal.
+  let gameMode = $state("poker");
+  const modeLabel = $derived(GAME_MODES.find((m) => m.key === gameMode)?.label ?? "Poker");
+  const tablesForMode = $derived(
+    (poker.lobby.tables || []).filter((t) => modeOf(t.variant) === gameMode)
+  );
 
   // Wallet balance: SSR value, kept live via the client's "chips" event so
   // the New Table modal's buy-in caps stay accurate after wallet changes.
@@ -63,6 +72,8 @@
     poker.createTable(cfg);
     showModal = false;
   }
+
+  const isBlackjack = $derived(gameMode === "blackjack");
 </script>
 
 <svelte:head><title>{SITE_NAME} — Lobby</title></svelte:head>
@@ -100,16 +111,33 @@
       </section>
 
       <section class="card">
+        <div class="mode-pills" role="tablist" aria-label="Game mode">
+          {#each GAME_MODES as m}
+            <button
+              type="button"
+              class="mode-pill"
+              class:on={gameMode === m.key}
+              role="tab"
+              aria-selected={gameMode === m.key}
+              onclick={() => (gameMode = m.key)}
+            >{m.label}</button>
+          {/each}
+        </div>
+
         <div class="card-head">
-          <h3>Ring Games — No Limit Hold'em</h3>
+          <h3>{isBlackjack ? "Blackjack Tables" : "Ring Games — " + modeLabel}</h3>
           {#if signedIn}
             <span class="muted small">Chips: {walletChips.toLocaleString()}</span>
           {/if}
         </div>
 
         <div class="toolbar">
-          <button class="btn" onclick={quickPlay} disabled={!signedIn}>Quick Play</button>
-          <button class="btn btn-secondary" onclick={openModal} disabled={!signedIn}>New Table</button>
+          {#if !isBlackjack}
+            <button class="btn" onclick={quickPlay} disabled={!signedIn}>Quick Play</button>
+          {/if}
+          <button class="btn btn-secondary" onclick={openModal} disabled={!signedIn}>
+            {isBlackjack ? "New Blackjack Table" : "New Table"}
+          </button>
           {#if !signedIn}
             <span class="muted small signin-note">
               <a href="/account/login">Sign in</a> to play — you can watch the lobby freely.
@@ -117,9 +145,13 @@
           {/if}
         </div>
 
-        {#if poker.lobby.tables.length === 0}
+        {#if tablesForMode.length === 0}
           <div class="empty-state">
-            <p class="muted">No tables yet — hit Quick Play or start one.</p>
+            <p class="muted">
+              {isBlackjack
+                ? "No blackjack tables yet — start one and host, or let a bot bank it."
+                : "No tables yet — hit Quick Play or start one."}
+            </p>
           </div>
         {:else}
           <div class="table-wrap">
@@ -127,7 +159,7 @@
               <thead>
                 <tr>
                   <th>Table</th>
-                  <th class="num">Stakes</th>
+                  <th class="num">{isBlackjack ? "Min bet" : "Stakes"}</th>
                   <th class="num">Players</th>
                   <th>Status</th>
                   <th>Host</th>
@@ -135,13 +167,13 @@
                 </tr>
               </thead>
               <tbody>
-                {#each poker.lobby.tables as t (t.id)}
+                {#each tablesForMode as t (t.id)}
                   <tr>
                     <td class="name">
                       <span class="tname">{t.name}</span>
-                      <span class="variant">NL Hold'em</span>
+                      <span class="variant">{variantShort(t.variant)}</span>
                     </td>
-                    <td class="num">{t.smallBlind}/{t.bigBlind}</td>
+                    <td class="num">{isBlackjack ? t.smallBlind : t.smallBlind + "/" + t.bigBlind}</td>
                     <td class="num players" class:full={t.seated >= t.maxSeats}>
                       {t.seated} / {t.maxSeats}
                     </td>
@@ -179,6 +211,7 @@
 {#if showModal}
   <NewTableModal
     {walletChips}
+    mode={gameMode}
     onCreate={createTable}
     onCancel={() => (showModal = false)}
   />
@@ -219,6 +252,21 @@
   .conn.off { color: #e0a030; background: rgba(224, 160, 48, 0.12); }
 
   .small { font-size: 12.5px; }
+
+  /* Game-mode pills (Poker / Blackjack) — the lobby's top-level game switch. */
+  .mode-pills { display: flex; gap: 8px; margin-bottom: 12px; }
+  .mode-pill {
+    appearance: none; cursor: pointer;
+    border: 1px solid var(--border); background: transparent; color: var(--text);
+    border-radius: 999px; padding: 6px 16px; font-size: 13px; font-weight: 600;
+    transition: border-color 0.12s, background 0.12s, color 0.12s;
+  }
+  .mode-pill:hover { border-color: var(--accent); }
+  .mode-pill.on {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    color: var(--accent);
+  }
 
   .toolbar {
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
