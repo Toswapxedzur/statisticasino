@@ -16,6 +16,13 @@ import * as realWallet from "../../wallet.js";
 import { BotConn } from "./conn.js";
 import { TIERS } from "./tiers.js";
 import { blackjackStrategy, BJ_TIERS } from "./blackjack-strategy.js";
+import { casinoHoldemStrategy, CH_TIERS } from "./casino-holdem-strategy.js";
+
+// Which brain + tier set a bot uses at a banked game (poker uses the default).
+const GAME_BRAINS = {
+  blackjack: { strategy: blackjackStrategy, tiers: BJ_TIERS, def: "basic" },
+  "casino-holdem": { strategy: casinoHoldemStrategy, tiers: CH_TIERS, def: "basic" }
+};
 
 // Reserved, non-routable domain (RFC 6761 `.invalid`) — guarantees no bot email
 // ever collides with a real signup, and gives the leaderboard a clean filter.
@@ -110,11 +117,11 @@ export class BotManager {
     if (table._closed) return null;
     this._sweep();
 
-    // A blackjack GameTable gets the basic-strategy brain + blackjack tiers;
-    // everything else is a poker table (default LiveTable) with the poker brain.
-    const bj = table.game?.key === "blackjack";
-    const tiers = bj ? BJ_TIERS : TIERS;
-    const tier = tiers[tierKey] || tiers[bj ? "basic" : "reg"];
+    // A banked GameTable gets that game's brain + tier set; everything else is a
+    // poker table (default LiveTable) with the poker brain.
+    const brain = GAME_BRAINS[table.game?.key] || null;
+    const tiers = brain ? brain.tiers : TIERS;
+    const tier = tiers[tierKey] || tiers[brain ? brain.def : "reg"];
     const seat = opts.seat != null ? Number(opts.seat) : this._firstOpenSeat(table);
     if (seat < 0 || table.seats.has(seat)) return null;
 
@@ -133,7 +140,7 @@ export class BotManager {
       tier,
       table,
       rng: this.rng === Math.random ? Math.random : this.rng,
-      ...(bj ? { strategy: blackjackStrategy } : {}),
+      ...(brain ? { strategy: brain.strategy } : {}),
       ...(this.schedule ? { schedule: this.schedule } : {})
     });
 

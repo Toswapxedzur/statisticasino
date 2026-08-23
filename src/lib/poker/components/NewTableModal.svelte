@@ -8,11 +8,13 @@
   // VARIANT (for poker) is chosen here. A blackjack creator either banks (deep
   // bankroll, up to their whole wallet) or plays while a wealthy bot banks.
 
-  import { POKER_VARIANTS } from "$lib/poker/games.js";
+  import { POKER_VARIANTS, variantLabel } from "$lib/poker/games.js";
 
   let { walletChips = 0, mode = "poker", onCreate = () => {}, onCancel = () => {} } = $props();
 
-  const isBlackjack = $derived(mode === "blackjack");
+  const isBanked = $derived(mode !== "poker");           // any vs-the-house game
+  const isBlackjackMode = $derived(mode === "blackjack"); // only blackjack has rule knobs
+  const modeLabel = $derived(isBanked ? variantLabel(mode) : "");
 
   const PRESETS = [
     { sb: 1, bb: 2 },
@@ -47,24 +49,24 @@
   );
 
   // The staking unit: big blind for poker, minimum bet for blackjack.
-  const unit = $derived(isBlackjack ? smallBlind : bigBlind);
+  const unit = $derived(isBanked ? smallBlind : bigBlind);
   const rangeMin = $derived(20 * unit); // table's player buy-in floor
   const rangeMax = $derived(100 * unit); // table's player buy-in ceiling
 
   const wallet = $derived(walletChips ?? 0);
   // The creator's own ceiling — a blackjack banker may bank up to their wallet.
   const buyinCeil = $derived(
-    isBlackjack && beBanker ? wallet : Math.min(rangeMax, wallet)
+    isBanked && beBanker ? wallet : Math.min(rangeMax, wallet)
   );
   const canAfford = $derived(wallet >= rangeMin);
-  const seatChoices = $derived(isBlackjack ? [2, 4, 6] : [2, 6, 9]);
+  const seatChoices = $derived(isBanked ? [2, 4, 6] : [2, 6, 9]);
 
   // Clamp the buy-in whenever the bounds shift.
   $effect(() => {
     const lo = rangeMin;
     const hi = Math.max(rangeMin, buyinCeil);
     if (buyin < lo || buyin > hi || buyin === 0) {
-      buyin = canAfford ? (isBlackjack && beBanker ? Math.min(hi, Math.max(lo, rangeMax * 2)) : hi) : lo;
+      buyin = canAfford ? (isBanked && beBanker ? Math.min(hi, Math.max(lo, rangeMax * 2)) : hi) : lo;
     }
   });
 
@@ -74,7 +76,7 @@
   function create() {
     if (!canAfford) return;
     const trimmed = name.trim().slice(0, 40);
-    if (isBlackjack) {
+    if (isBanked) {
       const minBet = smallBlind;
       const minBuyin = 20 * minBet;
       const maxBuyin = 100 * minBet;
@@ -83,13 +85,11 @@
         : Math.max(minBuyin, Math.min(maxBuyin, wallet, Math.round(buyin)));
       onCreate({
         ...(trimmed ? { name: trimmed } : {}),
-        variant: "blackjack",
+        variant: mode,
         beBanker,
-        blackjackPays: bjPays,
-        decks: bjDecks,
-        dealerHitsSoft17: bjSoft17,
-        surrender: bjSurrender,
-        peek: bjPeek,
+        ...(isBlackjackMode
+          ? { blackjackPays: bjPays, decks: bjDecks, dealerHitsSoft17: bjSoft17, surrender: bjSurrender, peek: bjPeek }
+          : {}),
         smallBlind: minBet,
         maxSeats,
         minBuyin,
@@ -131,7 +131,7 @@
     onclick={(e) => e.stopPropagation()}
   >
     <div class="card-head">
-      <h3>{isBlackjack ? "New blackjack table" : "New table"}</h3>
+      <h3>{isBanked ? "New " + modeLabel + " table" : "New table"}</h3>
       <button class="x" aria-label="Close" onclick={onCancel}>✕</button>
     </div>
 
@@ -140,7 +140,7 @@
       <input type="text" placeholder="My table" maxlength="40" bind:value={name} />
     </label>
 
-    {#if !isBlackjack}
+    {#if !isBanked}
       <div class="field">
         Game
         <div class="chips">
@@ -157,11 +157,11 @@
     {/if}
 
     <div class="field">
-      {isBlackjack ? "Minimum bet" : "Stakes"}
+      {isBanked ? "Minimum bet" : "Stakes"}
       <div class="chips">
         {#each PRESETS as p, i}
           <button type="button" class="chip" class:on={stake === i} onclick={() => (stake = i)}>
-            {isBlackjack ? p.sb : p.sb + "/" + p.bb}
+            {isBanked ? p.sb : p.sb + "/" + p.bb}
           </button>
         {/each}
         <button type="button" class="chip" class:on={isCustom} onclick={() => (stake = "custom")}>
@@ -173,10 +173,10 @@
     {#if isCustom}
       <div class="pair">
         <label class="field num">
-          {isBlackjack ? "Minimum bet" : "Small blind"}
+          {isBanked ? "Minimum bet" : "Small blind"}
           <input type="number" min="1" step="1" bind:value={customSb} />
         </label>
-        {#if !isBlackjack}
+        {#if !isBanked}
           <label class="field num">
             Big blind
             <input type="number" min={smallBlind} step="1" bind:value={customBb} />
@@ -196,7 +196,7 @@
       </div>
     </div>
 
-    {#if isBlackjack}
+    {#if isBanked}
       <label class="toggle">
         <input type="checkbox" bind:checked={beBanker} />
         <span>I'll be the banker (host the house)</span>
@@ -207,34 +207,36 @@
           : "A wealthy bot will bank the table so you can just play."}
       </p>
 
-      <div class="field">
-        Blackjack pays
-        <div class="chips">
-          <button type="button" class="chip" class:on={bjPays === "3:2"} onclick={() => (bjPays = "3:2")}>3:2</button>
-          <button type="button" class="chip" class:on={bjPays === "6:5"} onclick={() => (bjPays = "6:5")}>6:5</button>
+      {#if isBlackjackMode}
+        <div class="field">
+          Blackjack pays
+          <div class="chips">
+            <button type="button" class="chip" class:on={bjPays === "3:2"} onclick={() => (bjPays = "3:2")}>3:2</button>
+            <button type="button" class="chip" class:on={bjPays === "6:5"} onclick={() => (bjPays = "6:5")}>6:5</button>
+          </div>
         </div>
-      </div>
-      <div class="field">
-        Decks
-        <div class="chips">
-          {#each [1, 2, 6, 8] as d}
-            <button type="button" class="chip" class:on={bjDecks === d} onclick={() => (bjDecks = d)}>{d}</button>
-          {/each}
+        <div class="field">
+          Decks
+          <div class="chips">
+            {#each [1, 2, 6, 8] as d}
+              <button type="button" class="chip" class:on={bjDecks === d} onclick={() => (bjDecks = d)}>{d}</button>
+            {/each}
+          </div>
         </div>
-      </div>
-      <div class="field">
-        Soft 17
-        <div class="chips">
-          <button type="button" class="chip" class:on={!bjSoft17} onclick={() => (bjSoft17 = false)}>Dealer stands</button>
-          <button type="button" class="chip" class:on={bjSoft17} onclick={() => (bjSoft17 = true)}>Dealer hits</button>
+        <div class="field">
+          Soft 17
+          <div class="chips">
+            <button type="button" class="chip" class:on={!bjSoft17} onclick={() => (bjSoft17 = false)}>Dealer stands</button>
+            <button type="button" class="chip" class:on={bjSoft17} onclick={() => (bjSoft17 = true)}>Dealer hits</button>
+          </div>
         </div>
-      </div>
-      <label class="toggle"><input type="checkbox" bind:checked={bjSurrender} /><span>Allow late surrender</span></label>
-      <label class="toggle"><input type="checkbox" bind:checked={bjPeek} /><span>Dealer peeks for blackjack (American)</span></label>
+        <label class="toggle"><input type="checkbox" bind:checked={bjSurrender} /><span>Allow late surrender</span></label>
+        <label class="toggle"><input type="checkbox" bind:checked={bjPeek} /><span>Dealer peeks for blackjack (American)</span></label>
+      {/if}
     {/if}
 
     <div class="field">
-      {isBlackjack && beBanker ? "Bankroll" : "Buy-in"}
+      {isBanked && beBanker ? "Bankroll" : "Buy-in"}
       {#if canAfford}
         <div class="amount">{buyin.toLocaleString()}</div>
         <input
@@ -275,7 +277,7 @@
     <div class="actions">
       <button class="btn btn-secondary" onclick={onCancel}>Cancel</button>
       <button class="btn" onclick={create} disabled={!canAfford}>
-        {isBlackjack ? "Create blackjack table" : "Create table"}
+        {isBanked ? "Create " + modeLabel + " table" : "Create table"}
       </button>
     </div>
   </div>

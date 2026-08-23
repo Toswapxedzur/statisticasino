@@ -4,8 +4,13 @@
 
 export const GAME_MODES = [
   { key: "poker", label: "Poker" },
-  { key: "blackjack", label: "Blackjack" }
+  { key: "blackjack", label: "Blackjack" },
+  { key: "casino-holdem", label: "Casino Hold'em" }
 ];
+
+// Banked (vs-the-house) games — keep in sync with games/registry.js.
+export const BANKED_GAMES = ["blackjack", "casino-holdem"];
+export function isBanked(key) { return BANKED_GAMES.includes(key); }
 
 // Poker variants offered in the New Table modal, grouped for a tidy picker.
 export const POKER_VARIANTS = [
@@ -19,11 +24,13 @@ export const POKER_VARIANTS = [
 
 const SHORT_BY_KEY = new Map([
   ...POKER_VARIANTS.map((v) => [v.key, v.short]),
-  ["blackjack", "Blackjack"]
+  ["blackjack", "Blackjack"],
+  ["casino-holdem", "Casino Hold'em"]
 ]);
 const LABEL_BY_KEY = new Map([
   ...POKER_VARIANTS.map((v) => [v.key, v.label]),
-  ["blackjack", "Blackjack"]
+  ["blackjack", "Blackjack"],
+  ["casino-holdem", "Casino Hold'em"]
 ]);
 
 export function variantShort(key) {
@@ -32,7 +39,8 @@ export function variantShort(key) {
 export function variantLabel(key) {
   return LABEL_BY_KEY.get(key) || "No-Limit Hold'em";
 }
-// The game mode a table belongs to, derived from its variant field.
+// The game mode a table belongs to: a banked game is its own mode; any poker
+// variant maps to "poker".
 export function modeOf(variant) {
-  return variant === "blackjack" ? "blackjack" : "poker";
+  return isBanked(variant) ? variant : "poker";
 }

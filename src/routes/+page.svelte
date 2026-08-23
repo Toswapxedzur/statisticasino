@@ -73,7 +73,7 @@
     showModal = false;
   }
 
-  const isBlackjack = $derived(gameMode === "blackjack");
+  const isBanked = $derived(gameMode !== "poker");
 </script>
 
 <svelte:head><title>{SITE_NAME} — Lobby</title></svelte:head>
@@ -125,18 +125,18 @@
         </div>
 
         <div class="card-head">
-          <h3>{isBlackjack ? "Blackjack Tables" : "Ring Games — " + modeLabel}</h3>
+          <h3>{isBanked ? modeLabel + " Tables" : "Ring Games — " + modeLabel}</h3>
           {#if signedIn}
             <span class="muted small">Chips: {walletChips.toLocaleString()}</span>
           {/if}
         </div>
 
         <div class="toolbar">
-          {#if !isBlackjack}
+          {#if !isBanked}
             <button class="btn" onclick={quickPlay} disabled={!signedIn}>Quick Play</button>
           {/if}
           <button class="btn btn-secondary" onclick={openModal} disabled={!signedIn}>
-            {isBlackjack ? "New Blackjack Table" : "New Table"}
+            {isBanked ? "New " + modeLabel + " Table" : "New Table"}
           </button>
           {#if !signedIn}
             <span class="muted small signin-note">
@@ -148,8 +148,8 @@
         {#if tablesForMode.length === 0}
           <div class="empty-state">
             <p class="muted">
-              {isBlackjack
-                ? "No blackjack tables yet — start one and host, or let a bot bank it."
+              {isBanked
+                ? "No " + modeLabel + " tables yet — start one and host, or let a bot bank it."
                 : "No tables yet — hit Quick Play or start one."}
             </p>
           </div>
@@ -159,7 +159,7 @@
               <thead>
                 <tr>
                   <th>Table</th>
-                  <th class="num">{isBlackjack ? "Min bet" : "Stakes"}</th>
+                  <th class="num">{isBanked ? "Min bet" : "Stakes"}</th>
                   <th class="num">Players</th>
                   <th>Status</th>
                   <th>Host</th>
@@ -173,7 +173,7 @@
                       <span class="tname">{t.name}</span>
                       <span class="variant">{variantShort(t.variant)}</span>
                     </td>
-                    <td class="num">{isBlackjack ? t.smallBlind : t.smallBlind + "/" + t.bigBlind}</td>
+                    <td class="num">{isBanked ? t.smallBlind : t.smallBlind + "/" + t.bigBlind}</td>
                     <td class="num players" class:full={t.seated >= t.maxSeats}>
                       {t.seated} / {t.maxSeats}
                     </td>
