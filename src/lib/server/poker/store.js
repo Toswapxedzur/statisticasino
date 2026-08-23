@@ -63,11 +63,14 @@ export async function chipsForUsers(userIds) {
   return new Map(rows.map((r) => [r.id, Number(r.chips)]));
 }
 
-// Top players by wallet chips, for the lobby leaderboard.
+// Top players by wallet chips, for the lobby leaderboard. Bots are real user
+// rows (so they buy in through escrow like anyone) but live under a reserved
+// `.invalid` email domain — exclude them so they don't crowd the human board.
 export async function leaderboard(limit = 10) {
   return query(
     `SELECT COALESCE(NULLIF(display_name, ''), email) AS name, chips
        FROM user
+      WHERE email NOT LIKE '%@bot.riverside.invalid'
       ORDER BY chips DESC, name ASC
       LIMIT ?`,
     [limit]

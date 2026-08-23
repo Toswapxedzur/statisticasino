@@ -25,6 +25,8 @@ export const C2S = {
   TABLE_ACTION: "table.action",// { tableId, action: {type, amount?} }
   TABLE_REBUY: "table.rebuy",  // { tableId, amount }
   TABLE_SITOUT: "table.sitout",// { tableId, sitOut: bool }
+  TABLE_ADD_BOT: "table.addbot",     // { tableId, tier?, seat? } — seat a bot
+  TABLE_REMOVE_BOT: "table.removebot", // { tableId, seat } — remove the bot at seat
   CHAT: "chat",                // { tableId, text }
   PONG: "pong"
 };

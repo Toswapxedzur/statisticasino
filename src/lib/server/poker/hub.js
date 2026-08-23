@@ -17,6 +17,8 @@ import {
 } from "./store.js";
 import { getBalance } from "../wallet.js";
 import { LiveTable } from "./table.js";
+import { BotManager } from "./bot/manager.js";
+import { TIERS } from "./bot/tiers.js";
 
 const INVITE_TTL_MS = 60_000;
 const LEADERBOARD_SIZE = 10;
@@ -30,6 +32,7 @@ class PokerHub {
     this.userLocks = new Map();     // userId -> in-flight seat-op promise chain
     this._lobbyGen = 0;             // coalesces overlapping lobby snapshots
     this.shuttingDown = false;      // set during a graceful drain (rejects ops)
+    this.botManager = new BotManager(); // owns bot identities + seating
   }
 
   // ------------------------------------------------------- helpers
@@ -202,6 +205,7 @@ class PokerHub {
   // markClosedIfEmpty set table._closed under the op-lock).
   async _reclaim(table) {
     this.tables.delete(table.id);
+    this.botManager.forgetTable(table.id); // stop any lingering bot timers/registry
     // Drop any invites that pointed at this now-dead table (#7).
     for (const [id, inv] of this.invites) {
       if (inv.tableId === table.id) this.invites.delete(id);
@@ -217,6 +221,10 @@ class PokerHub {
   // Never closes a table that's mid-spawn (#2).
   async maybeCloseTable(table) {
     if (!table || table._spawning) return;
+    // Bots must not keep a table alive on their own: if the last human just
+    // left, remove the bots so the table can be reclaimed (they fold out and
+    // cash out through the normal path).
+    await this.botManager.reapIfNoHumans(table);
     const closed = await table.tryClose?.();
     if (closed) await this._reclaim(table);
   }
@@ -237,6 +245,7 @@ class PokerHub {
   async shutdown() {
     this.shuttingDown = true;
     for (const table of [...this.tables.values()]) {
+      this.botManager.forgetTable(table.id); // stop bot timers; cashOutAll refunds bot seats
       try { await table.cashOutAll(); } catch { /* best effort */ }
       this.tables.delete(table.id);
       try { await closeTableRow(table.id); } catch { /* row stays; harmless */ }
@@ -555,6 +564,8 @@ class PokerHub {
         case C2S.TABLE_ACTION:
         case C2S.TABLE_REBUY:
         case C2S.TABLE_SITOUT:
+        case C2S.TABLE_ADD_BOT:
+        case C2S.TABLE_REMOVE_BOT:
         case C2S.CHAT: {
           if (!conn.user) return this._err(conn, "Sign in to play.", "AUTH");
           const t = await this.getOrLoadTable(msg.tableId);
@@ -597,10 +608,47 @@ class PokerHub {
         table.setSitOut(conn, !!msg.sitOut);
         await this.pushLobby();
         break;
+      case C2S.TABLE_ADD_BOT:
+        await this.addBot(conn, table, msg.tier, msg.seat);
+        break;
+      case C2S.TABLE_REMOVE_BOT:
+        await this.removeBot(conn, table, msg.seat);
+        break;
       case C2S.CHAT:
         this.relayChat(table, conn, msg.text);
         break;
     }
+  }
+
+  // Add a bot to `table`. Only a player seated at the table may add one, and
+  // only to an open seat. Tier defaults to "reg".
+  async addBot(conn, table, tierKey, seat) {
+    if (!table.seatForUser(conn.user.id)) {
+      return this._err(conn, "Only a seated player can add a bot.");
+    }
+    const tier = TIERS[tierKey] ? tierKey : "reg";
+    const bot = await this.botManager.attach(table, tier, seat != null ? { seat } : {});
+    if (!bot) {
+      return this._err(conn, "Couldn't seat a bot (table full or none available).");
+    }
+    await this.pushLobby();
+  }
+
+  // Remove the bot seated at `seat`. Only a seated player may remove one, and
+  // only an actual bot seat.
+  async removeBot(conn, table, seat) {
+    if (!table.seatForUser(conn.user.id)) {
+      return this._err(conn, "Only a seated player can remove a bot.");
+    }
+    const s = table.seats.get(Number(seat));
+    if (!s || !this.botManager.isBotUser(s.userId)) {
+      return this._err(conn, "That seat isn't a bot.");
+    }
+    const botConn = this.botManager.botsAtTable(table.id).find((b) => b.user.id === s.userId);
+    if (!botConn) return this._err(conn, "That bot is no longer here.");
+    await this.botManager.detach(table, botConn);
+    await this.pushLobby();
+    await this.maybeCloseTable(table);
   }
 
   relayChat(table, conn, text) {
