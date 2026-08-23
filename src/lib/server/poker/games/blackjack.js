@@ -8,17 +8,39 @@
 // returns per-seat chip deltas that SUM TO ZERO (a player's win is the banker's
 // loss), so the runtime moves chips through escrow with conservation intact.
 //
-// v1 scope: hit / stand / double + naturals (3:2). Split, insurance and
-// surrender are deliberately deferred.
+// Scope: hit / stand / double / surrender + naturals, with configurable house
+// rules (see DEFAULTS). Split and insurance are still deferred.
 
 import { standardDeck } from "../engine/cards.js";
 
 export const DEFAULTS = {
   minBet: 1,
-  dealerHitsSoft17: false, // dealer stands on soft 17
-  blackjackNumerator: 3,   // naturals pay 3:2
-  blackjackDenominator: 2
+  decks: 1,                // shoe size (reshuffled each round in this build)
+  dealerHitsSoft17: false, // false = dealer stands on soft 17
+  blackjackPays: "3:2",    // "3:2" | "6:5"
+  surrender: false,        // allow late surrender (forfeit half after the deal)
+  peek: true               // true = American (dealer peeks for BJ); false = European no-peek
 };
+
+// A single 52-card deck, or an N-deck shoe. Duplicate cards are fine — blackjack
+// only cares about rank values, and we reshuffle each round.
+function shoe(decks = 1) {
+  const one = standardDeck();
+  if (decks <= 1) return one;
+  const out = [];
+  for (let i = 0; i < decks; i += 1) out.push(...one);
+  return out;
+}
+
+// Merge caller config over defaults and normalize the 3:2 / 6:5 payout + shoe.
+function resolveConfig(raw) {
+  const config = { ...DEFAULTS, ...(raw || {}) };
+  const [num, den] = config.blackjackPays === "6:5" ? [6, 5] : [3, 2];
+  config.blackjackNumerator = num;
+  config.blackjackDenominator = den;
+  config.decks = Math.max(1, Math.min(8, Math.floor(config.decks || 1)));
+  return config;
+}
 
 function cardValue(rank) {
   if (rank === "A") return 11;
@@ -72,8 +94,10 @@ function deal(state) {
   }
   state.dealer.blackjack = isBlackjack(state.dealer.cards);
 
-  // Dealer peek: a dealer natural ends the round before anyone acts.
-  if (state.dealer.blackjack) { finishDealer(state); return; }
+  // Dealer peek (American): a dealer natural ends the round before anyone acts.
+  // European no-peek: players act first, and a dealer BJ is revealed at the end
+  // (players can lose extra chips they doubled in — resolved in computeResults).
+  if (state.config.peek && state.dealer.blackjack) { finishDealer(state); return; }
 
   state.phase = "acting";
   state.toActSeat = firstUnfinished(state);
@@ -117,7 +141,8 @@ function computeResults(state) {
     const playerBust = playerTotal > 21;
     let delta;
     let outcome;
-    if (p.blackjack && !dealerBJ) { delta = Math.floor((bet * bn) / bd); outcome = "blackjack"; }
+    if (p.surrendered) { delta = -Math.floor(bet / 2); outcome = "surrender"; }
+    else if (p.blackjack && !dealerBJ) { delta = Math.floor((bet * bn) / bd); outcome = "blackjack"; }
     else if (p.blackjack && dealerBJ) { delta = 0; outcome = "push"; }
     else if (dealerBJ) { delta = -bet; outcome = "lose"; }
     else if (playerBust) { delta = -bet; outcome = "lose"; }
@@ -140,11 +165,11 @@ export const blackjack = {
   family: "banked",
   usesBanker: true,
   minPlayers: 1,           // one player + the banker is a game
-  deck: standardDeck,
+  deck: (config) => shoe(config?.decks ?? 1),
 
   // ctx: { players:[{seat,userId,stack}], bankerSeat, deck, config }
   startRound(ctx) {
-    const config = { ...DEFAULTS, ...(ctx.config || {}) };
+    const config = resolveConfig(ctx.config);
     const state = {
       game: "blackjack",
       phase: "betting",
@@ -157,7 +182,7 @@ export const blackjack = {
         .filter((p) => p.seat !== ctx.bankerSeat)
         .map((p) => ({
           seat: p.seat, userId: p.userId, startStack: p.stack,
-          bet: 0, cards: [], done: false, doubled: false, blackjack: false, value: 0
+          bet: 0, cards: [], done: false, doubled: false, surrendered: false, blackjack: false, value: 0
         })),
       toActSeat: null,
       results: null
@@ -178,6 +203,7 @@ export const blackjack = {
     // acting
     const actions = [{ type: "hit" }, { type: "stand" }];
     if (player.cards.length === 2 && player.startStack >= player.bet * 2) actions.push({ type: "double" });
+    if (player.cards.length === 2 && state.config.surrender) actions.push({ type: "surrender" });
     return { toActSeat: state.toActSeat, actions };
   },
 
@@ -214,6 +240,10 @@ export const blackjack = {
       player.bet *= 2;
       player.doubled = true;
       player.cards.push(draw(next));
+      player.done = true;
+    } else if (action.type === "surrender") {
+      if (player.cards.length !== 2 || !next.config.surrender) throw new Error("cannot surrender");
+      player.surrendered = true;
       player.done = true;
     } else {
       throw new RangeError(`illegal action: ${action.type}`);
@@ -256,7 +286,7 @@ export const blackjack = {
       hands: state.players.map((p) => ({
         seat: p.seat, cards: [...p.cards], bet: p.bet,
         value: handValue(p.cards).total, bust: handValue(p.cards).total > 21,
-        blackjack: p.blackjack, done: p.done, doubled: p.doubled
+        blackjack: p.blackjack, done: p.done, doubled: p.doubled, surrendered: p.surrendered
       })),
       toActSeat: state.toActSeat,
       results: state.results

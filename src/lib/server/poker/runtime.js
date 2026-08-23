@@ -65,7 +65,7 @@ export class GameTable extends LiveTable {
         roundSeats.push({ seat: banker.seat, userId: banker.userId, stack: banker.stack });
       }
     }
-    const deck = shuffle(this.game.deck(), this.rng);
+    const deck = shuffle(this.game.deck(this.gameConfig), this.rng);
 
     let round;
     try {

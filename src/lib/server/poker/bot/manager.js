@@ -15,6 +15,7 @@ import * as realAuth from "../../auth.js";
 import * as realWallet from "../../wallet.js";
 import { BotConn } from "./conn.js";
 import { TIERS } from "./tiers.js";
+import { blackjackStrategy, BJ_TIERS } from "./blackjack-strategy.js";
 
 // Reserved, non-routable domain (RFC 6761 `.invalid`) — guarantees no bot email
 // ever collides with a real signup, and gives the leaderboard a clean filter.
@@ -105,11 +106,15 @@ export class BotManager {
 
   // Seat a bot at `table`. Returns the BotConn, or null if it couldn't seat
   // (no open seat, roster exhausted, or the buy-in failed).
-  async attach(table, tierKey = "reg", opts = {}) {
+  async attach(table, tierKey, opts = {}) {
     if (table._closed) return null;
     this._sweep();
 
-    const tier = TIERS[tierKey] || TIERS.reg;
+    // A blackjack GameTable gets the basic-strategy brain + blackjack tiers;
+    // everything else is a poker table (default LiveTable) with the poker brain.
+    const bj = table.game?.key === "blackjack";
+    const tiers = bj ? BJ_TIERS : TIERS;
+    const tier = tiers[tierKey] || tiers[bj ? "basic" : "reg"];
     const seat = opts.seat != null ? Number(opts.seat) : this._firstOpenSeat(table);
     if (seat < 0 || table.seats.has(seat)) return null;
 
@@ -128,6 +133,7 @@ export class BotManager {
       tier,
       table,
       rng: this.rng === Math.random ? Math.random : this.rng,
+      ...(bj ? { strategy: blackjackStrategy } : {}),
       ...(this.schedule ? { schedule: this.schedule } : {})
     });
 

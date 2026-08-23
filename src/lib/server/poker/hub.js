@@ -21,7 +21,6 @@ import { GameTable } from "./runtime.js";
 import { blackjack } from "./games/blackjack.js";
 import { VARIANT_KEYS } from "./engine/variants.js";
 import { BotManager } from "./bot/manager.js";
-import { TIERS } from "./bot/tiers.js";
 
 const INVITE_TTL_MS = 60_000;
 const LEADERBOARD_SIZE = 10;
@@ -689,8 +688,9 @@ class PokerHub {
     if (!table.seatForUser(conn.user.id)) {
       return this._err(conn, "Only a seated player can add a bot.");
     }
-    const tier = TIERS[tierKey] ? tierKey : "reg";
-    const bot = await this.botManager.attach(table, tier, seat != null ? { seat } : {});
+    // attach() resolves the tier per game (poker tiers vs. blackjack tiers) and
+    // falls back to a sensible default, so pass the requested key through.
+    const bot = await this.botManager.attach(table, tierKey, seat != null ? { seat } : {});
     if (!bot) {
       return this._err(conn, "Couldn't seat a bot (table full or none available).");
     }

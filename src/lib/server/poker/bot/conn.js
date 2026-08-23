@@ -19,8 +19,18 @@
 //     and decide once.
 
 import { decode, S2C } from "../../../poker/protocol.js";
-import { getVariant } from "../engine/variants.js";
-import { decide } from "./decide.js";
+import { pokerStrategy } from "./poker-strategy.js";
+
+// Last-resort fallback if a strategy fails: pick a legal, zero-cost action.
+function safeAction(turn) {
+  const acts = turn.actions || [];
+  for (const t of ["check", "stand", "call", "fold"]) {
+    if (acts.some((a) => a.type === t)) return { type: t };
+  }
+  const bet = acts.find((a) => a.type === "bet");
+  if (bet) return { type: "bet", amount: bet.min };
+  return acts[0] ? { type: acts[0].type } : { type: "fold" };
+}
 
 // Prod think-time: a small jittered delay so bots don't snap-act instantly.
 // Swallows a rejected act() promise so a transient table error can't surface as
@@ -33,8 +43,8 @@ function defaultSchedule(fn) {
 }
 
 export class BotConn {
-  // { user:{id,displayName}, tier, table, rng?, schedule?(fn)->handle }
-  constructor({ user, tier, table, rng = Math.random, schedule = defaultSchedule } = {}) {
+  // { user:{id,displayName}, tier, table, rng?, schedule?(fn)->handle, strategy? }
+  constructor({ user, tier, table, rng = Math.random, schedule = defaultSchedule, strategy } = {}) {
     if (!user || user.id == null) throw new Error("BotConn needs a user with an id");
     if (!tier) throw new Error("BotConn needs a tier");
     if (!table) throw new Error("BotConn needs a table");
@@ -43,6 +53,8 @@ export class BotConn {
     this.table = table;
     this.rng = rng;
     this._schedule = schedule;
+    // The game brain. Defaults to poker; a blackjack bot gets blackjackStrategy.
+    this.strategy = strategy || pokerStrategy;
 
     // Connection surface the table/hub expect.
     this.watching = new Set();
@@ -71,6 +83,12 @@ export class BotConn {
     switch (msg.t) {
       case S2C.TABLE_STATE:
         this.view = msg.table;
+        // Learn our seat from the public view — the only source in games with no
+        // private frame (blackjack hands are face-up, so no TABLE_PRIVATE).
+        if (this.seat == null && this.user?.id != null) {
+          const mine = (msg.table?.seats || []).find((s) => s.userId === this.user.id);
+          if (mine) this.seat = mine.seat;
+        }
         break;
       case S2C.TABLE_PRIVATE:
         this.seat = msg.seat;
@@ -91,29 +109,6 @@ export class BotConn {
     this._timer = this._schedule(() => this._decideAndSubmit());
   }
 
-  // Assemble the decision input purely from what a client at this seat can see.
-  _buildObs(turn) {
-    const view = this.view || {};
-    const board = view.board || [];
-    const seats = view.seats || [];
-    // Opponents still contesting the pot: seated, dealt in, not folded.
-    const numOpponents = seats.filter(
-      (s) => s.seat !== this.seat && s.inHand && s.status !== "folded"
-    ).length;
-    return {
-      hole: this.hole ? [...this.hole] : [],
-      board: [...board],
-      street: view.street || null,
-      toCall: turn.callAmount || 0,
-      pot: turn.potTotal || 0,
-      currentBet: turn.currentBet || 0,
-      minRaise: turn.minRaise || 0,
-      numOpponents,
-      actions: turn.actions || [],
-      variant: getVariant(this.table?.variantKey)
-    };
-  }
-
   _decideAndSubmit() {
     this._scheduled = false;
     this._timer = null;
@@ -121,19 +116,23 @@ export class BotConn {
     this._pendingTurn = null;
     if (this._detached || !turn) return;
 
-    const safe = () =>
-      (turn.actions || []).some((a) => a.type === "check") ? { type: "check" } : { type: "fold" };
-
     let action;
     try {
-      const obs = this._buildObs(turn);
-      // No cards yet, or nobody left to act against — take the free/cheap out.
-      action = (obs.hole.length < 2 || obs.numOpponents < 1)
-        ? safe()
-        : decide(obs, this.tier, this.rng);
+      // The strategy only ever gets this seat's redacted view — hole cards +
+      // public state — so it can't peek. It returns a legal { type, amount? }.
+      action = this.strategy.decide({
+        view: this.view,
+        turn,
+        hole: this.hole,
+        seat: this.seat,
+        tier: this.tier,
+        rng: this.rng,
+        variantKey: this.table?.variantKey
+      });
     } catch {
-      action = safe();
+      action = null;
     }
+    if (!action || typeof action.type !== "string") action = safeAction(turn);
     // Submit through the SAME op-locked entry a human's TABLE_ACTION reaches.
     return this.table.act(this, action);
   }

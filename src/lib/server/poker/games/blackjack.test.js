@@ -3,7 +3,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { blackjack, handValue, isBlackjack } from "./blackjack.js";
+import { blackjack, handValue, isBlackjack, DEFAULTS } from "./blackjack.js";
 
 const FILLER = ["2c", "3c", "4c", "5c", "6c", "7c", "8c", "9d"]; // never-blackjack tail
 
@@ -85,4 +85,50 @@ test("a dealer natural ends the round before players act; a player natural pushe
   const { player } = runRound(deck, [{ seat: 1, type: "bet", amount: 10 }]);
   assert.equal(player.outcome, "lose", "dealer natural beats a non-natural 18");
   assert.equal(player.delta, -10);
+});
+
+// ---------------------------------------------------------------- house rules
+
+test("blackjack pays 6:5 when configured (vs 3:2 default)", () => {
+  // player: As, Kd (blackjack). dealer: 9c, 8h (17) → stands.
+  const deck = ["As", "9c", "Kd", "8h"];
+  const at32 = runRound(deck, [{ seat: 1, type: "bet", amount: 10 }]);
+  assert.equal(at32.player.delta, 15, "3:2 pays 15 on 10");
+  const at65 = runRound(deck, [{ seat: 1, type: "bet", amount: 10 }], 1000, { blackjackPays: "6:5" });
+  assert.equal(at65.player.delta, 12, "6:5 pays 12 on 10");
+});
+
+test("dealer hits soft 17 only when configured", () => {
+  // player Kh Kd (20); dealer Ah 6c (soft 17); next dealer card 4d → 21.
+  const deck = ["Kh", "Ah", "Kd", "6c", "4d"];
+  const stand = runRound(deck, [{ seat: 1, type: "bet", amount: 10 }, { seat: 1, type: "stand" }]);
+  assert.equal(stand.player.outcome, "win", "S17: dealer stands on 17, 20 wins");
+  const hit = runRound(deck, [{ seat: 1, type: "bet", amount: 10 }, { seat: 1, type: "stand" }], 1000, { dealerHitsSoft17: true });
+  assert.equal(hit.player.outcome, "lose", "H17: dealer draws to 21, 20 loses");
+});
+
+test("late surrender forfeits exactly half the bet", () => {
+  // player Kh 6c (16) vs dealer Th 9d (19) — surrender.
+  const deck = ["Kh", "Th", "6c", "9d"];
+  const { player, banker, results } = runRound(deck, [{ seat: 1, type: "bet", amount: 10 }, { seat: 1, type: "surrender" }], 1000, { surrender: true });
+  assert.equal(player.outcome, "surrender");
+  assert.equal(player.delta, -5, "lose half of 10");
+  assert.equal(banker.delta, 5);
+  assert.equal(results.reduce((s, r) => s + r.delta, 0), 0);
+});
+
+test("European no-peek lets a player double into a dealer blackjack (costs extra)", () => {
+  // player 9c 2d (11) doubles → 5s (16); dealer As Kh (blackjack).
+  const deck = ["9c", "As", "2d", "Kh", "5s"];
+  const peek = runRound(deck, [{ seat: 1, type: "bet", amount: 10 }, { seat: 1, type: "double" }]);
+  assert.equal(peek.player.delta, -10, "American peek ends the round on deal — only the base bet lost");
+  const noPeek = runRound(deck, [{ seat: 1, type: "bet", amount: 10 }, { seat: 1, type: "double" }], 1000, { peek: false });
+  assert.equal(noPeek.player.delta, -20, "no-peek: the doubled bet is lost to the dealer BJ");
+});
+
+test("deck() honors the shoe size", () => {
+  assert.equal(blackjack.deck().length, 52);
+  assert.equal(blackjack.deck({ decks: 1 }).length, 52);
+  assert.equal(blackjack.deck({ decks: 6 }).length, 312);
+  assert.equal(DEFAULTS.blackjackPays, "3:2");
 });
