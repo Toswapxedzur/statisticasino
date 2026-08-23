@@ -18,7 +18,10 @@ import { TIERS } from "./tiers.js";
 import { blackjackStrategy, BJ_TIERS } from "./blackjack-strategy.js";
 import { casinoHoldemStrategy, CH_TIERS } from "./casino-holdem-strategy.js";
 import { threeCardStrategy, TC_TIERS } from "./three-card-strategy.js";
-import { betGameStrategy, BACCARAT_TIERS, ROULETTE_TIERS, SIC_BO_TIERS } from "./bet-game-strategy.js";
+import {
+  betGameStrategy, BACCARAT_TIERS, ROULETTE_TIERS, SIC_BO_TIERS,
+  DRAGON_TIGER_TIERS, CASINO_WAR_TIERS, ANDAR_BAHAR_TIERS, MONEY_WHEEL_TIERS
+} from "./bet-game-strategy.js";
 
 // Which brain + tier set a bot uses at a banked game (poker uses the default).
 const GAME_BRAINS = {
@@ -27,7 +30,11 @@ const GAME_BRAINS = {
   "three-card": { strategy: threeCardStrategy, tiers: TC_TIERS, def: "basic" },
   baccarat: { strategy: betGameStrategy, tiers: BACCARAT_TIERS, def: "banker" },
   roulette: { strategy: betGameStrategy, tiers: ROULETTE_TIERS, def: "red" },
-  "sic-bo": { strategy: betGameStrategy, tiers: SIC_BO_TIERS, def: "small" }
+  "sic-bo": { strategy: betGameStrategy, tiers: SIC_BO_TIERS, def: "small" },
+  "dragon-tiger": { strategy: betGameStrategy, tiers: DRAGON_TIGER_TIERS, def: "dragon" },
+  "casino-war": { strategy: betGameStrategy, tiers: CASINO_WAR_TIERS, def: "ante" },
+  "andar-bahar": { strategy: betGameStrategy, tiers: ANDAR_BAHAR_TIERS, def: "bahar" },
+  "money-wheel": { strategy: betGameStrategy, tiers: MONEY_WHEEL_TIERS, def: "one" }
 };
 
 // Reserved, non-routable domain (RFC 6761 `.invalid`) — guarantees no bot email

@@ -40,7 +40,11 @@
     "three-card": [["basic", "Basic"], ["loose", "Loose"], ["tight", "Tight"]],
     baccarat: [["banker", "Banker"], ["player", "Player"], ["tie", "Tie"]],
     roulette: [["red", "Red"], ["black", "Black"], ["lucky", "Lucky 7"]],
-    "sic-bo": [["small", "Small"], ["big", "Big"], ["triple", "Any Triple"]]
+    "sic-bo": [["small", "Small"], ["big", "Big"], ["triple", "Any Triple"]],
+    "dragon-tiger": [["dragon", "Dragon"], ["tiger", "Tiger"], ["tie", "Tie"]],
+    "casino-war": [["ante", "Player"], ["tie", "Tie"]],
+    "andar-bahar": [["bahar", "Bahar"], ["andar", "Andar"]],
+    "money-wheel": [["one", "$1"], ["twenty", "$20"], ["joker", "Joker"]]
   };
   const botTiers = $derived(
     banked ? (BOT_TIERS[gameKey] || [["basic", "Basic"]]) : [["reg", "Reg"], ["fish", "Fish"]]

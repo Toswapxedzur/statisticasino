@@ -9,6 +9,10 @@ import { threeCard } from "./three-card.js";
 import { baccarat } from "./baccarat.js";
 import { roulette } from "./roulette.js";
 import { sicBo } from "./sic-bo.js";
+import { dragonTiger } from "./dragon-tiger.js";
+import { casinoWar } from "./casino-war.js";
+import { andarBahar } from "./andar-bahar.js";
+import { moneyWheel } from "./money-wheel.js";
 
 export const GAMES = {
   blackjack,
@@ -16,7 +20,11 @@ export const GAMES = {
   "three-card": threeCard,
   baccarat,
   roulette,
-  "sic-bo": sicBo
+  "sic-bo": sicBo,
+  "dragon-tiger": dragonTiger,
+  "casino-war": casinoWar,
+  "andar-bahar": andarBahar,
+  "money-wheel": moneyWheel
 };
 
 export const BANKED_GAME_KEYS = Object.keys(GAMES);
