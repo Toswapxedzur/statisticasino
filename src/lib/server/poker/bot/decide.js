@@ -13,6 +13,7 @@
 // bluff frequency. See tiers.js.
 
 import { legalActions } from "../engine/holdem.js";
+import { getVariant } from "../engine/variants.js";
 import { equity } from "./equity.js";
 
 // Build the bot's observation from the engine hand-state.
@@ -38,7 +39,8 @@ export function observe(state, seat) {
     myStack: me.stack,
     myCommitted: me.committedThisStreet,
     numOpponents,
-    actions: menu.actions
+    actions: menu.actions,
+    variant: getVariant(state.variantKey)
   };
 }
 
@@ -64,7 +66,8 @@ export function decide(obs, tier, rng = Math.random) {
   const raise = find(obs, "raise");
   const putChips = find(obs, "bet") || raise; // aggressive option, if any
   const allin = find(obs, "allin");
-  const E = equity(obs.hole, obs.board, obs.numOpponents, tier.iters, rng);
+  const variant = obs.variant || getVariant("holdem");
+  const E = equity(obs.hole, obs.board, obs.numOpponents, tier.iters, rng, variant);
   const eEff = E + (rng() - 0.5) * tier.noise;
 
   if (obs.toCall > 0) {

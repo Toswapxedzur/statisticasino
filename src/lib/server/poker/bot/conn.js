@@ -19,6 +19,7 @@
 //     and decide once.
 
 import { decode, S2C } from "../../../poker/protocol.js";
+import { getVariant } from "../engine/variants.js";
 import { decide } from "./decide.js";
 
 // Prod think-time: a small jittered delay so bots don't snap-act instantly.
@@ -108,7 +109,8 @@ export class BotConn {
       currentBet: turn.currentBet || 0,
       minRaise: turn.minRaise || 0,
       numOpponents,
-      actions: turn.actions || []
+      actions: turn.actions || [],
+      variant: getVariant(this.table?.variantKey)
     };
   }
 

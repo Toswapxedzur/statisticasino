@@ -1,8 +1,16 @@
-import { RANKS, SUITS } from "./cards.js";
-import { compareRank, evaluate7 } from "./evaluator.js";
+// The generic flop-poker engine. Despite the filename, this drives EVERY
+// Hold'em-family variant (Hold'em, Omaha, Short Deck, …) — the parts that differ
+// between games live in the variant descriptor (see variants.js) and are read in
+// through getVariant(state.variantKey). The betting state machine here is
+// variant-independent.
+import { getVariant } from "./variants.js";
 
 const BETTING_STREETS = new Set(["preflop", "flop", "turn", "river"]);
 const ACTION_TYPES = new Set(["fold", "check", "call", "bet", "raise", "allin"]);
+
+function variantOf(state) {
+  return getVariant(state.variantKey);
+}
 
 function assertInteger(value, label, minimum = 0) {
   if (!Number.isSafeInteger(value) || value < minimum) {
@@ -10,17 +18,15 @@ function assertInteger(value, label, minimum = 0) {
   }
 }
 
-function assertDeck(deck) {
-  if (!Array.isArray(deck) || deck.length !== 52) {
-    throw new TypeError("deck must be a full 52-card array");
+function assertDeck(deck, variant) {
+  const cards = variant.deck();
+  if (!Array.isArray(deck) || deck.length !== cards.length) {
+    throw new TypeError(`deck must be a full ${cards.length}-card array`);
   }
-  const expected = new Set();
-  for (const suit of SUITS) {
-    for (const rank of RANKS) expected.add(`${rank}${suit}`);
-  }
+  const expected = new Set(cards);
   const actual = new Set(deck);
-  if (actual.size !== 52 || [...actual].some((card) => !expected.has(card))) {
-    throw new RangeError("deck must contain every standard card exactly once");
+  if (actual.size !== cards.length || [...actual].some((card) => !expected.has(card))) {
+    throw new RangeError("deck must contain every card for the variant exactly once");
   }
 }
 
@@ -119,7 +125,8 @@ function setNextActor(state, afterSeat) {
 }
 
 function dealStreet(state, street, events) {
-  const count = street === "flop" ? 3 : 1;
+  const scheduled = variantOf(state).boardSchedule.find((entry) => entry.street === street);
+  const count = scheduled ? scheduled.deal : 1;
   const cards = takeCards(state, count);
   state.board.push(...cards);
   state.street = street;
@@ -139,17 +146,18 @@ function resetBettingRound(state) {
   state.toActSeat = first?.seat ?? null;
 }
 
-function nextStreet(street) {
-  if (street === "preflop") return "flop";
-  if (street === "flop") return "turn";
-  if (street === "turn") return "river";
-  return null;
+function nextStreet(variant, street) {
+  const index = variant.streets.indexOf(street);
+  return index >= 0 && index + 1 < variant.streets.length ? variant.streets[index + 1] : null;
 }
 
 function runOutBoard(state, events) {
+  const variant = variantOf(state);
+  const lastStreet = variant.streets[variant.streets.length - 1];
   let street = state.street;
-  while (street !== "river") {
-    const upcoming = nextStreet(street);
+  while (street !== lastStreet) {
+    const upcoming = nextStreet(variant, street);
+    if (!upcoming) break;
     dealStreet(state, upcoming, events);
     street = upcoming;
   }
@@ -157,6 +165,7 @@ function runOutBoard(state, events) {
 }
 
 function settleShowdown(state, events) {
+  const variant = variantOf(state);
   state.street = "showdown";
   state.toActSeat = null;
   state.pots = buildPots(state.players);
@@ -165,7 +174,7 @@ function settleShowdown(state, events) {
     .map((player) => ({
       seat: player.seat,
       holeCards: [...player.holeCards],
-      ...evaluate7([...player.holeCards, ...state.board])
+      ...variant.evaluate(player.holeCards, state.board)
     }))
     .sort((a, b) => a.seat - b.seat);
   const handBySeat = new Map(hands.map((hand) => [hand.seat, hand]));
@@ -179,9 +188,9 @@ function settleShowdown(state, events) {
     let best = handBySeat.get(eligible[0]);
     for (const seat of eligible.slice(1)) {
       const candidate = handBySeat.get(seat);
-      if (compareRank(candidate, best) > 0) best = candidate;
+      if (variant.compare(candidate, best) > 0) best = candidate;
     }
-    const winners = eligible.filter((seat) => compareRank(handBySeat.get(seat), best) === 0);
+    const winners = eligible.filter((seat) => variant.compare(handBySeat.get(seat), best) === 0);
     const share = Math.floor(pot.amount / winners.length);
     let oddChips = pot.amount % winners.length;
 
@@ -252,6 +261,8 @@ function completeUncontested(state, events) {
 }
 
 function finishTransition(state, events, afterSeat) {
+  const variant = variantOf(state);
+  const lastStreet = variant.streets[variant.streets.length - 1];
   state.pots = buildPots(state.players);
 
   if (nonFoldedPlayers(state).length === 1) {
@@ -264,7 +275,7 @@ function finishTransition(state, events, afterSeat) {
     return;
   }
 
-  if (state.street === "river") {
+  if (state.street === lastStreet) {
     settleShowdown(state, events);
     return;
   }
@@ -275,7 +286,7 @@ function finishTransition(state, events, afterSeat) {
     return;
   }
 
-  dealStreet(state, nextStreet(state.street), events);
+  dealStreet(state, nextStreet(variant, state.street), events);
   resetBettingRound(state);
 }
 
@@ -298,7 +309,9 @@ export function createHand(config) {
   }
   const ante = config.ante ?? 0;
   assertInteger(ante, "ante");
-  assertDeck(config.deck);
+  const variantKey = config.variant || "holdem";
+  const variant = getVariant(variantKey);
+  assertDeck(config.deck, variant);
 
   const seats = new Set();
   const ids = new Set();
@@ -318,6 +331,7 @@ export function createHand(config) {
 
   const state = {
     street: "preflop",
+    variantKey,
     board: [],
     buttonSeat: config.buttonSeat,
     smallBlind: config.smallBlind,
@@ -378,7 +392,7 @@ export function createHand(config) {
     dealOrder.push(player);
     cursor = player.seat;
   }
-  for (let pass = 0; pass < 2; pass += 1) {
+  for (let pass = 0; pass < variant.holeCount; pass += 1) {
     for (const player of dealOrder) player.holeCards.push(takeCards(state, 1)[0]);
   }
   state.initialEvents.push({
@@ -423,26 +437,38 @@ export function legalActions(state) {
 
   // Chips cannot be bet into a field containing no other player who can act.
   const canAggress = activePlayers(state).length >= 2;
-  const maximumTarget = player.committedThisStreet + player.stack;
+  const allInCap = player.committedThisStreet + player.stack; // most this seat can commit
+  const structure = variantOf(state).bettingStructure;
+
+  // Largest legal bet/raise target for this street under the structure. Pot-limit
+  // caps a raise at a pot-sized raise (call, then raise the resulting pot);
+  // no-limit is capped only by the stack.
+  let maxTarget = allInCap;
+  if (structure === "pot-limit") {
+    const pot = state.players.reduce((sum, other) => sum + other.totalCommitted, 0);
+    const toCall = Math.max(0, state.currentBet - player.committedThisStreet);
+    maxTarget = Math.min(allInCap, state.currentBet + pot + toCall);
+  }
+
   if (canAggress && player.canRaise) {
-    if (state.currentBet === 0 && maximumTarget >= state.minRaise) {
-      actions.push({ type: "bet", min: state.minRaise, max: maximumTarget });
-    } else if (
-      state.currentBet > 0 &&
-      maximumTarget >= state.currentBet + state.minRaise
-    ) {
-      actions.push({
-        type: "raise",
-        min: state.currentBet + state.minRaise,
-        max: maximumTarget
-      });
+    if (state.currentBet === 0 && maxTarget >= state.minRaise) {
+      actions.push({ type: "bet", min: state.minRaise, max: maxTarget });
+    } else if (state.currentBet > 0 && maxTarget >= state.currentBet + state.minRaise) {
+      actions.push({ type: "raise", min: state.currentBet + state.minRaise, max: maxTarget });
     }
   }
 
-  const allInRaises = maximumTarget > state.currentBet;
-  if (player.stack > 0 && (!allInRaises || (canAggress && player.canRaise))) {
-    actions.push({ type: "allin", amount: player.stack });
+  // All-in is always legal as a call/complete for less; as a RAISE it needs
+  // aggression rights, and under pot-limit must not exceed the pot cap.
+  const allInRaises = allInCap > state.currentBet;
+  let allowAllIn;
+  if (!allInRaises) {
+    allowAllIn = player.stack > 0;
+  } else {
+    const withinCap = structure === "pot-limit" ? allInCap <= maxTarget : true;
+    allowAllIn = player.stack > 0 && canAggress && player.canRaise && withinCap;
   }
+  if (allowAllIn) actions.push({ type: "allin", amount: player.stack });
 
   return { toActSeat: player.seat, actions };
 }

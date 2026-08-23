@@ -263,7 +263,7 @@ test("applyAction is pure and rejects wrong turns, types, and amounts", () => {
 test("input validation rejects duplicate cards, seats, and missing button seats", () => {
   const deck = standardDeck();
   deck[51] = deck[0];
-  assert.throws(() => makeHand({ deck }), /every standard card exactly once/);
+  assert.throws(() => makeHand({ deck }), /every card for the variant exactly once/);
   assert.throws(
     () => createHand({
       players: [{ id: "a", seat: 1, stack: 10 }, { id: "b", seat: 1, stack: 10 }],

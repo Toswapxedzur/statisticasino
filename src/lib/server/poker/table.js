@@ -18,7 +18,7 @@ import {
   createHand,
   legalActions,
   applyAction,
-  standardDeck,
+  getVariant,
   shuffle
 } from "./engine/index.js";
 import * as realBank from "./bank.js";
@@ -44,6 +44,10 @@ export class LiveTable {
       minBuyin: config.min_buyin ?? config.minBuyin,
       maxBuyin: config.max_buyin ?? config.maxBuyin
     };
+    // The poker variant this table deals (see engine/variants.js). Drives the
+    // deck, hole-card count, board schedule, showdown eval and betting structure.
+    this.variantKey = this.config.variant;
+    this.variant = getVariant(this.variantKey);
 
     // Injectable dependencies (see DESIGN.md §1). Defaults are the real
     // modules / platform primitives; tests override every one of them.
@@ -407,11 +411,12 @@ export class LiveTable {
       const s = this.seats.get(seatNo);
       return { id: seatNo, seat: seatNo, stack: s.stack };
     });
-    const deck = shuffle(standardDeck(), this.rng);
+    const deck = shuffle(this.variant.deck(), this.rng);
 
     let hand;
     try {
       hand = createHand({
+        variant: this.variantKey,
         players,
         buttonSeat: button,
         smallBlind: this.config.smallBlind,

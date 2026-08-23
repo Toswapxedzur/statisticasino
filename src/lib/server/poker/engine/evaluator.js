@@ -1,16 +1,26 @@
 import { RANKS, SUITS } from "./cards.js";
 
-const CATEGORY_NAMES = [
-  "High Card",
-  "One Pair",
-  "Two Pair",
-  "Three of a Kind",
-  "Straight",
-  "Flush",
-  "Full House",
-  "Four of a Kind",
-  "Straight Flush"
+// Hand types, weakest-first. A "rank model" maps these to comparable category
+// numbers; different variants order them differently (short deck floats a flush
+// above a full house). Standard poker = this exact order (index === category).
+const HAND_TYPES = [
+  "high", "pair", "twopair", "trips", "straight", "flush", "fullhouse", "quads", "straightflush"
 ];
+
+const TYPE_NAME = {
+  high: "High Card", pair: "One Pair", twopair: "Two Pair", trips: "Three of a Kind",
+  straight: "Straight", flush: "Flush", fullhouse: "Full House",
+  quads: "Four of a Kind", straightflush: "Straight Flush"
+};
+
+// A rank model = the category ordering + which value an ace takes when it plays
+// low in a wheel. Standard: A-2-3-4-5 (ace low = 1). Short deck: A-6-7-8-9 is the
+// wheel (ace low = 5) and a flush outranks a full house.
+export const STANDARD_MODEL = { order: HAND_TYPES, aceLowValue: 1 };
+export const SHORTDECK_MODEL = {
+  order: ["high", "pair", "twopair", "trips", "straight", "fullhouse", "flush", "quads", "straightflush"],
+  aceLowValue: 5
+};
 
 const RANK_VALUE = new Map([...RANKS].map((rank, index) => [rank, index + 2]));
 
@@ -33,17 +43,20 @@ function assertCards(cards, count) {
   }
 }
 
-// Returns the straight's high card, treating A-2-3-4-5 as five-high.
-function straightHigh(values) {
+// Returns the straight's high card. `aceLowValue` is the value an ace takes as
+// the bottom of a wheel (1 for a 52-card deck, 5 for short deck's A-6-7-8-9).
+function straightHigh(values, aceLowValue) {
   const unique = [...new Set(values)].sort((a, b) => b - a);
-  if (unique.includes(14)) unique.push(1);
+  if (unique.includes(14)) unique.push(aceLowValue);
   for (let i = 0; i <= unique.length - 5; i += 1) {
     if (unique[i] - unique[i + 4] === 4) return unique[i];
   }
   return null;
 }
 
-function evaluate5(cards) {
+// Classify a 5-card hand into { type, ranks } — the variant-independent shape.
+// `ranks` are the tiebreak values, most significant first.
+function classify5(cards, aceLowValue) {
   const values = cards.map((card) => RANK_VALUE.get(card[0]));
   const suits = cards.map((card) => card[1]);
   const counts = new Map();
@@ -54,46 +67,36 @@ function evaluate5(cards) {
   );
   const descending = [...values].sort((a, b) => b - a);
   const flush = suits.every((suit) => suit === suits[0]);
-  const straight = straightHigh(values);
+  const straight = straightHigh(values, aceLowValue);
 
-  let category;
-  let ranks;
-
-  if (flush && straight !== null) {
-    category = 8;
-    ranks = [straight];
-  } else if (groups[0][1] === 4) {
-    category = 7;
-    ranks = [groups[0][0], groups[1][0]];
-  } else if (groups[0][1] === 3 && groups[1][1] === 2) {
-    category = 6;
-    ranks = [groups[0][0], groups[1][0]];
-  } else if (flush) {
-    category = 5;
-    ranks = descending;
-  } else if (straight !== null) {
-    category = 4;
-    ranks = [straight];
-  } else if (groups[0][1] === 3) {
-    category = 3;
-    ranks = [groups[0][0], ...groups.slice(1).map(([rank]) => rank).sort((a, b) => b - a)];
-  } else if (groups[0][1] === 2 && groups[1][1] === 2) {
-    const pairs = [groups[0][0], groups[1][0]].sort((a, b) => b - a);
-    category = 2;
-    ranks = [...pairs, groups[2][0]];
-  } else if (groups[0][1] === 2) {
-    category = 1;
-    ranks = [groups[0][0], ...groups.slice(1).map(([rank]) => rank).sort((a, b) => b - a)];
-  } else {
-    category = 0;
-    ranks = descending;
+  if (flush && straight !== null) return { type: "straightflush", ranks: [straight] };
+  if (groups[0][1] === 4) return { type: "quads", ranks: [groups[0][0], groups[1][0]] };
+  if (groups[0][1] === 3 && groups[1][1] === 2) return { type: "fullhouse", ranks: [groups[0][0], groups[1][0]] };
+  if (flush) return { type: "flush", ranks: descending };
+  if (straight !== null) return { type: "straight", ranks: [straight] };
+  if (groups[0][1] === 3) {
+    return { type: "trips", ranks: [groups[0][0], ...groups.slice(1).map(([rank]) => rank).sort((a, b) => b - a)] };
   }
-
-  return { category, ranks, name: CATEGORY_NAMES[category] };
+  if (groups[0][1] === 2 && groups[1][1] === 2) {
+    const pairs = [groups[0][0], groups[1][0]].sort((a, b) => b - a);
+    return { type: "twopair", ranks: [...pairs, groups[2][0]] };
+  }
+  if (groups[0][1] === 2) {
+    return { type: "pair", ranks: [groups[0][0], ...groups.slice(1).map(([rank]) => rank).sort((a, b) => b - a)] };
+  }
+  return { type: "high", ranks: descending };
 }
 
-// Compare category first, then category-specific kickers. A positive
-// result means `a` is stronger; this is an ascending-strength comparator.
+// Rank a 5-card hand under a model → { category, ranks, name } (category is
+// model-relative, so ranks from the SAME model are directly comparable).
+function rank5(cards, model = STANDARD_MODEL) {
+  const { type, ranks } = classify5(cards, model.aceLowValue);
+  return { category: model.order.indexOf(type), ranks, name: TYPE_NAME[type] };
+}
+
+// Compare category first, then category-specific kickers. A positive result
+// means `a` is stronger; ascending-strength comparator. Both operands must come
+// from the same rank model.
 export function compareRank(a, b) {
   if (a.category !== b.category) return a.category - b.category;
   const length = Math.max(a.ranks.length, b.ranks.length);
@@ -104,23 +107,46 @@ export function compareRank(a, b) {
   return 0;
 }
 
-// Clarity wins here: inspect all C(7,5) combinations and retain the best.
-export function evaluate7(cards7) {
-  assertCards(cards7, 7);
-  let best = null;
+function* combinations(items, k) {
+  const n = items.length;
+  if (k > n) return;
+  const idx = Array.from({ length: k }, (_, i) => i);
+  while (true) {
+    yield idx.map((i) => items[i]);
+    let i = k - 1;
+    while (i >= 0 && idx[i] === i + n - k) i -= 1;
+    if (i < 0) return;
+    idx[i] += 1;
+    for (let j = i + 1; j < k; j += 1) idx[j] = idx[j - 1] + 1;
+  }
+}
 
-  for (let a = 0; a < 3; a += 1) {
-    for (let b = a + 1; b < 4; b += 1) {
-      for (let c = b + 1; c < 5; c += 1) {
-        for (let d = c + 1; d < 6; d += 1) {
-          for (let e = d + 1; e < 7; e += 1) {
-            const rank = evaluate5([cards7[a], cards7[b], cards7[c], cards7[d], cards7[e]]);
-            if (best === null || compareRank(rank, best) > 0) best = rank;
-          }
-        }
-      }
+// Best 5-card hand out of any number of cards (>=5), under `model`.
+export function bestHand(cards, model = STANDARD_MODEL) {
+  let best = null;
+  for (const five of combinations(cards, 5)) {
+    const rank = rank5(five, model);
+    if (best === null || compareRank(rank, best) > 0) best = rank;
+  }
+  return best;
+}
+
+// Omaha-style: the best 5-card hand using EXACTLY 2 hole cards + EXACTLY 3 board
+// cards. board must have >= 3 cards.
+export function bestOmaha(hole, board, model = STANDARD_MODEL) {
+  let best = null;
+  for (const h of combinations(hole, 2)) {
+    for (const b of combinations(board, 3)) {
+      const rank = rank5([...h, ...b], model);
+      if (best === null || compareRank(rank, best) > 0) best = rank;
     }
   }
-
   return best;
+}
+
+// Standard Texas Hold'em: best 5 of exactly 7 cards. Kept as a named export with
+// its strict 7-card contract because the engine + bots depend on it directly.
+export function evaluate7(cards7) {
+  assertCards(cards7, 7);
+  return bestHand(cards7, STANDARD_MODEL);
 }

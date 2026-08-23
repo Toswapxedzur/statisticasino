@@ -4,11 +4,23 @@
 export const RANKS = "23456789TJQKA";
 export const SUITS = "cdhs";
 
+// Short-deck (6+) ranks: the 2..5 are stripped, leaving 36 cards.
+export const SHORT_RANKS = "6789TJQKA";
+
 // Suit-major, rank-minor order: 2c..Ac, 2d..Ad, 2h..Ah, 2s..As.
 export function standardDeck() {
   const deck = [];
   for (const suit of SUITS) {
     for (const rank of RANKS) deck.push(`${rank}${suit}`);
+  }
+  return deck;
+}
+
+// The 36-card short deck (ranks 6..A), same suit-major order.
+export function shortDeck() {
+  const deck = [];
+  for (const suit of SUITS) {
+    for (const rank of SHORT_RANKS) deck.push(`${rank}${suit}`);
   }
   return deck;
 }

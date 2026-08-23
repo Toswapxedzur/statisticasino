@@ -36,8 +36,8 @@ export async function createTableRow(cfg, createdBy) {
        (id, name, variant, max_seats, small_blind, big_blind, min_buyin,
         max_buyin, is_active, sort_order, created_at, created_by,
         is_ephemeral, closed_at)
-     VALUES (?, ?, 'holdem', ?, ?, ?, ?, ?, 1, 0, ?, ?, 1, NULL)`,
-    [tid, cfg.name, cfg.maxSeats, cfg.smallBlind, cfg.bigBlind,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?, 1, NULL)`,
+    [tid, cfg.name, cfg.variant || "holdem", cfg.maxSeats, cfg.smallBlind, cfg.bigBlind,
      cfg.minBuyin, cfg.maxBuyin, Date.now(), createdBy ?? null]
   );
   return tid;

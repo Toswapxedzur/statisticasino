@@ -17,6 +17,7 @@ import {
 } from "./store.js";
 import { getBalance } from "../wallet.js";
 import { LiveTable } from "./table.js";
+import { VARIANT_KEYS } from "./engine/variants.js";
 import { BotManager } from "./bot/manager.js";
 import { TIERS } from "./bot/tiers.js";
 
@@ -269,7 +270,9 @@ class PokerHub {
     if (maxSeats < 2 || maxSeats > 9) return { error: "Seats must be between 2 and 9." };
     if (minBuyin < bb || minBuyin > maxBuyin) return { error: "Buy-in range is invalid." };
     if (buyin < minBuyin || buyin > maxBuyin) return { error: "Your buy-in is out of range." };
-    return { sb, bb, maxSeats, minBuyin, maxBuyin, buyin };
+    const variant = cfg.variant || "holdem";
+    if (!VARIANT_KEYS.includes(variant)) return { error: "Unknown game variant." };
+    return { sb, bb, maxSeats, minBuyin, maxBuyin, buyin, variant };
   }
 
   // Default buy-in: requested (clamped) else ~100 big blinds, bounded by the
@@ -292,6 +295,7 @@ class PokerHub {
       || `${conn.user.displayName || conn.user.email}'s Table`;
     const rowCfg = {
       name,
+      variant: cfg.variant || "holdem",
       maxSeats: cfg.maxSeats,
       smallBlind: cfg.smallBlind ?? cfg.sb,
       bigBlind: cfg.bigBlind ?? cfg.bb,
@@ -303,7 +307,7 @@ class PokerHub {
       {
         id: tid,
         name: rowCfg.name,
-        variant: "holdem",
+        variant: rowCfg.variant,
         max_seats: rowCfg.maxSeats,
         small_blind: rowCfg.smallBlind,
         big_blind: rowCfg.bigBlind,
@@ -351,7 +355,7 @@ class PokerHub {
     if (bal < v.buyin) return this._err(conn, "Not enough chips for that buy-in.", "INSUFFICIENT_CHIPS");
     await this._spawnTable(
       conn,
-      { name: cfg.name, maxSeats: v.maxSeats, smallBlind: v.sb, bigBlind: v.bb, minBuyin: v.minBuyin, maxBuyin: v.maxBuyin },
+      { name: cfg.name, variant: v.variant, maxSeats: v.maxSeats, smallBlind: v.sb, bigBlind: v.bb, minBuyin: v.minBuyin, maxBuyin: v.maxBuyin },
       v.buyin
     );
   }

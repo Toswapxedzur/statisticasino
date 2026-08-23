@@ -156,3 +156,50 @@ test("bots play full hands at a real table: legal, complete, chip-conserving", a
   assert.ok(showdowns >= 1, `bots reached showdown at least once (got ${showdowns})`);
   console.log(`  ${handsPlayed} hands, ${flopsSeen} flops, ${showdowns} showdowns, chips conserved at ${INITIAL}`);
 });
+
+// Bots read the table's variant and drive their equity sim off it, so the whole
+// stack (deck, hole count, showdown eval, pot-limit) must work for non-Hold'em
+// games too. Play a short sample of PLO and Short Deck and assert correctness.
+test("bots play non-Hold'em variants end to end (PLO, Short Deck)", async () => {
+  for (const [variant, holeCount] of [["plo", 4], ["shortdeck", 2]]) {
+    const wallet = makeWallet({ b0: 5000, b1: 5000 });
+    const INITIAL = wallet.total();
+    const table = new LiveTable({ ...CFG, id: variant, variant }, null, {
+      wallet, store: makeStore(),
+      now: () => 1, setTimer: () => 0, clearTimer: () => {},
+      rng: mulberry32(0x5EED), autoStart: false
+    });
+    const pending = [];
+    const bots = [];
+    for (const seat of [0, 1]) {
+      const bot = new BotConn({
+        user: { id: `b${seat}`, displayName: `b${seat}` },
+        tier: TIERS.reg, table, rng: mulberry32(0x30 + seat),
+        schedule: (fn) => { pending.push(fn); return null; }
+      });
+      table.addWatcher(bot);
+      await table.sit(bot, seat, 800);
+      bots.push(bot);
+    }
+
+    let hands = 0;
+    for (let h = 0; h < 20 && table.eligibleSeats().length >= 2; h += 1) {
+      await table.beginHand();
+      // Bots learned their hole count from the private frame the deal pushed.
+      for (const bot of bots) assert.equal(bot.hole.length, holeCount, `${variant} deals ${holeCount}`);
+      let guard = 0;
+      while (table.hand) {
+        assert.ok(guard++ < 5000, `${variant} hand terminates`);
+        if (!pending.length) assert.fail(`${variant}: a bot should be scheduled`);
+        await pending.shift()();
+      }
+      hands += 1;
+      assert.equal(wallet.total(), INITIAL, `${variant} conserves chips (hand ${h + 1})`);
+    }
+    // Short deck's variance can bust a heads-up match fast; a few clean hands
+    // (correct hole counts + conserved chips, asserted per hand above) is enough
+    // to prove the whole stack drives the variant correctly.
+    assert.ok(hands >= 3, `${variant}: played hands (${hands})`);
+    console.log(`  ${variant}: ${hands} hands, chips conserved at ${INITIAL}`);
+  }
+});
