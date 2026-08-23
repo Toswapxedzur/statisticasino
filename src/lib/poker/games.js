@@ -5,11 +5,12 @@
 export const GAME_MODES = [
   { key: "poker", label: "Poker" },
   { key: "blackjack", label: "Blackjack" },
-  { key: "casino-holdem", label: "Casino Hold'em" }
+  { key: "casino-holdem", label: "Casino Hold'em" },
+  { key: "three-card", label: "Three Card Poker" }
 ];
 
 // Banked (vs-the-house) games — keep in sync with games/registry.js.
-export const BANKED_GAMES = ["blackjack", "casino-holdem"];
+export const BANKED_GAMES = ["blackjack", "casino-holdem", "three-card"];
 export function isBanked(key) { return BANKED_GAMES.includes(key); }
 
 // Poker variants offered in the New Table modal, grouped for a tidy picker.
@@ -25,12 +26,14 @@ export const POKER_VARIANTS = [
 const SHORT_BY_KEY = new Map([
   ...POKER_VARIANTS.map((v) => [v.key, v.short]),
   ["blackjack", "Blackjack"],
-  ["casino-holdem", "Casino Hold'em"]
+  ["casino-holdem", "Casino Hold'em"],
+  ["three-card", "Three Card Poker"]
 ]);
 const LABEL_BY_KEY = new Map([
   ...POKER_VARIANTS.map((v) => [v.key, v.label]),
   ["blackjack", "Blackjack"],
-  ["casino-holdem", "Casino Hold'em"]
+  ["casino-holdem", "Casino Hold'em"],
+  ["three-card", "Three Card Poker"]
 ]);
 
 export function variantShort(key) {

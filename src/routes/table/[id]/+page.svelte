@@ -32,7 +32,8 @@
   // Add-bot control: tiers depend on the game; keep the selection valid.
   const BOT_TIERS = {
     blackjack: [["basic", "Basic"], ["aggressive", "Aggressive"], ["timid", "Timid"]],
-    "casino-holdem": [["basic", "Basic"], ["loose", "Loose"], ["tight", "Tight"]]
+    "casino-holdem": [["basic", "Basic"], ["loose", "Loose"], ["tight", "Tight"]],
+    "three-card": [["basic", "Basic"], ["loose", "Loose"], ["tight", "Tight"]]
   };
   const botTiers = $derived(
     banked ? (BOT_TIERS[gameKey] || [["basic", "Basic"]]) : [["reg", "Reg"], ["fish", "Fish"]]

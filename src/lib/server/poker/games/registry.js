@@ -5,10 +5,12 @@
 
 import { blackjack } from "./blackjack.js";
 import { casinoHoldem } from "./casino-holdem.js";
+import { threeCard } from "./three-card.js";
 
 export const GAMES = {
   blackjack,
-  "casino-holdem": casinoHoldem
+  "casino-holdem": casinoHoldem,
+  "three-card": threeCard
 };
 
 export const BANKED_GAME_KEYS = Object.keys(GAMES);

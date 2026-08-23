@@ -19,9 +19,9 @@
     }
   });
 
-  const LABELS = { hit: "Hit", stand: "Stand", double: "Double", surrender: "Surrender", call: "Call", fold: "Fold" };
-  const label = (a) => (LABELS[a.type] || a.type) + (a.type === "call" && a.amount ? " " + a.amount.toLocaleString() : "");
-  const primary = (t) => t === "hit" || t === "call";
+  const LABELS = { hit: "Hit", stand: "Stand", double: "Double", surrender: "Surrender", call: "Call", play: "Play", fold: "Fold" };
+  const label = (a) => (LABELS[a.type] || a.type) + ((a.type === "call" || a.type === "play") && a.amount ? " " + a.amount.toLocaleString() : "");
+  const primary = (t) => t === "hit" || t === "call" || t === "play";
 </script>
 
 <section class="actionbar">
