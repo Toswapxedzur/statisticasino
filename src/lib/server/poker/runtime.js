@@ -168,9 +168,10 @@ export class GameTable extends LiveTable {
     for (const s of this.seats.values()) {
       s.inHand = false;
       s.stackAtHandStart = undefined;
-      // Tell each player their new balance-on-table changed.
-      this.sendChips(s.userId, s.stack);
     }
+    // NB: don't sendChips here — that pill is the WALLET balance, which only
+    // moves on buy-in / cash-out / rebuy. On-table stacks are shown on the felt
+    // via the broadcast below.
     this.hand = null;
     this.actionDeadline = null;
     this._handStartedAt = null;
