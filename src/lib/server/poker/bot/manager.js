@@ -18,12 +18,14 @@ import { TIERS } from "./tiers.js";
 import { blackjackStrategy, BJ_TIERS } from "./blackjack-strategy.js";
 import { casinoHoldemStrategy, CH_TIERS } from "./casino-holdem-strategy.js";
 import { threeCardStrategy, TC_TIERS } from "./three-card-strategy.js";
+import { betGameStrategy, BACCARAT_TIERS } from "./bet-game-strategy.js";
 
 // Which brain + tier set a bot uses at a banked game (poker uses the default).
 const GAME_BRAINS = {
   blackjack: { strategy: blackjackStrategy, tiers: BJ_TIERS, def: "basic" },
   "casino-holdem": { strategy: casinoHoldemStrategy, tiers: CH_TIERS, def: "basic" },
-  "three-card": { strategy: threeCardStrategy, tiers: TC_TIERS, def: "basic" }
+  "three-card": { strategy: threeCardStrategy, tiers: TC_TIERS, def: "basic" },
+  baccarat: { strategy: betGameStrategy, tiers: BACCARAT_TIERS, def: "banker" }
 };
 
 // Reserved, non-routable domain (RFC 6761 `.invalid`) — guarantees no bot email

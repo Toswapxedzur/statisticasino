@@ -6,6 +6,8 @@
   import ActionBar from "$lib/poker/components/ActionBar.svelte";
   import BankedTable from "$lib/poker/components/BankedTable.svelte";
   import BankedActionBar from "$lib/poker/components/BankedActionBar.svelte";
+  import BetGameTable from "$lib/poker/components/BetGameTable.svelte";
+  import BankedBetBar from "$lib/poker/components/BankedBetBar.svelte";
   import BuyInModal from "$lib/poker/components/BuyInModal.svelte";
   import TableChat from "$lib/poker/components/TableChat.svelte";
   import { variantLabel, isBanked as isBankedGame } from "$lib/poker/games.js";
@@ -27,13 +29,16 @@
   // the generic banked components; poker uses the poker table.
   let gameKey = $derived(view?.game || config?.variant);
   let banked = $derived(isBankedGame(gameKey));
+  // Bet-selection games (baccarat/roulette/…) render a betting layout, not a hand.
+  let betGame = $derived(banked && !!view?.round?.betSelection);
   let rules = $derived(view?.rules || null);
 
   // Add-bot control: tiers depend on the game; keep the selection valid.
   const BOT_TIERS = {
     blackjack: [["basic", "Basic"], ["aggressive", "Aggressive"], ["timid", "Timid"]],
     "casino-holdem": [["basic", "Basic"], ["loose", "Loose"], ["tight", "Tight"]],
-    "three-card": [["basic", "Basic"], ["loose", "Loose"], ["tight", "Tight"]]
+    "three-card": [["basic", "Basic"], ["loose", "Loose"], ["tight", "Tight"]],
+    baccarat: [["banker", "Banker"], ["player", "Player"], ["tie", "Tie"]]
   };
   const botTiers = $derived(
     banked ? (BOT_TIERS[gameKey] || [["basic", "Basic"]]) : [["reg", "Reg"], ["fish", "Fish"]]
@@ -134,7 +139,12 @@
 {/if}
 
 {#if view}
-  {#if banked}
+  {#if betGame}
+    <BetGameTable {view} {me} onSit={openBuyIn} />
+    {#if turn}
+      <BankedBetBar {turn} onAct={(a) => poker.act(tableId, a)} />
+    {/if}
+  {:else if banked}
     <BankedTable {view} {me} onSit={openBuyIn} />
     {#if turn}
       <BankedActionBar {turn} onAct={(a) => poker.act(tableId, a)} />
