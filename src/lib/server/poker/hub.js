@@ -17,6 +17,8 @@ import {
 } from "./store.js";
 import { getBalance } from "../wallet.js";
 import { LiveTable } from "./table.js";
+import { GameTable } from "./runtime.js";
+import { blackjack } from "./games/blackjack.js";
 import { VARIANT_KEYS } from "./engine/variants.js";
 import { BotManager } from "./bot/manager.js";
 import { TIERS } from "./bot/tiers.js";
@@ -257,6 +259,7 @@ class PokerHub {
   // ------------------------------------------------------- create / quickplay
 
   _validateTableCfg(cfg) {
+    if (cfg.variant === "blackjack") return this._validateBlackjackCfg(cfg);
     const sb = Number(cfg.smallBlind);
     const bb = Number(cfg.bigBlind);
     const maxSeats = Number(cfg.maxSeats);
@@ -272,7 +275,31 @@ class PokerHub {
     if (buyin < minBuyin || buyin > maxBuyin) return { error: "Your buy-in is out of range." };
     const variant = cfg.variant || "holdem";
     if (!VARIANT_KEYS.includes(variant)) return { error: "Unknown game variant." };
-    return { sb, bb, maxSeats, minBuyin, maxBuyin, buyin, variant };
+    return { sb, bb, maxSeats, minBuyin, maxBuyin, buyin, variant, game: "poker" };
+  }
+
+  // Blackjack tables reuse the smallBlind column as the table minimum bet and
+  // have no big blind. The creator either banks (deep bankroll, may exceed the
+  // table max) or plays (a wealthy bot banks). See ensureBlackjackBanker.
+  _validateBlackjackCfg(cfg) {
+    const minBet = Number(cfg.smallBlind ?? cfg.minBet);
+    const maxSeats = Number(cfg.maxSeats);
+    const minBuyin = Number(cfg.minBuyin);
+    const maxBuyin = Number(cfg.maxBuyin);
+    const buyin = Number(cfg.buyin);
+    if (![minBet, maxSeats, minBuyin, maxBuyin, buyin].every(Number.isInteger)) {
+      return { error: "Invalid table settings." };
+    }
+    if (minBet < 1) return { error: "Minimum bet must be positive." };
+    if (maxSeats < 2 || maxSeats > 7) return { error: "Seats must be between 2 and 7." };
+    if (minBuyin < minBet || minBuyin > maxBuyin) return { error: "Buy-in range is invalid." };
+    const beBanker = !!cfg.beBanker;
+    if (buyin < minBuyin) return { error: "Your buy-in is too small." };
+    if (!beBanker && buyin > maxBuyin) return { error: "Your buy-in is out of range." };
+    return {
+      game: "blackjack", variant: "blackjack",
+      sb: minBet, bb: minBet, maxSeats, minBuyin, maxBuyin, buyin, beBanker
+    };
   }
 
   // Default buy-in: requested (clamped) else ~100 big blinds, bounded by the
@@ -303,26 +330,31 @@ class PokerHub {
       maxBuyin: cfg.maxBuyin
     };
     const tid = await createTableRow(rowCfg, conn.user.id);
-    const table = new LiveTable(
-      {
-        id: tid,
-        name: rowCfg.name,
-        variant: rowCfg.variant,
-        max_seats: rowCfg.maxSeats,
-        small_blind: rowCfg.smallBlind,
-        big_blind: rowCfg.bigBlind,
-        min_buyin: rowCfg.minBuyin,
-        max_buyin: rowCfg.maxBuyin
-      },
-      this
-    );
+    const liveConfig = {
+      id: tid,
+      name: rowCfg.name,
+      variant: rowCfg.variant,
+      max_seats: rowCfg.maxSeats,
+      small_blind: rowCfg.smallBlind,
+      big_blind: rowCfg.bigBlind,
+      min_buyin: rowCfg.minBuyin,
+      max_buyin: rowCfg.maxBuyin
+    };
+    const isBlackjack = cfg.game === "blackjack";
+    const table = isBlackjack
+      ? new GameTable(liveConfig, this, { game: blackjack, gameConfig: { minBet: rowCfg.smallBlind } })
+      : new LiveTable(liveConfig, this);
     table.createdBy = conn.user.id;
     table.creatorName = conn.user.displayName || conn.user.email;
     table._spawning = true; // shield from teardown while the buy-in is in flight
     this.tables.set(tid, table);
 
     table.addWatcher(conn);
-    await table.sit(conn, this.firstOpenSeat(table), buyin);
+    if (isBlackjack) {
+      await this._seatBlackjackCreator(conn, table, cfg, buyin);
+    } else {
+      await table.sit(conn, this.firstOpenSeat(table), buyin);
+    }
     table._spawning = false;
     if (!table.seatForUser(conn.user.id)) {
       // Buy-in failed (sit already errored) — roll the table back.
@@ -343,6 +375,32 @@ class PokerHub {
     return table;
   }
 
+  // Seat the creator of a blackjack table: either as the banker (deep bankroll,
+  // may exceed the table max), or as a player with a wealthy bot banking.
+  async _seatBlackjackCreator(conn, table, cfg, buyin) {
+    if (cfg.beBanker) {
+      await table.sit(conn, this.firstOpenSeat(table), buyin, { asBanker: true });
+      const seat = table.seatForUser(conn.user.id);
+      if (seat) table.bankerSeat = seat.seat;
+      return;
+    }
+    // A wealthy bot hosts; the creator plays.
+    await this.botManager.attachBanker(table);
+    await table.sit(conn, this.firstOpenSeat(table), buyin);
+  }
+
+  // A banked table needs a banker. If it has none (creator chose not to bank, or
+  // a human banker left) but has players, seat a wealthy bot as the house.
+  async ensureBlackjackBanker(table) {
+    if (!(table instanceof GameTable) || !table.game.usesBanker) return;
+    const haveBanker = table.bankerSeat != null && table.seats.has(table.bankerSeat);
+    const players = [...table.seats.values()].filter((s) => s.seat !== table.bankerSeat);
+    if (!haveBanker && players.length > 0 && table.seats.size < table.config.maxSeats) {
+      await this.botManager.attachBanker(table);
+      await this.pushLobby();
+    }
+  }
+
   createTable(conn, cfg) {
     if (!conn.user) return this._err(conn, "Sign in to create a table.", "AUTH");
     return this._runForUser(conn.user.id, () => this._createTable(conn, cfg));
@@ -355,7 +413,7 @@ class PokerHub {
     if (bal < v.buyin) return this._err(conn, "Not enough chips for that buy-in.", "INSUFFICIENT_CHIPS");
     await this._spawnTable(
       conn,
-      { name: cfg.name, variant: v.variant, maxSeats: v.maxSeats, smallBlind: v.sb, bigBlind: v.bb, minBuyin: v.minBuyin, maxBuyin: v.maxBuyin },
+      { name: cfg.name, game: v.game, variant: v.variant, beBanker: v.beBanker, maxSeats: v.maxSeats, smallBlind: v.sb, bigBlind: v.bb, minBuyin: v.minBuyin, maxBuyin: v.maxBuyin },
       v.buyin
     );
   }
@@ -594,6 +652,7 @@ class PokerHub {
     switch (msg.t) {
       case C2S.TABLE_SIT:
         await table.sit(conn, msg.seat, msg.buyin, { opId: msg.opId });
+        await this.ensureBlackjackBanker(table); // a banked table needs a house
         await this.pushLobby();
         break;
       case C2S.TABLE_STAND:

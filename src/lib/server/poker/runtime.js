@@ -232,6 +232,15 @@ export class GameTable extends LiveTable {
     const priv = this.game.privateFor(this.hand, seat.seat);
     if (priv) conn.send(encode(S2C.TABLE_PRIVATE, { tableId: this.id, seat: seat.seat, ...priv }));
   }
+
+  // When the banker's seat actually leaves, forget it — otherwise a later player
+  // taking that seat number would be mistaken for the house. (The hub then seats
+  // a fresh bot banker if players remain.)
+  async creditAndRemove(seat) {
+    const wasBanker = seat.seat === this.bankerSeat;
+    await super.creditAndRemove(seat);
+    if (wasBanker && this.seats.get(seat.seat) !== seat) this.bankerSeat = null;
+  }
 }
 
 // beginHand fetched a hand number across an await; re-confirm the table can

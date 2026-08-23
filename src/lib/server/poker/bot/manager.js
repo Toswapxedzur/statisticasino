@@ -147,6 +147,42 @@ export class BotManager {
     return botConn;
   }
 
+  // Seat a wealthy bot as the BANKER (house) of a banked table — used when no
+  // human is willing to host. It buys in with a deep bankroll (allowed to exceed
+  // the table max) so it can always cover player wins, and never acts (the dealer
+  // plays itself). Sets table.bankerSeat. Returns the BotConn, or null.
+  async attachBanker(table, opts = {}) {
+    if (table._closed) return null;
+    this._sweep();
+    const seat = opts.seat != null ? Number(opts.seat) : this._firstOpenSeat(table);
+    if (seat < 0 || table.seats.has(seat)) return null;
+
+    const persona = this._pickPersona();
+    if (!persona) return null;
+    const identity = await this._ensureIdentity(persona);
+
+    // Deep enough to cover every seat betting the table max and winning 3:2.
+    const bankroll = Math.max(100000, (table.config.maxBuyin || 0) * (table.config.maxSeats || 6) * 3);
+    await this._ensureFunded(identity.id, bankroll + 1000);
+
+    const botConn = new BotConn({
+      user: { id: identity.id, displayName: `${identity.displayName} (House)` },
+      tier: TIERS.reg, table, rng: Math.random,
+      ...(this.schedule ? { schedule: this.schedule } : {})
+    });
+    table.addWatcher(botConn);
+    await table.sit(botConn, seat, bankroll, { silent: true, asBanker: true });
+    if (!table.seatForUser(identity.id)) {
+      table.removeWatcher(botConn); botConn.detach(); return null;
+    }
+    table.bankerSeat = seat;
+    this._busy.set(identity.id, { botConn, table });
+    let set = this._byTable.get(table.id);
+    if (!set) { set = new Set(); this._byTable.set(table.id, set); }
+    set.add(botConn);
+    return botConn;
+  }
+
   // Remove one bot from its table. Idle → cashes out now; mid-hand → folds out
   // and cashes out at hand end (the identity frees on the next _sweep).
   async detach(table, botConn) {

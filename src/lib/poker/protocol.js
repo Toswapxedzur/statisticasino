@@ -13,7 +13,8 @@ export const C2S = {
   LOBBY_SUB: "lobby.sub",      // subscribe to live lobby updates
   LOBBY_UNSUB: "lobby.unsub",
   // PlayOK-style lobby (v11)
-  TABLE_CREATE: "table.create", // { name?, variant?, smallBlind, bigBlind, maxSeats, minBuyin, maxBuyin, buyin }
+  TABLE_CREATE: "table.create", // poker: { name?, variant?, smallBlind, bigBlind, maxSeats, minBuyin, maxBuyin, buyin }
+                                // blackjack: { name?, variant:"blackjack", beBanker?, smallBlind(=minBet), maxSeats, minBuyin, maxBuyin, buyin }
   QUICK_PLAY: "quickplay",      // { buyin? } — instant auto-seat
   LOBBY_CHAT: "lobby.chat",     // { text }
   INVITE: "invite",             // { toUserId } — invite to my current table

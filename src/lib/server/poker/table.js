@@ -788,11 +788,11 @@ export class LiveTable {
     if (this.seatForUser(conn.user.id)) {
       return fail("You are already seated.");
     }
-    if (
-      !Number.isInteger(buyin) ||
-      buyin < this.config.minBuyin ||
-      buyin > this.config.maxBuyin
-    ) {
+    // The banker (house) in a banked game needs deep pockets to cover player
+    // wins, so it may exceed the table's max buy-in. All ordinary seats are
+    // bounded normally; poker never passes asBanker, so its behavior is unchanged.
+    const overMax = buyin > this.config.maxBuyin && !opts.asBanker;
+    if (!Number.isInteger(buyin) || buyin < this.config.minBuyin || overMax) {
       return fail("Invalid buy-in amount.");
     }
 
