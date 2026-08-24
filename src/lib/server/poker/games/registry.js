@@ -19,6 +19,7 @@ import { ultimateHoldem } from "./ultimate-holdem.js";
 import { letItRide } from "./let-it-ride.js";
 import { videoPoker } from "./video-poker.js";
 import { slots } from "./slots.js";
+import { keno } from "./keno.js";
 
 export const GAMES = {
   blackjack,
@@ -36,7 +37,8 @@ export const GAMES = {
   "ultimate-holdem": ultimateHoldem,
   "let-it-ride": letItRide,
   "video-poker": videoPoker,
-  slots
+  slots,
+  keno
 };
 
 export const BANKED_GAME_KEYS = Object.keys(GAMES);

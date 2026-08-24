@@ -10,6 +10,8 @@
   import BankedBetBar from "$lib/poker/components/BankedBetBar.svelte";
   import VideoPokerTable from "$lib/poker/components/VideoPokerTable.svelte";
   import VideoPokerBar from "$lib/poker/components/VideoPokerBar.svelte";
+  import KenoTable from "$lib/poker/components/KenoTable.svelte";
+  import KenoBar from "$lib/poker/components/KenoBar.svelte";
   import BuyInModal from "$lib/poker/components/BuyInModal.svelte";
   import TableChat from "$lib/poker/components/TableChat.svelte";
   import { variantLabel, isBanked as isBankedGame } from "$lib/poker/games.js";
@@ -35,6 +37,8 @@
   let betGame = $derived(banked && !!view?.round?.betSelection);
   // Hold-and-draw games (video poker) render an interactive five-card layout.
   let holdGame = $derived(banked && !!view?.round?.holdGame);
+  // Number-pick games (keno) render a ticket grid.
+  let pickGame = $derived(banked && !!view?.round?.pickGame);
   let rules = $derived(view?.rules || null);
 
   // Add-bot control: tiers depend on the game; keep the selection valid.
@@ -54,7 +58,8 @@
     "ultimate-holdem": [["basic", "Basic"], ["aggressive", "Aggressive"], ["tight", "Tight"]],
     "let-it-ride": [["basic", "Basic"], ["aggressive", "Aggressive"], ["tight", "Tight"]],
     "video-poker": [["basic", "Basic"], ["aggressive", "Aggressive"], ["tight", "Tight"]],
-    slots: [["low", "Low stakes"], ["high", "High roller"]]
+    slots: [["low", "Low stakes"], ["high", "High roller"]],
+    keno: [["casual", "Casual"], ["chaser", "Jackpot chaser"]]
   };
   const botTiers = $derived(
     banked ? (BOT_TIERS[gameKey] || [["basic", "Basic"]]) : [["reg", "Reg"], ["fish", "Fish"]]
@@ -159,6 +164,11 @@
     <VideoPokerTable {view} {me} onSit={openBuyIn} />
     {#if turn}
       <VideoPokerBar {turn} onAct={(a) => poker.act(tableId, a)} />
+    {/if}
+  {:else if pickGame}
+    <KenoTable {view} {me} onSit={openBuyIn} />
+    {#if turn}
+      <KenoBar {turn} onAct={(a) => poker.act(tableId, a)} />
     {/if}
   {:else if betGame}
     <BetGameTable {view} {me} onSit={openBuyIn} />

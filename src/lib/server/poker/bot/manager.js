@@ -27,6 +27,7 @@ import { redDogStrategy, RD_TIERS } from "./red-dog-strategy.js";
 import { ultimateHoldemStrategy, UTH_TIERS } from "./ultimate-holdem-strategy.js";
 import { letItRideStrategy, LR_TIERS } from "./let-it-ride-strategy.js";
 import { videoPokerStrategy, VP_TIERS } from "./video-poker-strategy.js";
+import { kenoStrategy, KENO_TIERS } from "./keno-strategy.js";
 
 // Which brain + tier set a bot uses at a banked game (poker uses the default).
 const GAME_BRAINS = {
@@ -45,7 +46,8 @@ const GAME_BRAINS = {
   "ultimate-holdem": { strategy: ultimateHoldemStrategy, tiers: UTH_TIERS, def: "basic" },
   "let-it-ride": { strategy: letItRideStrategy, tiers: LR_TIERS, def: "basic" },
   "video-poker": { strategy: videoPokerStrategy, tiers: VP_TIERS, def: "basic" },
-  slots: { strategy: betGameStrategy, tiers: SLOTS_TIERS, def: "low" }
+  slots: { strategy: betGameStrategy, tiers: SLOTS_TIERS, def: "low" },
+  keno: { strategy: kenoStrategy, tiers: KENO_TIERS, def: "casual" }
 };
 
 // Reserved, non-routable domain (RFC 6761 `.invalid`) — guarantees no bot email
