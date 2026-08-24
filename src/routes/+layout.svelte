@@ -69,7 +69,30 @@
   {@render children()}
 </main>
 
+{#if data.user && poker.myTables.length > 1}
+  <div class="table-switcher" aria-label="Your tables">
+    {#each poker.myTables as t (t.tableId)}
+      <a class="tswitch" class:turn={t.myTurn} href={`/table/${t.tableId}`}>
+        {t.name}{#if t.myTurn}<span class="turn-dot" title="Your turn"></span>{/if}
+      </a>
+    {/each}
+  </div>
+{/if}
+
 <style>
+  .table-switcher {
+    position: fixed; right: 14px; bottom: 14px; z-index: 50;
+    display: flex; flex-direction: column; gap: 6px; align-items: flex-end;
+  }
+  .tswitch {
+    display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px;
+    background: rgba(20,22,30,0.92); border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 999px; color: #fff; text-decoration: none; font-size: 13px; font-weight: 600;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+  }
+  .tswitch.turn { border-color: #33d17a; box-shadow: 0 0 12px rgba(51,209,122,0.5); }
+  .turn-dot { width: 8px; height: 8px; border-radius: 50%; background: #33d17a; animation: pulse 1.1s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
   .nav-badge {
     display: inline-block; margin-left: 5px; min-width: 16px; padding: 0 5px;
     background: #e0483a; color: #fff; border-radius: 999px;

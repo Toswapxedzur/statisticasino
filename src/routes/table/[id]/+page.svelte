@@ -162,7 +162,10 @@
     window.addEventListener("chips", onChips);
   });
   onDestroy(() => {
-    poker.leaveTable(tableId);
+    // Multi-tabling: keep watching a table we're SEATED at after navigating away,
+    // so its turn alerts keep coming and the switcher can bring us back. Only stop
+    // watching tables we're just spectating.
+    if (!isSeated) poker.leaveTable(tableId);
     if (typeof window !== "undefined") window.removeEventListener("chips", onChips);
     clearTimeout(_toastTimer);
   });

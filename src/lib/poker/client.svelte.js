@@ -234,6 +234,18 @@ class PokerClient {
   joinWaitlist(tableId, buyin) { this.connect(); this._raw(encode(C2S.WAITLIST_JOIN, { tableId, ...(buyin != null ? { buyin } : {}) })); }
   leaveWaitlist(tableId) { this._raw(encode(C2S.WAITLIST_LEAVE, { tableId })); }
 
+  // Every table I'm currently SEATED at (I keep watching them across navigation),
+  // with a flag for whether it's my turn there — powers the multi-table switcher.
+  get myTables() {
+    if (!this.me) return [];
+    const out = [];
+    for (const [tableId, t] of Object.entries(this.tables)) {
+      const seat = (t?.seats || []).find((s) => s.userId === this.me.id);
+      if (seat) out.push({ tableId, name: t?.config?.name || "Table", myTurn: !!seat.isToAct });
+    }
+    return out;
+  }
+
   _opId() {
     if (browser && globalThis.crypto?.randomUUID) return crypto.randomUUID();
     return `op-${Date.now()}-${Math.random().toString(16).slice(2)}`;
