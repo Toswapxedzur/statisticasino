@@ -13,6 +13,10 @@ import { dragonTiger } from "./dragon-tiger.js";
 import { casinoWar } from "./casino-war.js";
 import { andarBahar } from "./andar-bahar.js";
 import { moneyWheel } from "./money-wheel.js";
+import { caribbeanStud } from "./caribbean-stud.js";
+import { redDog } from "./red-dog.js";
+import { ultimateHoldem } from "./ultimate-holdem.js";
+import { letItRide } from "./let-it-ride.js";
 
 export const GAMES = {
   blackjack,
@@ -24,7 +28,11 @@ export const GAMES = {
   "dragon-tiger": dragonTiger,
   "casino-war": casinoWar,
   "andar-bahar": andarBahar,
-  "money-wheel": moneyWheel
+  "money-wheel": moneyWheel,
+  "caribbean-stud": caribbeanStud,
+  "red-dog": redDog,
+  "ultimate-holdem": ultimateHoldem,
+  "let-it-ride": letItRide
 };
 
 export const BANKED_GAME_KEYS = Object.keys(GAMES);

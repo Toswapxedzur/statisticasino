@@ -22,6 +22,10 @@ import {
   betGameStrategy, BACCARAT_TIERS, ROULETTE_TIERS, SIC_BO_TIERS,
   DRAGON_TIGER_TIERS, CASINO_WAR_TIERS, ANDAR_BAHAR_TIERS, MONEY_WHEEL_TIERS
 } from "./bet-game-strategy.js";
+import { caribbeanStudStrategy, CS_TIERS } from "./caribbean-stud-strategy.js";
+import { redDogStrategy, RD_TIERS } from "./red-dog-strategy.js";
+import { ultimateHoldemStrategy, UTH_TIERS } from "./ultimate-holdem-strategy.js";
+import { letItRideStrategy, LR_TIERS } from "./let-it-ride-strategy.js";
 
 // Which brain + tier set a bot uses at a banked game (poker uses the default).
 const GAME_BRAINS = {
@@ -34,7 +38,11 @@ const GAME_BRAINS = {
   "dragon-tiger": { strategy: betGameStrategy, tiers: DRAGON_TIGER_TIERS, def: "dragon" },
   "casino-war": { strategy: betGameStrategy, tiers: CASINO_WAR_TIERS, def: "ante" },
   "andar-bahar": { strategy: betGameStrategy, tiers: ANDAR_BAHAR_TIERS, def: "bahar" },
-  "money-wheel": { strategy: betGameStrategy, tiers: MONEY_WHEEL_TIERS, def: "one" }
+  "money-wheel": { strategy: betGameStrategy, tiers: MONEY_WHEEL_TIERS, def: "one" },
+  "caribbean-stud": { strategy: caribbeanStudStrategy, tiers: CS_TIERS, def: "basic" },
+  "red-dog": { strategy: redDogStrategy, tiers: RD_TIERS, def: "basic" },
+  "ultimate-holdem": { strategy: ultimateHoldemStrategy, tiers: UTH_TIERS, def: "basic" },
+  "let-it-ride": { strategy: letItRideStrategy, tiers: LR_TIERS, def: "basic" }
 };
 
 // Reserved, non-routable domain (RFC 6761 `.invalid`) — guarantees no bot email

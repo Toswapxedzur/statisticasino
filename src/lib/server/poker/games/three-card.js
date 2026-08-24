@@ -99,6 +99,7 @@ export const threeCard = {
   family: "banked",
   usesBanker: true,
   minPlayers: 1,
+  maxPayoutMultiple: 5, // ante + play + 5:1 straight-flush ante-bonus ≈ 3.5× the stake
   deck: () => shoe(1),
 
   startRound(ctx) {

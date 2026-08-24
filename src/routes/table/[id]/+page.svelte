@@ -44,7 +44,11 @@
     "dragon-tiger": [["dragon", "Dragon"], ["tiger", "Tiger"], ["tie", "Tie"]],
     "casino-war": [["ante", "Player"], ["tie", "Tie"]],
     "andar-bahar": [["bahar", "Bahar"], ["andar", "Andar"]],
-    "money-wheel": [["one", "$1"], ["twenty", "$20"], ["joker", "Joker"]]
+    "money-wheel": [["one", "$1"], ["twenty", "$20"], ["joker", "Joker"]],
+    "caribbean-stud": [["basic", "Basic"], ["aggressive", "Aggressive"], ["tight", "Tight"]],
+    "red-dog": [["basic", "Basic"], ["aggressive", "Aggressive"], ["tight", "Tight"]],
+    "ultimate-holdem": [["basic", "Basic"], ["aggressive", "Aggressive"], ["tight", "Tight"]],
+    "let-it-ride": [["basic", "Basic"], ["aggressive", "Aggressive"], ["tight", "Tight"]]
   };
   const botTiers = $derived(
     banked ? (BOT_TIERS[gameKey] || [["basic", "Basic"]]) : [["reg", "Reg"], ["fish", "Fish"]]

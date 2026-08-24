@@ -19,9 +19,15 @@
     }
   });
 
-  const LABELS = { hit: "Hit", stand: "Stand", double: "Double", surrender: "Surrender", call: "Call", play: "Play", fold: "Fold" };
-  const label = (a) => (LABELS[a.type] || a.type) + ((a.type === "call" || a.type === "play") && a.amount ? " " + a.amount.toLocaleString() : "");
-  const primary = (t) => t === "hit" || t === "call" || t === "play";
+  const LABELS = {
+    hit: "Hit", stand: "Stand", double: "Double", surrender: "Surrender",
+    call: "Call", play: "Play", fold: "Fold",
+    check: "Check", raise: "Raise", ride: "Let it ride", pull: "Pull back",
+    play4x: "Play 4×", play3x: "Play 3×", play2x: "Play 2×", play1x: "Play 1×"
+  };
+  const label = (a) => (LABELS[a.type] || a.type) + (a.amount ? " " + a.amount.toLocaleString() : "");
+  const primary = (t) => t === "hit" || t === "call" || t === "raise" || t === "ride" || t.startsWith("play");
+  const ghost = (t) => t === "fold" || t === "pull";
 </script>
 
 <section class="actionbar">
@@ -44,7 +50,7 @@
   {:else}
     <div class="acts">
       {#each decisions as a}
-        <button class="btn {primary(a.type) ? 'primary' : a.type === 'fold' ? 'ghost' : ''}" onclick={() => onAct({ type: a.type })}>
+        <button class="btn {primary(a.type) ? 'primary' : ghost(a.type) ? 'ghost' : ''}" onclick={() => onAct({ type: a.type })}>
           {label(a)}
         </button>
       {/each}

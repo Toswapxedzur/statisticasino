@@ -1,109 +1,90 @@
-// Casino Hold'em — a "banked" poker game (each player vs. the house, not each
-// other). It's the clearest "hole cards + community cards + bets" game, so it's
-// the reference build on the shared toolkit: it reuses the poker evaluator
-// (evaluate7) and the deal/settle primitives, and just adds its own one-decision
-// betting loop.
-//
-// Round: ante → deal 2 hole to each player + 2 to the dealer + a flop → each
-// player Calls (2× ante) or Folds → turn + river → showdown. The dealer must
-// QUALIFY with a pair of fours or better; settlement is banked (sums to zero).
+// Caribbean Stud — a banked 5-card stud vs the house. Round: ante → deal each
+// player 5 cards + the dealer 5 (one up) → each player Calls (2× ante) or Folds
+// seeing their hand and the dealer's up-card → showdown. The dealer QUALIFIES
+// with Ace-King-high or better; if it doesn't, the ante pays 1:1 and the call
+// pushes. When it does and the player wins, the call bet pays a paytable
+// (pair 1:1 … royal 100:1). Settlement is banked (sums to zero).
 
-import { shoe, take, dealHole, dealCommunity, evaluate7, compareRank, bankedResults, clampBet } from "./toolkit.js";
+import { shoe, take, dealHole, bestHand, compareRank, bankedResults, clampBet } from "./toolkit.js";
 
-export const DEFAULTS = {
-  minBet: 1,
-  // Ante bonus paytable (paid on the ante when the player makes a straight+),
-  // keyed by the evaluator category. Royal flush is a category-8 ace-high hand.
-  anteBonus: { straight: 1, flush: 2, fullhouse: 3, quads: 10, straightflush: 20, royal: 100 }
-};
+export const DEFAULTS = { minBet: 1 };
 
-function resolveConfig(raw) {
-  return { ...DEFAULTS, ...(raw || {}), anteBonus: { ...DEFAULTS.anteBonus, ...(raw?.anteBonus || {}) } };
-}
-
-// Dealer qualifies with a pair of fours or better.
-function qualifies(rank) {
-  return rank.category >= 2 || (rank.category === 1 && rank.ranks[0] >= 4);
-}
-
-// Ante-bonus multiplier for the player's final hand (0 for weaker than a straight).
-function bonusMultiplier(rank, table) {
+// Call-bet paytable by evaluator category (royal is a straight flush to the ace).
+function callMultiplier(rank) {
   switch (rank.category) {
-    case 8: return rank.ranks[0] === 14 ? table.royal : table.straightflush;
-    case 7: return table.quads;
-    case 6: return table.fullhouse;
-    case 5: return table.flush;
-    case 4: return table.straight;
-    default: return 0;
+    case 8: return rank.ranks[0] === 14 ? 100 : 50; // royal / straight flush
+    case 7: return 20; // quads
+    case 6: return 7;  // full house
+    case 5: return 5;  // flush
+    case 4: return 4;  // straight
+    case 3: return 3;  // trips
+    case 2: return 2;  // two pair
+    default: return 1; // one pair / high card
   }
 }
 
-function seatsInOrder(state) {
-  return state.players.map((p) => p.seat).sort((a, b) => a - b);
+// Dealer qualifies with a pair or better, or Ace-King high.
+function dealerQualifies(rank) {
+  if (rank.category >= 1) return true;
+  return rank.ranks[0] === 14 && rank.ranks[1] === 13;
 }
+
+const order = (state) => state.players.map((p) => p.seat).sort((a, b) => a - b);
 function firstWhere(state, pred, afterSeat = -1) {
-  for (const seat of seatsInOrder(state)) {
+  for (const seat of order(state)) {
     if (seat > afterSeat && pred(state.players.find((p) => p.seat === seat))) return seat;
   }
   return null;
 }
 
 function deal(state) {
-  dealHole(state, state.players, 2);
-  state.dealer.cards.push(...take(state, 2));
-  dealCommunity(state, 3); // flop
+  dealHole(state, state.players, 5);
+  state.dealer.cards.push(...take(state, 5));
   state.phase = "decision";
   state.toActSeat = firstWhere(state, () => true);
 }
 
 function finish(state) {
-  dealCommunity(state, 5 - state.community.length); // turn + river
   state.dealer.hidden = false;
-  const board = state.community;
-  const dealerRank = evaluate7([...state.dealer.cards, ...board]);
-  const dealerOk = qualifies(dealerRank);
-
+  const dRank = bestHand(state.dealer.cards);
+  const dOk = dealerQualifies(dRank);
   const perSeat = state.players.map((p) => {
-    const ante = p.ante;
-    if (p.folded) return { seat: p.seat, delta: -ante, outcome: "fold" };
-    const rank = evaluate7([...p.cards, ...board]);
-    const bonus = ante * bonusMultiplier(rank, state.config.anteBonus);
-    const cmp = compareRank(rank, dealerRank);
+    if (p.folded) return { seat: p.seat, delta: -p.ante, outcome: "fold" };
+    const rank = bestHand(p.cards);
+    const cmp = compareRank(rank, dRank);
     let delta;
     let outcome;
-    if (!dealerOk) { delta = ante + bonus; outcome = "no-qualify"; }           // ante 1:1, call push
-    else if (cmp > 0) { delta = ante + p.call + bonus; outcome = "win"; }       // ante + call 1:1
+    if (!dOk) { delta = p.ante; outcome = "no-qualify"; }                      // ante 1:1, call push
+    else if (cmp > 0) { delta = p.ante + p.call * callMultiplier(rank); outcome = "win"; }
     else if (cmp === 0) { delta = 0; outcome = "push"; }
-    else { delta = -(ante + p.call); outcome = "lose"; }
+    else { delta = -(p.ante + p.call); outcome = "lose"; }
     return { seat: p.seat, delta, outcome, hand: rank.name };
   });
-
-  state.dealer.rank = dealerRank;
-  state.dealer.qualified = dealerOk;
+  state.dealer.rank = dRank;
+  state.dealer.qualified = dOk;
   state.results = bankedResults(perSeat, state.bankerSeat);
   state.phase = "complete";
   state.toActSeat = null;
 }
 
-export const casinoHoldem = {
-  key: "casino-holdem",
-  name: "Casino Hold'em",
+export const caribbeanStud = {
+  key: "caribbean-stud",
+  name: "Caribbean Stud",
   family: "banked",
   usesBanker: true,
   minPlayers: 1,
-  maxPayoutMultiple: 40, // ante + 2×ante call + 100:1 royal ante-bonus ≈ 34× the stake
+  maxPayoutMultiple: 70, // ante + 2×ante call at the 100:1 royal ≈ 67× the total stake
   deck: () => shoe(1),
 
   startRound(ctx) {
-    const config = resolveConfig(ctx.config);
+    const config = { ...DEFAULTS, ...(ctx.config || {}) };
     const state = {
-      game: "casino-holdem",
+      game: "caribbean-stud",
       phase: "ante",
       config,
       bankerSeat: ctx.bankerSeat,
       deck: [...ctx.deck],
       deckPos: 0,
-      community: [],
       dealer: { cards: [], hidden: true },
       players: ctx.players
         .filter((p) => p.seat !== ctx.bankerSeat)
@@ -121,7 +102,6 @@ export const casinoHoldem = {
     const p = state.players.find((x) => x.seat === state.toActSeat);
     if (!p) return { toActSeat: null, actions: [] };
     if (state.phase === "ante") {
-      // Cap the ante so the player can always afford the 2x call if they choose.
       const max = Math.max(state.config.minBet, Math.floor(p.startStack / 3));
       return { toActSeat: state.toActSeat, actions: [{ type: "ante", min: state.config.minBet, max }] };
     }
@@ -148,7 +128,6 @@ export const casinoHoldem = {
       return { state: next, events };
     }
 
-    // decision phase — each player calls or folds exactly once, in seat order.
     if (action.type === "fold") { p.folded = true; }
     else if (action.type === "call") {
       if (p.startStack < p.ante * 3) throw new Error("cannot afford the call");
@@ -156,7 +135,6 @@ export const casinoHoldem = {
     } else throw new RangeError(`illegal action: ${action.type}`);
     events.push({ type: action.type, seat: p.seat });
 
-    // Next player who has neither folded nor called yet.
     const nextDecider = firstWhere(next, (x) => !x.folded && x.call === 0);
     if (nextDecider !== null) { next.toActSeat = nextDecider; return { state: next, events }; }
     finish(next);
@@ -166,33 +144,29 @@ export const casinoHoldem = {
 
   isComplete(state) { return state.phase === "complete"; },
   actorSeat(state) { return state.toActSeat; },
-
   defaultAction(state, seat) {
-    // Timeout: post the minimum ante, or fold the decision.
     return state.phase === "ante" ? { type: "ante", seat, amount: state.config.minBet } : { type: "fold", seat };
   },
-
   settle(state) { return state.results || []; },
 
   publicView(state) {
     return {
-      game: "casino-holdem",
+      game: "caribbean-stud",
       phase: state.phase,
-      community: [...state.community],
       dealer: {
-        cards: state.dealer.hidden ? state.dealer.cards.map(() => "??") : [...state.dealer.cards],
+        cards: state.dealer.cards.length
+          ? (state.dealer.hidden ? [state.dealer.cards[0], ...state.dealer.cards.slice(1).map(() => "??")] : [...state.dealer.cards])
+          : [],
         qualified: state.dealer.qualified ?? null,
         hand: state.dealer.rank?.name ?? null
       },
-      hands: state.players.map((p) => ({
-        seat: p.seat, cards: [...p.cards], ante: p.ante, call: p.call, folded: p.folded
-      })),
+      hands: state.players.map((p) => ({ seat: p.seat, cards: [...p.cards], ante: p.ante, call: p.call, folded: p.folded })),
       toActSeat: state.toActSeat,
       results: state.results
     };
   },
 
-  privateFor() { return null; }, // hole cards are shown (independent play vs. the house)
+  privateFor() { return null; },
 
   turnInfo(state, seat) {
     const menu = this.legalActions(state);
