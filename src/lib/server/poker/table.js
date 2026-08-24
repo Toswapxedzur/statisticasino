@@ -29,6 +29,15 @@ export const ACTION_TIMEOUT_MS = 25_000; // per-decision clock
 export const NEW_HAND_DELAY_MS = 3_500; // pause after a hand before the next
 export const DISCONNECT_GRACE_MS = 8_000; // shortened clock for a gone actor
 export const SEAT_VACATE_GRACE_MS = 45_000; // auto-stand a fully-gone idle seat
+// Time bank: a per-seat reserve of extra thinking time. When the normal clock
+// runs out for a PRESENT, active player, we spend (up to) a chunk of their bank to
+// extend it ONCE before auto-acting. It starts at INIT on buy-in and tops up a
+// little each hand, capped at MAX. Disconnected/sitting-out actors never draw on
+// it (they get the shorter disconnect grace instead).
+export const TIME_BANK_INIT_MS = 30_000;
+export const TIME_BANK_MAX_MS = 60_000;
+export const TIME_BANK_PER_HAND_MS = 4_000;
+export const TIME_BANK_EXTEND_MS = 20_000; // most one extension can add
 
 export class LiveTable {
   constructor(config, hub, deps = {}) {
@@ -168,17 +177,37 @@ export class LiveTable {
   // clock (a real action landed, the actor reconnected, the hand ended) the
   // queued autoAct sees a newer generation and does nothing — so it can never
   // auto-act against whoever happens to be to-act by the time it runs (#6).
-  _armActionTimer(ms) {
+  _armActionTimer(ms, { bankable = false } = {}) {
     this.clearActionTimer(); // clears the handle and bumps the generation
     const gen = this._actionGen;
+    this._bankable = bankable; // may this expiry spend the actor's time bank?
     this.actionDeadline = this.now() + ms;
     this.actionTimer = this.setTimer(() => {
       this.actionTimer = null;
       return this._run(() => {
         if (this._actionGen !== gen) return; // superseded before we got the lock
-        return this.autoAct();
+        return this._onActionTimeout();
       });
     }, ms);
+  }
+
+  // The clock ran out. For a present, active actor with time bank left (and who
+  // hasn't already extended this turn), spend a chunk to extend once; otherwise
+  // auto-act. `_bankApplied` is reset by promptActor for each fresh actor.
+  async _onActionTimeout() {
+    if (this.hand && this._bankable && !this._bankApplied) {
+      const seat = this.seats.get(this.hand.toActSeat);
+      if (seat && (seat.timeBankMs || 0) > 0 && this.isConnected(seat) && !seat.sittingOut) {
+        const ext = Math.min(seat.timeBankMs, TIME_BANK_EXTEND_MS);
+        seat.timeBankMs -= ext;
+        this._bankApplied = true;
+        this._armActionTimer(ext, { bankable: false }); // one extension only
+        this.broadcast();          // clients see the extended deadline + drained bank
+        this.sendTurnTo(seat);
+        return;
+      }
+    }
+    return this.autoAct();
   }
 
   clearStartTimer() {
@@ -257,7 +286,10 @@ export class LiveTable {
         isSB: seatNo === this.sbSeat,
         isBB: seatNo === this.bbSeat,
         isToAct: hand ? seatNo === toActSeat : false,
-        lastAction: s.lastAction ?? null
+        lastAction: s.lastAction ?? null,
+        timeBankMs: s.timeBankMs ?? 0,
+        // True while THIS seat is currently on its time-bank extension.
+        usingTimeBank: hand && seatNo === toActSeat && !!this._bankApplied
       });
     }
     seats.sort((a, b) => a.seat - b.seat);
@@ -410,6 +442,8 @@ export class LiveTable {
     // trivial.
     const players = eligible.map((seatNo) => {
       const s = this.seats.get(seatNo);
+      // Top up each contender's time bank a little for the new hand (capped).
+      s.timeBankMs = Math.min(TIME_BANK_MAX_MS, (s.timeBankMs || 0) + TIME_BANK_PER_HAND_MS);
       return { id: seatNo, seat: seatNo, stack: s.stack };
     });
     const deck = shuffle(this.variant.deck(), this.rng);
@@ -480,7 +514,8 @@ export class LiveTable {
     const gone = !!(seat && (!this.isConnected(seat) || seat.sittingOut));
     if (seat) seat._graceClock = gone; // #7: lets a reconnect restore a full clock
     const timeout = gone ? DISCONNECT_GRACE_MS : ACTION_TIMEOUT_MS;
-    this._armActionTimer(timeout);
+    this._bankApplied = false; // fresh actor — their time bank is available again
+    this._armActionTimer(timeout, { bankable: !gone });
 
     this.broadcast();
     if (seat) this.sendTurnTo(seat);
@@ -847,7 +882,8 @@ export class LiveTable {
       status: null,
       committedThisStreet: 0,
       totalCommitted: 0,
-      lastAction: null
+      lastAction: null,
+      timeBankMs: TIME_BANK_INIT_MS
     });
 
     this.sendChips(funderId, balance);
