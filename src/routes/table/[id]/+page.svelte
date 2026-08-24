@@ -74,7 +74,8 @@
     keno: [["casual", "Casual"], ["chaser", "Jackpot chaser"]],
     craps: [["pass", "Pass Line"], ["dontpass", "Don't Pass"], ["field", "Field"]],
     "pai-gow": [["house", "House way"]],
-    "crazy-eights": [["basic", "Basic"], ["reckless", "Reckless"]]
+    "crazy-eights": [["basic", "Basic"], ["reckless", "Reckless"]],
+    "big-two": [["basic", "Basic"], ["leader", "Aggressive"]]
   };
   const botTiers = $derived(
     (banked || shedding) ? (BOT_TIERS[gameKey] || [["basic", "Basic"]]) : [["reg", "Reg"], ["fish", "Fish"]]

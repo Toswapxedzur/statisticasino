@@ -30,6 +30,7 @@ import { videoPokerStrategy, VP_TIERS } from "./video-poker-strategy.js";
 import { kenoStrategy, KENO_TIERS } from "./keno-strategy.js";
 import { paiGowStrategy, PG_TIERS } from "./pai-gow-strategy.js";
 import { crazyEightsStrategy, CE_TIERS } from "./crazy-eights-strategy.js";
+import { bigTwoStrategy, BT_TIERS } from "./big-two-strategy.js";
 
 // Which brain + tier set a bot uses at a banked game (poker uses the default).
 const GAME_BRAINS = {
@@ -52,7 +53,8 @@ const GAME_BRAINS = {
   keno: { strategy: kenoStrategy, tiers: KENO_TIERS, def: "casual" },
   craps: { strategy: betGameStrategy, tiers: CRAPS_TIERS, def: "pass" },
   "pai-gow": { strategy: paiGowStrategy, tiers: PG_TIERS, def: "house" },
-  "crazy-eights": { strategy: crazyEightsStrategy, tiers: CE_TIERS, def: "basic" }
+  "crazy-eights": { strategy: crazyEightsStrategy, tiers: CE_TIERS, def: "basic" },
+  "big-two": { strategy: bigTwoStrategy, tiers: BT_TIERS, def: "basic" }
 };
 
 // Reserved, non-routable domain (RFC 6761 `.invalid`) — guarantees no bot email

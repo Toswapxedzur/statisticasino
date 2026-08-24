@@ -13,6 +13,8 @@
   const results = $derived(round.results || null);
   const winner = $derived(round.winner ?? null);
   const seatList = $derived(Array.from({ length: maxSeats }, (_, i) => i));
+  // Big Two shows a multi-card pile; Crazy Eights a single top card.
+  const pileCards = $derived(round.pile && round.pile.length ? round.pile : (round.top ? [round.top] : []));
   const SUIT = { c: "♣", d: "♦", h: "♥", s: "♠" };
   const isRed = (su) => su === "d" || su === "h";
   const outcomeOf = (seat) => (results ? results.find((r) => r.seat === seat) || null : null);
@@ -21,12 +23,13 @@
 <section class="felt-shell">
   <div class="felt">
     <div class="pile">
-      {#if round.top}
-        {@const t = round.top}
-        <span class="card big" class:red={isRed(t[1])}>{t[0]}<span class="suit">{SUIT[t[1]]}</span></span>
+      {#if pileCards.length}
+        <div class="pilecards">
+          {#each pileCards as t}<span class="card big" class:red={isRed(t[1])}>{t[0]}<span class="suit">{SUIT[t[1]]}</span></span>{/each}
+        </div>
         <div class="pilenote">
-          {#if round.currentSuit}suit <span class:red={isRed(round.currentSuit)}>{SUIT[round.currentSuit]}</span> · {/if}
-          {round.drawCount ?? 0} in stock
+          {#if round.currentSuit}suit <span class:red={isRed(round.currentSuit)}>{SUIT[round.currentSuit]}</span>{/if}
+          {#if round.drawCount != null}{round.currentSuit ? " · " : ""}{round.drawCount} in stock{/if}
         </div>
       {:else}<span class="muted waiting">Dealing…</span>{/if}
     </div>
@@ -68,6 +71,7 @@
     display: flex; flex-direction: column; gap: 18px; color: #eafaf1;
   }
   .pile { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .pilecards { display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; }
   .card {
     display: inline-flex; align-items: center; gap: 1px; background: #fbfbfd; color: #1a1a1a;
     border-radius: 8px; padding: 8px 10px; font-weight: 800; font-size: 20px; line-height: 1; box-shadow: 0 2px 6px rgba(0,0,0,0.3);

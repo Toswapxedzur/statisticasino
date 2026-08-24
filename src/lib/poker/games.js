@@ -23,7 +23,8 @@ export const GAME_MODES = [
   { key: "keno", label: "Keno" },
   { key: "craps", label: "Craps" },
   { key: "pai-gow", label: "Pai Gow Poker" },
-  { key: "crazy-eights", label: "Crazy Eights" }
+  { key: "crazy-eights", label: "Crazy Eights" },
+  { key: "big-two", label: "Big Two" }
 ];
 
 // Banked (vs-the-house) games — keep in sync with games/registry.js.
@@ -36,7 +37,7 @@ export function isBanked(key) { return BANKED_GAMES.includes(key); }
 
 // Shedding games (player-vs-player card play for chips; no house). Run on
 // GameTable with usesBanker:false — keep in sync with games/registry.js.
-export const SHEDDING_GAMES = ["crazy-eights"];
+export const SHEDDING_GAMES = ["crazy-eights", "big-two"];
 export function isShedding(key) { return SHEDDING_GAMES.includes(key); }
 
 // Poker variants offered in the New Table modal, grouped for a tidy picker.
@@ -73,7 +74,8 @@ const SHORT_BY_KEY = new Map([
   ["keno", "Keno"],
   ["craps", "Craps"],
   ["pai-gow", "Pai Gow Poker"],
-  ["crazy-eights", "Crazy Eights"]
+  ["crazy-eights", "Crazy Eights"],
+  ["big-two", "Big Two"]
 ]);
 const LABEL_BY_KEY = new Map([
   ...POKER_VARIANTS.map((v) => [v.key, v.label]),
@@ -96,7 +98,8 @@ const LABEL_BY_KEY = new Map([
   ["keno", "Keno"],
   ["craps", "Craps"],
   ["pai-gow", "Pai Gow Poker"],
-  ["crazy-eights", "Crazy Eights"]
+  ["crazy-eights", "Crazy Eights"],
+  ["big-two", "Big Two"]
 ]);
 
 export function variantShort(key) {
