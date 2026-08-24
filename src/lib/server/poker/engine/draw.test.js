@@ -7,6 +7,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { standardDeck } from "./cards.js";
 import { createHand, legalActions, applyAction } from "./index.js";
+import { pokerStrategy } from "../bot/poker-strategy.js";
+import { TIERS } from "../bot/tiers.js";
 
 // Play a heads-up hand: bets are check/call; the draw uses `drawMap[seat]`.
 function play(rig, drawMap = {}, foldSeat = null) {
@@ -55,6 +57,23 @@ test("folding pre-draw wins uncontested", () => {
   assert.equal(state.result.winnerSeat, 2);
   assert.equal(stackOf(state, 2), 105, "wins SB 5; uncalled BB returned");
   conserved(state);
+});
+
+test("the Five-Card Draw bot value-bets a flush and folds junk to a bet (equity-based)", () => {
+  const seats = [{ seat: 1, inHand: true, status: "active" }, { seat: 2, inHand: true, status: "active" }];
+  const rng = () => 0.5;
+  const bet = pokerStrategy.decide({
+    view: { seats }, seat: 1, tier: TIERS.reg, rng, variantKey: "five-card-draw",
+    hole: ["Ah", "Kh", "Qh", "Jh", "9h"], // a made flush
+    turn: { actions: [{ type: "check" }, { type: "bet", min: 10, max: 200 }], callAmount: 0, potTotal: 20 }
+  });
+  assert.equal(bet.type, "bet");
+  const fold = pokerStrategy.decide({
+    view: { seats }, seat: 1, tier: TIERS.reg, rng, variantKey: "five-card-draw",
+    hole: ["2c", "4d", "6s", "8h", "Tc"], // ten-high junk
+    turn: { actions: [{ type: "fold" }, { type: "call", amount: 50 }], callAmount: 50, potTotal: 20 }
+  });
+  assert.equal(fold.type, "fold");
 });
 
 test("a non-draw action during the draw is treated as standing pat", () => {

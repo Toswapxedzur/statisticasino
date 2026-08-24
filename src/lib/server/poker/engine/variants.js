@@ -76,7 +76,9 @@ export const VARIANTS = {
   // VARIANT_KEYS validation work; boardSchedule/streets are unused here.
   "five-card-draw": {
     key: "five-card-draw", name: "No-Limit Five-Card Draw", family: "poker",
-    deck: standardDeck, holeCount: 5, bettingStructure: "no-limit", compare: compareRank
+    deck: standardDeck, holeCount: 5, bettingStructure: "no-limit", compare: compareRank,
+    // For the bot's equity sim: no community cards, hand = the five hole cards.
+    boardSchedule: [], evaluate: (hole, board) => bestHand([...hole, ...(board || [])], STANDARD_MODEL)
   },
   "seven-card-stud": {
     key: "seven-card-stud", name: "Seven-Card Stud", family: "poker",

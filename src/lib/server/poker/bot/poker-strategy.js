@@ -6,6 +6,7 @@ import { decide } from "./decide.js";
 import { getVariant } from "../engine/variants.js";
 import { RANKS } from "../engine/cards.js";
 import { bestHand, STANDARD_MODEL } from "../engine/evaluator.js";
+import { equity } from "./equity.js";
 
 function safe(turn) {
   return (turn.actions || []).some((a) => a.type === "check") ? { type: "check" } : { type: "fold" };
@@ -38,20 +39,23 @@ function drawDiscards(hole) {
   return all.filter((i) => i !== hiIdx); // keep only the top card
 }
 
-// Simple strength-based betting for Five-Card Draw (the Monte-Carlo equity engine
-// assumes community cards, so it isn't used here). Value-bets a pair or better.
-function drawBet(hole, turn) {
+// Five-Card Draw betting: equity of the current 5-card hand vs opponents' random
+// 5-card hands (no board), priced against the pot — the same equity/pot-odds logic
+// the flop bot uses, via the five-card-draw descriptor's evaluator.
+const DRAW_VARIANT = getVariant("five-card-draw");
+function drawBet(hole, turn, numOpp, rng) {
   const actions = turn.actions || [];
   const has = (t) => actions.some((a) => a.type === t);
-  const rank = bestHand(hole, STANDARD_MODEL);
-  const made = rank.category >= 1;   // a pair or better
-  const strong = rank.category >= 3; // trips or better
-  if ((turn.callAmount || 0) > 0) {
-    if (strong && has("raise")) return { type: "raise", amount: actions.find((a) => a.type === "raise").min };
-    if (made && has("call")) return { type: "call" };
+  const E = equity(hole, [], Math.max(1, numOpp), 120, rng, DRAW_VARIANT);
+  const toCall = turn.callAmount || 0;
+  const pot = turn.potTotal || 0;
+  if (toCall > 0) {
+    const R = toCall / (pot + toCall);
+    if (E >= R + 0.30 && has("raise")) return { type: "raise", amount: actions.find((a) => a.type === "raise").min };
+    if (E >= R) return has("call") ? { type: "call" } : { type: "check" };
     return has("check") ? { type: "check" } : { type: "fold" };
   }
-  if (made && has("bet")) return { type: "bet", amount: actions.find((a) => a.type === "bet").min };
+  if (E >= 0.58 && has("bet")) return { type: "bet", amount: actions.find((a) => a.type === "bet").min };
   return has("check") ? { type: "check" } : { type: "fold" };
 }
 
@@ -85,15 +89,13 @@ export const pokerStrategy = {
     if (!hole || hole.length < 2) return safe(turn);
     // Five-Card Draw's draw phase: choose discards rather than a bet.
     if ((turn.actions || []).some((a) => a.type === "draw")) return { type: "draw", discards: drawDiscards(hole) };
-    // Five-Card Draw betting uses a simple strength heuristic (no community cards
-    // for the equity engine to model).
-    if (variantKey === "five-card-draw") return drawBet(hole, turn);
-    if (variantKey === "seven-card-stud") return studBet(hole, turn);
     const v = view || {};
-    const seats = v.seats || [];
-    const numOpponents = seats.filter(
-      (s) => s.seat !== seat && s.inHand && s.status !== "folded"
-    ).length;
+    const numOpponents = (v.seats || []).filter((s) => s.seat !== seat && s.inHand && s.status !== "folded").length;
+    // Five-Card Draw betting: equity-based (its own evaluator, no board).
+    if (variantKey === "five-card-draw") return drawBet(hole, turn, numOpponents, rng);
+    // Seven-Card Stud: strength heuristic (early streets hold <5 cards and up-cards
+    // are public — proper up-card-aware equity is future work).
+    if (variantKey === "seven-card-stud") return studBet(hole, turn);
     if (numOpponents < 1) return safe(turn);
     const obs = {
       hole: [...hole],
