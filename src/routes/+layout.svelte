@@ -34,6 +34,7 @@
   <a class="brand" href="/"><span class="dot"></span> {SITE_NAME}</a>
   <nav class="nav-tabs" aria-label="Sections">
     <a class="nav-tab" href="/" aria-current={isActive("/") ? "page" : undefined}>Lobby</a>
+    {#if data.user}<a class="nav-tab" href="/friends" aria-current={isActive("/friends") ? "page" : undefined}>Friends</a>{/if}
     <a class="nav-tab" href="/data" aria-current={isActive("/data") ? "page" : undefined}>Data</a>
     <a class="nav-tab" href="/blog" aria-current={isActive("/blog") ? "page" : undefined}>Blog</a>
     <a class="nav-tab" href="/contribute" aria-current={isActive("/contribute") ? "page" : undefined}>Contribute</a>

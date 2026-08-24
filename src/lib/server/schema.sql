@@ -433,9 +433,32 @@ CREATE TABLE IF NOT EXISTS user_achievement (
     REFERENCES user(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- -----------------------------------------------------------------
+-- v15 (2026-08-24, "friends"): the friend graph. One row per relation,
+-- DIRECTED by who sent the request (requester → addressee) but treated
+-- as undirected once `status = 'accepted'`. `pending` is an outstanding
+-- request the addressee hasn't answered. The PK prevents a duplicate
+-- A→B row; a reciprocal B→A request is auto-accepted in code
+-- (friends.js#requestFriend). Deleting either account removes the edge.
+-- -----------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS friendship (
+  requester_id  VARCHAR(64) NOT NULL,
+  addressee_id  VARCHAR(64) NOT NULL,
+  status        VARCHAR(16) NOT NULL DEFAULT 'pending',  -- 'pending' | 'accepted'
+  created_at    BIGINT NOT NULL,
+  responded_at  BIGINT,
+  PRIMARY KEY (requester_id, addressee_id),
+  KEY idx_friendship_addressee (addressee_id, status),
+  KEY idx_friendship_requester (requester_id, status),
+  CONSTRAINT fk_friendship_requester FOREIGN KEY (requester_id)
+    REFERENCES user(id) ON DELETE CASCADE,
+  CONSTRAINT fk_friendship_addressee FOREIGN KEY (addressee_id)
+    REFERENCES user(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS meta (
   meta_key   VARCHAR(64)  NOT NULL PRIMARY KEY,
   meta_value VARCHAR(255) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT IGNORE INTO meta(meta_key, meta_value) VALUES ('schema_version', '14');
+INSERT IGNORE INTO meta(meta_key, meta_value) VALUES ('schema_version', '15');

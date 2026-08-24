@@ -63,6 +63,31 @@ export async function chipsForUsers(userIds) {
   return new Map(rows.map((r) => [r.id, Number(r.chips)]));
 }
 
+// Resolve a set of user ids to display info (id -> { name, email }).
+export async function usersByIds(userIds) {
+  if (!userIds || userIds.length === 0) return new Map();
+  const placeholders = userIds.map(() => "?").join(",");
+  const rows = await query(
+    `SELECT id, display_name, email FROM user WHERE id IN (${placeholders})`,
+    userIds
+  );
+  return new Map(rows.map((r) => [r.id, { name: r.display_name || r.email, email: r.email }]));
+}
+
+// Look up a user by a typed "handle" — exact email, or exact display name. Bots
+// (reserved .invalid domain) are never resolvable this way. Returns { id, name }
+// or null.
+export async function findUserByHandle(handle) {
+  const h = String(handle || "").trim();
+  if (!h) return null;
+  const row = await queryOne(
+    "SELECT id, display_name, email FROM user "
+    + "WHERE (email = ? OR display_name = ?) AND email NOT LIKE '%@bot.riverside.invalid' LIMIT 1",
+    [h, h]
+  );
+  return row ? { id: row.id, name: row.display_name || row.email } : null;
+}
+
 // Top players by wallet chips, for the lobby leaderboard. Bots are real user
 // rows (so they buy in through escrow like anyone) but live under a reserved
 // `.invalid` email domain — exclude them so they don't crowd the human board.
