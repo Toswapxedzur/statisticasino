@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { bigTwo, classifyPlay, comparePlay } from "./big-two.js";
-import { bigTwoStrategy } from "../bot/big-two-strategy.js";
+import { bigTwoStrategy, BT_TIERS } from "../bot/big-two-strategy.js";
 import { standardDeck } from "../engine/cards.js";
 
 test("classifyPlay accepts legal combos and rejects the rest", () => {
@@ -56,7 +56,34 @@ test("the opening play must include the lowest card", () => {
 
 test("the bot plays the weakest beating combo, else passes", () => {
   const beat = bigTwoStrategy.decide({ turn: { shedGame: true, combo: true, hand: ["3c", "7d", "Ah"], pileCards: ["5d"] } });
-  assert.deepEqual(beat, { type: "play", cards: ["7d"] }, "lowest single that beats 5d");
+  assert.deepEqual(beat, { type: "play", cards: ["7d"] }, "lowest single that beats 5d (hoards the ace)");
   const pass = bigTwoStrategy.decide({ turn: { shedGame: true, combo: true, hand: ["3c", "4c"], pileCards: ["Ks"] } });
   assert.deepEqual(pass, { type: "pass" });
+});
+
+test("the threat coefficient shifts play smoothly (no binary mode)", () => {
+  const hand = ["Kc", "Kd", "3s"]; // a pair of kings + a lone 3
+  const base = { shedGame: true, combo: true, hand, pileCards: ["5h"] };
+  // Comfortable opponents → hoard the pair, pass rather than fragment it.
+  const safe = bigTwoStrategy.decide({ turn: { ...base, counts: [{ seat: 1, n: 3 }, { seat: 2, n: 13 }] }, seat: 1 });
+  assert.deepEqual(safe, { type: "pass" }, "hoards the pair when unthreatened");
+  // Opponent one card from winning → spend a king to seize the lead.
+  const threatened = bigTwoStrategy.decide({ turn: { ...base, counts: [{ seat: 1, n: 3 }, { seat: 2, n: 1 }] }, seat: 1 });
+  assert.equal(threatened.type, "play", "spends the pair to stop the short opponent");
+  assert.ok(["Kc", "Kd"].includes(threatened.cards[0]));
+});
+
+test("a full game driven entirely by the bot completes and conserves", () => {
+  const players = [1, 2, 3].map((n) => ({ seat: n, userId: `u${n}`, stack: 100 }));
+  let state = bigTwo.startRound({ players, bankerSeat: null, deck: standardDeck(), config: { minBet: 5 } });
+  let guard = 0;
+  while (!bigTwo.isComplete(state)) {
+    assert.ok(guard++ < 5000, "terminates");
+    const seat = bigTwo.actorSeat(state);
+    const turn = bigTwo.turnInfo(state, seat);
+    const move = bigTwoStrategy.decide({ turn, seat, tier: BT_TIERS.basic });
+    state = bigTwo.applyAction(state, { seat, ...move }).state;
+  }
+  assert.ok(state.winner != null);
+  assert.equal(state.results.reduce((s, r) => s + r.delta, 0), 0, "conserved");
 });

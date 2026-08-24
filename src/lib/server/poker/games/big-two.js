@@ -106,8 +106,9 @@ export const bigTwo = {
     const play = classifyPlay(cards);
     if (!play) throw new RangeError("not a legal combo");
     if (next.pile) {
-      if (play.size !== next.pile.size) throw new RangeError("must match the number of cards in play");
-      if (comparePlay(play, next.pile) <= 0) throw new RangeError("must beat the current play");
+      const pileClass = classifyPlay(next.pile.cards); // stored pile is {cards,size}; re-classify to compare
+      if (play.size !== pileClass.size) throw new RangeError("must match the number of cards in play");
+      if (comparePlay(play, pileClass) <= 0) throw new RangeError("must beat the current play");
     } else if (!next.opened) {
       if (!cards.includes(next.lowestCard)) throw new RangeError(`the opening play must include ${next.lowestCard}`);
     }
@@ -162,7 +163,9 @@ export const bigTwo = {
       shedGame: true, combo: true, hand: [...p.hand],
       canPass: !!state.pile, pileSize: state.pile ? state.pile.size : 0,
       pileCards: state.pile ? [...state.pile.cards] : [],
-      mustInclude: !state.opened ? state.lowestCard : null
+      mustInclude: !state.opened ? state.lowestCard : null,
+      // Per-seat card counts (for the bot's threat coefficient).
+      counts: state.players.filter((x) => !x.done).map((x) => ({ seat: x.seat, n: x.hand.length }))
     };
   }
 };
