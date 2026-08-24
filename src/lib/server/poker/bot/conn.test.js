@@ -157,6 +157,53 @@ test("bots play full hands at a real table: legal, complete, chip-conserving", a
   console.log(`  ${handsPlayed} hands, ${flopsSeen} flops, ${showdowns} showdowns, chips conserved at ${INITIAL}`);
 });
 
+// The adaptive "pro" tier learns from the SAME public frames a human sees: it
+// diffs each opponent's lastAction label across TABLE_STATE broadcasts into
+// per-opponent observations (BotConn._observeFromView). This proves that live
+// path feeds the model — self-play feeds it from engine state instead, so the
+// frame-parsing code is only exercised here.
+test("an adaptive pro bot accumulates opponent reads from live table frames", async () => {
+  const wallet = makeWallet({ b0: 5000, b1: 5000, b2: 5000 });
+  const table = new LiveTable(CFG, null, {
+    wallet, store: makeStore(),
+    now: () => 1, setTimer: () => 0, clearTimer: () => {},
+    rng: mulberry32(0xC0FFEE), autoStart: false
+  });
+  const pending = [];
+  const schedule = (fn) => { pending.push(fn); return null; };
+  const specs = [
+    { id: "b0", tier: TIERS.pro, seat: 0 },   // the adaptive bot
+    { id: "b1", tier: TIERS.reg, seat: 1 },
+    { id: "b2", tier: TIERS.fish, seat: 2 }
+  ];
+  const bots = {};
+  for (const s of specs) {
+    const bot = new BotConn({ user: { id: s.id, displayName: s.id }, tier: s.tier, table, rng: mulberry32(0xD0 + s.seat), schedule });
+    table.addWatcher(bot);
+    await table.sit(bot, s.seat, 800);
+    bots[s.id] = bot;
+  }
+  const pro = bots.b0;
+  assert.ok(pro._model, "the pro tier gets an opponent model");
+  assert.equal(bots.b1._model, null, "non-adaptive tiers get no model");
+
+  for (let h = 0; h < 40 && table.eligibleSeats().length >= 2; h += 1) {
+    await table.beginHand();
+    if (!table.hand) break;
+    let guard = 0;
+    while (table.hand) { assert.ok(guard++ < 5000); if (!pending.length) break; await pending.shift()(); }
+  }
+
+  // It observed BOTH opponents (never itself) and built real confidence.
+  const r1 = pro._model.read("b1");
+  const r2 = pro._model.read("b2");
+  assert.ok(r1.n >= 3, `observed b1's actions (n=${r1.n})`);
+  assert.ok(r2.n >= 3, `observed b2's actions (n=${r2.n})`);
+  assert.ok(r1.kappa > 0 && r2.kappa > 0, "confidence rose above zero");
+  assert.equal(pro._model.read("b0").n, 0, "never observes itself");
+  console.log(`  pro read b1 n=${r1.n} vpip=${r1.vpip.toFixed(2)}, b2 n=${r2.n} vpip=${r2.vpip.toFixed(2)}`);
+});
+
 // Bots read the table's variant and drive their equity sim off it, so the whole
 // stack (deck, hole count, showdown eval, pot-limit) must work for non-Hold'em
 // games too. Play a short sample of PLO and Short Deck and assert correctness.
