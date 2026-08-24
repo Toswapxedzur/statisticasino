@@ -11,7 +11,8 @@
 // sampled (from a RANGE when `rangeTightness` > 0), so it can't cheat.
 
 import { getVariant } from "../engine/variants.js";
-import { RANKS } from "../engine/cards.js";
+import { RANKS, standardDeck } from "../engine/cards.js";
+import { bestHand, STANDARD_MODEL, compareRank } from "../engine/evaluator.js";
 
 const rankVal = (c) => RANKS.indexOf(c[0]) + 2;
 
@@ -25,6 +26,46 @@ function holeStrength(oppHole, board, variant) {
   const paired = ranks.size < oppHole.length;
   const suited = new Set(oppHole.map((c) => c[1])).size < oppHole.length;
   return Math.min(1, (vals[0] - 2) / 12 * 0.6 + (paired ? 0.3 : 0) + (suited ? 0.1 : 0));
+}
+
+// Seven-Card Stud equity — DIFFERENT shape from the flop games above: there is no
+// shared board, so each player makes the best 5 of their OWN (up to) 7 cards. The
+// bot knows its own cards AND every live opponent's UP cards (public); all of them
+// are dead cards removed from the deck. Each sim fills every hand to 7 from the
+// remaining deck and scores the showdown. `oppUpCards` is one array per opponent
+// (their visible cards); `dead` are extra removed cards (e.g. folded up-cards).
+// Reads only public info + the bot's own cards, so it can't cheat. null if the
+// deck can't cover the fill (shouldn't happen at ≤ 8 handed).
+export function studEquity(myCards, oppUpCards, iters, rng = Math.random, dead = []) {
+  const opps = oppUpCards.length;
+  if (opps <= 0) return 1;
+  const known = new Set([...myCards, ...dead, ...oppUpCards.flat()]);
+  const pool = standardDeck().filter((c) => !known.has(c));
+  const myNeed = Math.max(0, 7 - myCards.length);
+  const oppNeeds = oppUpCards.map((u) => Math.max(0, 7 - u.length));
+  const need = myNeed + oppNeeds.reduce((a, b) => a + b, 0);
+  if (need > pool.length) return null;
+
+  let share = 0;
+  for (let i = 0; i < iters; i += 1) {
+    const p = [...pool];
+    for (let k = 0; k < need; k += 1) {
+      const j = k + Math.floor(rng() * (p.length - k));
+      const tmp = p[k]; p[k] = p[j]; p[j] = tmp;
+    }
+    let idx = 0;
+    const mine = bestHand([...myCards, ...p.slice(idx, (idx += myNeed))], STANDARD_MODEL);
+    let beaten = false;
+    let ties = 0;
+    for (let o = 0; o < opps; o += 1) {
+      const oc = [...oppUpCards[o], ...p.slice(idx, (idx += oppNeeds[o]))];
+      const cmp = compareRank(mine, bestHand(oc, STANDARD_MODEL));
+      if (cmp < 0) { beaten = true; break; }
+      if (cmp === 0) ties += 1;
+    }
+    share += beaten ? 0 : 1 / (ties + 1);
+  }
+  return share / iters;
 }
 
 export function equity(hole, board, numOpponents, iters, rng = Math.random, variant = getVariant("holdem"), rangeTightness = 0) {

@@ -4,7 +4,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { equity } from "./equity.js";
+import { equity, studEquity } from "./equity.js";
 
 function mulberry32(seed) {
   let a = seed >>> 0;
@@ -44,4 +44,26 @@ test("a dry gutshot is a modest underdog, not a favourite", () => {
   // 9-8 on A-J-2 rainbow: no pair, backdoor stuff only.
   const e = equity(["9c", "8d"], ["As", "Jh", "2d"], 1, 2500, mulberry32(11));
   assert.ok(e > 0.05 && e < 0.35, `weak two-overcard-less hand equity ${e}`);
+});
+
+// ---- Seven-Card Stud equity (its own no-shared-board shape) ----
+
+test("stud: made trips crush a lone opponent showing junk up-cards", () => {
+  // We hold trip kings already; the opponent shows unconnected low up-cards.
+  const e = studEquity(["Ks", "Kh", "Kd", "5c"], [["2h", "7s", "9d"]], 2000, mulberry32(5));
+  assert.ok(e > 0.85, `trip kings vs junk should dominate: ${e}`);
+});
+
+test("stud: a weak holding trails an opponent already showing a pair of aces", () => {
+  const e = studEquity(["3c", "8d", "Jh"], [["As", "Ah", "Kd"]], 2000, mulberry32(6));
+  assert.ok(e < 0.45, `junk vs shown aces should trail: ${e}`);
+});
+
+test("stud: equity is seeded (deterministic) and drops with more opponents", () => {
+  const hand = ["Qs", "Qh", "4d"];
+  const one = studEquity(hand, [["7c", "8s", "2h"]], 1500, mulberry32(9));
+  const again = studEquity(hand, [["7c", "8s", "2h"]], 1500, mulberry32(9));
+  assert.equal(one, again, "same seed ⇒ identical");
+  const many = studEquity(hand, [["7c", "8s", "2h"], ["Td", "Jc", "3s"], ["Ac", "6h", "9c"]], 1500, mulberry32(9));
+  assert.ok(many < one, `equity vs 3 (${many}) < vs 1 (${one})`);
 });

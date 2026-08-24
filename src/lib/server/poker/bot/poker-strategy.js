@@ -5,8 +5,30 @@
 import { decide } from "./decide.js";
 import { getVariant } from "../engine/variants.js";
 import { RANKS } from "../engine/cards.js";
-import { bestHand, STANDARD_MODEL } from "../engine/evaluator.js";
-import { equity } from "./equity.js";
+import { equity, studEquity } from "./equity.js";
+import { exploitDials } from "./opponent-model.js";
+
+// Shared equity-vs-pot-odds policy for the non-flop bots (draw + stud), dialled by
+// the (optionally exploit-adjusted) tier. Mirrors decide()'s core branch — raise
+// for value on a real edge, call when priced in (callSlack lets a station call
+// lighter), bet when checked to above the value threshold — but without a board so
+// no semi-bluff/sizing math. Bets/raises use the min legal size (kept simple).
+function actFromEquity(E, turn, tier, read) {
+  const t = exploitDials(tier, read);
+  const actions = turn.actions || [];
+  const has = (ty) => actions.some((a) => a.type === ty);
+  const min = (ty) => actions.find((a) => a.type === ty)?.min;
+  const toCall = turn.callAmount || 0;
+  const pot = turn.potTotal || 0;
+  if (toCall > 0) {
+    const R = toCall / (pot + toCall); // equity needed to call
+    if (E >= R + t.valueRaiseMargin && has("raise")) return { type: "raise", amount: min("raise") };
+    if (E >= R - t.callSlack) return has("call") ? { type: "call" } : { type: "check" };
+    return has("check") ? { type: "check" } : { type: "fold" };
+  }
+  if (E >= t.valueBetThreshold && has("bet")) return { type: "bet", amount: min("bet") };
+  return has("check") ? { type: "check" } : { type: "fold" };
+}
 
 function safe(turn) {
   return (turn.actions || []).some((a) => a.type === "check") ? { type: "check" } : { type: "fold" };
@@ -43,44 +65,25 @@ function drawDiscards(hole) {
 // 5-card hands (no board), priced against the pot — the same equity/pot-odds logic
 // the flop bot uses, via the five-card-draw descriptor's evaluator.
 const DRAW_VARIANT = getVariant("five-card-draw");
-function drawBet(hole, turn, numOpp, rng) {
-  const actions = turn.actions || [];
-  const has = (t) => actions.some((a) => a.type === t);
+function drawBet(hole, turn, numOpp, rng, tier, read) {
   const E = equity(hole, [], Math.max(1, numOpp), 120, rng, DRAW_VARIANT);
-  const toCall = turn.callAmount || 0;
-  const pot = turn.potTotal || 0;
-  if (toCall > 0) {
-    const R = toCall / (pot + toCall);
-    if (E >= R + 0.30 && has("raise")) return { type: "raise", amount: actions.find((a) => a.type === "raise").min };
-    if (E >= R) return has("call") ? { type: "call" } : { type: "check" };
-    return has("check") ? { type: "check" } : { type: "fold" };
-  }
-  if (E >= 0.58 && has("bet")) return { type: "bet", amount: actions.find((a) => a.type === "bet").min };
-  return has("check") ? { type: "check" } : { type: "fold" };
+  return actFromEquity(E, turn, tier, read);
 }
 
-// Seven-Card Stud strength (bot sees all its own cards): category of the best 5
-// once it holds 5+, else pair/trips among 3–4 known cards.
-function studStrength(hole) {
-  if (hole.length >= 5) return bestHand(hole, STANDARD_MODEL).category;
-  const counts = {};
-  for (const c of hole) counts[c[0]] = (counts[c[0]] || 0) + 1;
-  const max = Math.max(0, ...Object.values(counts));
-  return max >= 3 ? 3 : max === 2 ? 1 : 0;
-}
-function studBet(hole, turn) {
-  const actions = turn.actions || [];
-  const has = (t) => actions.some((a) => a.type === t);
-  const cat = studStrength(hole);
-  const made = cat >= 1;
-  const strong = cat >= 3;
-  if ((turn.callAmount || 0) > 0) {
-    if (strong && has("raise")) return { type: "raise", amount: actions.find((a) => a.type === "raise").min };
-    if (made && has("call")) return { type: "call" };
-    return has("check") ? { type: "check" } : { type: "fold" };
+// Seven-Card Stud: real equity, up-card-aware. The bot knows its own cards and
+// every live opponent's UP cards (public) — studEquity removes those as dead cards
+// and simulates each hand to 7 — then bets on equity vs pot odds, exploit-dialled
+// by the opponent read. A big improvement on the old made/strong strength heuristic.
+function studBet(hole, turn, view, seat, rng, tier, read) {
+  const oppUp = (view?.seats || [])
+    .filter((s) => s.seat !== seat && s.inHand && s.status !== "folded")
+    .map((s) => s.upCards || []);
+  if (oppUp.length === 0) {
+    const has = (t) => (turn.actions || []).some((a) => a.type === t);
+    return has("check") ? { type: "check" } : has("call") ? { type: "call" } : { type: "fold" };
   }
-  if (made && has("bet")) return { type: "bet", amount: actions.find((a) => a.type === "bet").min };
-  return has("check") ? { type: "check" } : { type: "fold" };
+  const E = studEquity(hole, oppUp, 150, rng) ?? 0.5;
+  return actFromEquity(E, turn, tier, read);
 }
 
 export const pokerStrategy = {
@@ -91,11 +94,10 @@ export const pokerStrategy = {
     if ((turn.actions || []).some((a) => a.type === "draw")) return { type: "draw", discards: drawDiscards(hole) };
     const v = view || {};
     const numOpponents = (v.seats || []).filter((s) => s.seat !== seat && s.inHand && s.status !== "folded").length;
-    // Five-Card Draw betting: equity-based (its own evaluator, no board).
-    if (variantKey === "five-card-draw") return drawBet(hole, turn, numOpponents, rng);
-    // Seven-Card Stud: strength heuristic (early streets hold <5 cards and up-cards
-    // are public — proper up-card-aware equity is future work).
-    if (variantKey === "seven-card-stud") return studBet(hole, turn);
+    // Five-Card Draw betting: equity-based (its own evaluator, no board), read-aware.
+    if (variantKey === "five-card-draw") return drawBet(hole, turn, numOpponents, rng, tier, read);
+    // Seven-Card Stud: up-card-aware equity vs pot odds, read-aware.
+    if (variantKey === "seven-card-stud") return studBet(hole, turn, v, seat, rng, tier, read);
     if (numOpponents < 1) return safe(turn);
     const obs = {
       hole: [...hole],

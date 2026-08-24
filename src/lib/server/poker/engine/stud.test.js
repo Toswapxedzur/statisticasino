@@ -5,6 +5,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { standardDeck } from "./cards.js";
 import { createHand, legalActions, applyAction } from "./index.js";
+import { pokerStrategy } from "../bot/poker-strategy.js";
+import { TIERS } from "../bot/tiers.js";
 
 function makeState(n) {
   const players = Array.from({ length: n }, (_, i) => ({ id: i + 1, seat: i + 1, stack: 100 }));
@@ -65,4 +67,30 @@ test("heads-up hand also completes and conserves", () => {
   const state = playDown(2);
   assert.equal(state.street, "complete");
   conserved(state, 2);
+});
+
+test("the Seven-Card Stud bot value-bets a made hand and folds junk (up-card-aware equity)", () => {
+  // A real seeded rng — a constant rng makes the Monte-Carlo sample degenerate.
+  let a = 12345 >>> 0;
+  const rng = () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const seats = (mine, oppUp) => ({
+    seats: [
+      { seat: 1, inHand: true, status: "active", upCards: [] },
+      { seat: 2, inHand: true, status: "active", upCards: oppUp }
+    ]
+  });
+  // Trip kings, checked to us against an opponent showing junk → value bet.
+  const bet = pokerStrategy.decide({
+    view: seats(null, ["2h", "7s", "9d"]), seat: 1, tier: TIERS.reg, rng, variantKey: "seven-card-stud",
+    hole: ["Ks", "Kh", "Kd", "5c"],
+    turn: { actions: [{ type: "check" }, { type: "bet", min: 2, max: 20 }], callAmount: 0, potTotal: 8 }
+  });
+  assert.equal(bet.type, "bet");
+  // Junk facing a big bet from an opponent already showing a pair of aces → fold.
+  const fold = pokerStrategy.decide({
+    view: seats(null, ["As", "Ah", "Kd"]), seat: 1, tier: TIERS.reg, rng, variantKey: "seven-card-stud",
+    hole: ["3c", "8d", "Jh"],
+    turn: { actions: [{ type: "fold" }, { type: "call", amount: 40 }], callAmount: 40, potTotal: 10 }
+  });
+  assert.equal(fold.type, "fold");
 });
