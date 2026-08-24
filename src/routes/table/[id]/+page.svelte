@@ -78,7 +78,7 @@
     "big-two": [["basic", "Basic"], ["leader", "Aggressive"]]
   };
   const botTiers = $derived(
-    (banked || shedding) ? (BOT_TIERS[gameKey] || [["basic", "Basic"]]) : [["reg", "Reg"], ["fish", "Fish"], ["shark", "Shark"]]
+    (banked || shedding) ? (BOT_TIERS[gameKey] || [["basic", "Basic"]]) : [["reg", "Reg"], ["fish", "Fish"], ["shark", "Shark"], ["pro", "Pro"]]
   );
   let botTier = $state("reg");
   $effect(() => { if (!botTiers.some(([k]) => k === botTier)) botTier = botTiers[0][0]; });

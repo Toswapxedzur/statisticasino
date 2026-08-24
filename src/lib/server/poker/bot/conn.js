@@ -20,6 +20,21 @@
 
 import { decode, S2C } from "../../../poker/protocol.js";
 import { pokerStrategy } from "./poker-strategy.js";
+import { createOpponentModel, combineReads } from "./opponent-model.js";
+
+// Parse a public "lastAction" label (see table.js setLastAction) into an
+// observation for the opponent model. Blinds (SB/BB) and null aren't decisions.
+function parseAction(label) {
+  switch (label ? label.split(" ")[0] : null) {
+    case "Fold": return { action: "fold", facingBet: true };
+    case "Check": return { action: "check", facingBet: false };
+    case "Call": return { action: "call", facingBet: true };
+    case "Bet": return { action: "bet", facingBet: false };
+    case "Raise": return { action: "raise", facingBet: true };
+    case "All-in": return { action: "allin", facingBet: null }; // resolve from committed
+    default: return null;
+  }
+}
 
 // Last-resort fallback if a strategy fails: pick a legal, zero-cost action.
 function safeAction(turn) {
@@ -66,6 +81,12 @@ export class BotConn {
     this.hole = null;      // our hole cards
     this.view = null;      // latest public table view (board, seats, street)
 
+    // Adaptive tiers ("pro") keep a per-opponent model, fed by diffing the public
+    // lastAction labels across TABLE_STATE frames (frames only — no peeking).
+    this._model = tier && tier.adaptive ? createOpponentModel() : null;
+    this._seenActions = new Set(); // dedupe key: hand:seat:street:label
+    this._lastHandNo = null;
+
     this._pendingTurn = null; // latest TABLE_TURN awaiting a decision
     this._scheduled = false;  // a decision is already queued
     this._timer = null;       // scheduler handle (for cancel on detach)
@@ -89,6 +110,7 @@ export class BotConn {
           const mine = (msg.table?.seats || []).find((s) => s.userId === this.user.id);
           if (mine) this.seat = mine.seat;
         }
+        if (this._model) this._observeFromView(msg.table);
         break;
       case S2C.TABLE_PRIVATE:
         this.seat = msg.seat;
@@ -109,6 +131,41 @@ export class BotConn {
     this._timer = this._schedule(() => this._decideAndSubmit());
   }
 
+  // Diff a public view's lastAction labels into per-opponent observations. Keyed
+  // by (hand, seat, street, label) so a repeated/HMR frame is counted once, but
+  // the same action on a new street counts again.
+  _observeFromView(view) {
+    if (!view) return;
+    const handNo = view.handNo;
+    if (handNo !== this._lastHandNo) { this._lastHandNo = handNo; this._seenActions.clear(); }
+    const seats = view.seats || [];
+    const boardLen = (view.board || []).length;
+    const maxCommitted = seats.reduce((m, s) => Math.max(m, s.committed || 0), 0);
+    for (const s of seats) {
+      if (s.seat === this.seat || s.userId == null) continue; // skip self + empties
+      const parsed = parseAction(s.lastAction);
+      if (!parsed) continue;
+      const key = `${handNo}:${s.seat}:${boardLen}:${s.lastAction}`;
+      if (this._seenActions.has(key)) continue;
+      this._seenActions.add(key);
+      const facingBet = parsed.facingBet == null ? maxCommitted > (s.committed || 0) : parsed.facingBet;
+      const voluntary = ["call", "bet", "raise", "allin"].includes(parsed.action);
+      this._model.observe(s.userId, {
+        action: parsed.action, facingBet,
+        vpipChance: boardLen === 0, voluntary: boardLen === 0 && voluntary
+      });
+    }
+  }
+
+  // The adaptive read of the opponents still contesting the pot (null otherwise).
+  _read() {
+    if (!this._model || !this.view) return null;
+    const opps = (this.view.seats || [])
+      .filter((s) => s.seat !== this.seat && s.inHand && s.status !== "folded" && s.userId != null)
+      .map((s) => this._model.read(s.userId));
+    return combineReads(opps);
+  }
+
   _decideAndSubmit() {
     this._scheduled = false;
     this._timer = null;
@@ -127,7 +184,8 @@ export class BotConn {
         seat: this.seat,
         tier: this.tier,
         rng: this.rng,
-        variantKey: this.table?.variantKey
+        variantKey: this.table?.variantKey,
+        read: this._read() // adaptive opponent read (null for non-adaptive tiers)
       });
     } catch {
       action = null;

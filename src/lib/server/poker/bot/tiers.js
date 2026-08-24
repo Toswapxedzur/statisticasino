@@ -65,6 +65,57 @@ export const TIERS = {
     betSizeFrac: 0.66,
     noise: 0.01,
     rangeTightness: 0.38
+  },
+  // Adaptive "pro": the shark's range-aware baseline PLUS a per-opponent model
+  // (opponent-model.js) it exploits. `exploitGain` is how hard it leans into a
+  // read once confident (κ→1): it bluffs foldy opponents more, value-bets/raises
+  // thinner vs loose ones, and calls down lighter vs maniacs — a continuous
+  // exploit coefficient, not a switch. With no read (heads-up first hands, or a
+  // neutral opponent) it plays exactly like the shark. The hardest tier.
+  pro: {
+    key: "pro",
+    name: "Pro",
+    iters: 200,
+    callSlack: 0.0,
+    valueRaiseMargin: 0.30,
+    valueBetThreshold: 0.56,
+    bluffFreq: 0.05,
+    betSizeFrac: 0.66,
+    noise: 0.01,
+    rangeTightness: 0.38,
+    exploitGain: 1.0,
+    adaptive: true
+  }
+};
+
+// A deliberately exploitable style used ONLY as a self-play sparring partner
+// (never selectable in the UI): a hyper-aggressive station that bets/raises far
+// too much and folds too little, so an adaptive bot has a clear read to punish.
+export const TEST_TIERS = {
+  maniac: {
+    key: "maniac",
+    name: "Maniac",
+    iters: 80,
+    callSlack: 0.22,
+    valueRaiseMargin: 0.02,
+    valueBetThreshold: 0.40,
+    bluffFreq: 0.45,
+    betSizeFrac: 0.75,
+    noise: 0.04
+  },
+  // A "nit"/rock: over-folds to aggression (negative callSlack ⇒ needs MORE than
+  // pot odds to call), only puts chips in with the goods, never bluffs. Its high
+  // fold-to-bet is exactly what an adaptive bot should punish by bluffing more.
+  nit: {
+    key: "nit",
+    name: "Nit",
+    iters: 80,
+    callSlack: -0.14,
+    valueRaiseMargin: 0.45,
+    valueBetThreshold: 0.70,
+    bluffFreq: 0.0,
+    betSizeFrac: 0.5,
+    noise: 0.03
   }
 };
 

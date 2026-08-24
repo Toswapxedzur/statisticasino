@@ -84,8 +84,8 @@ function studBet(hole, turn) {
 }
 
 export const pokerStrategy = {
-  // ctx: { view, turn, hole, seat, tier, rng, variantKey }
-  decide({ view, turn, hole, seat, tier, rng, variantKey }) {
+  // ctx: { view, turn, hole, seat, tier, rng, variantKey, read }
+  decide({ view, turn, hole, seat, tier, rng, variantKey, read = null }) {
     if (!hole || hole.length < 2) return safe(turn);
     // Five-Card Draw's draw phase: choose discards rather than a bet.
     if ((turn.actions || []).some((a) => a.type === "draw")) return { type: "draw", discards: drawDiscards(hole) };
@@ -109,6 +109,6 @@ export const pokerStrategy = {
       actions: turn.actions || [],
       variant: getVariant(variantKey)
     };
-    return decide(obs, tier, rng);
+    return decide(obs, tier, rng, read);
   }
 };
