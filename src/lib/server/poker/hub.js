@@ -704,11 +704,12 @@ class PokerHub {
     if (!table.seatForUser(conn.user.id)) {
       return this._err(conn, "Only a seated player can add a bot.");
     }
-    // attach() resolves the tier per game (poker tiers vs. blackjack tiers) and
-    // falls back to a sensible default, so pass the requested key through.
-    const bot = await this.botManager.attach(table, tierKey, seat != null ? { seat } : {});
+    // The inviter STAKES the bot: it plays with chips funded from — and returned
+    // to — the inviter's wallet (the bot has no wallet of its own). attach()
+    // resolves the tier per game and falls back to a sensible default.
+    const bot = await this.botManager.attach(table, tierKey, { inviterId: conn.user.id, ...(seat != null ? { seat } : {}) });
     if (!bot) {
-      return this._err(conn, "Couldn't seat a bot (table full or none available).");
+      return this._err(conn, "Couldn't seat a bot — the table's full, or you don't have enough chips to stake one.");
     }
     await this.pushLobby();
   }

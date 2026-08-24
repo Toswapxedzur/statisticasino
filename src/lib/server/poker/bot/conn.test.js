@@ -13,6 +13,7 @@ import assert from "node:assert/strict";
 import { LiveTable } from "../table.js";
 import { BotConn } from "./conn.js";
 import { TIERS } from "./tiers.js";
+import { S2C } from "../../../poker/protocol.js";
 
 function mulberry32(seed) {
   let a = seed >>> 0;
@@ -202,6 +203,30 @@ test("an adaptive pro bot accumulates opponent reads from live table frames", as
   assert.ok(r1.kappa > 0 && r2.kappa > 0, "confidence rose above zero");
   assert.equal(pro._model.read("b0").n, 0, "never observes itself");
   console.log(`  pro read b1 n=${r1.n} vpip=${r1.vpip.toFixed(2)}, b2 n=${r2.n} vpip=${r2.vpip.toFixed(2)}`);
+});
+
+// The staked-bot idle steward must fire whenever OUR seat is between hands — even
+// while the table's hand runs for other players (a busted bot sits those out and
+// still needs to rebuy or leave). It gates on our seat's inHand, not table phase,
+// and fires once per table-hand.
+test("the idle steward fires when our seat is idle, even mid-table-hand", () => {
+  const fired = [];
+  const table = { id: "T", variantKey: "holdem", act() {} };
+  const bot = new BotConn({
+    user: { id: "b", displayName: "b" }, tier: TIERS.reg, table,
+    schedule: (fn) => { fn(); return null; }, onIdle: () => fired.push(1)
+  });
+  bot.seat = 0;
+  const frame = (handNo, inHand) => ({
+    t: S2C.TABLE_STATE, tableId: "T",
+    table: { handNo, phase: "running", board: [], seats: [{ seat: 0, userId: "b", inHand, stack: 50 }] }
+  });
+  bot.send(frame(5, false)); // idle during table-hand #5 → fires
+  bot.send(frame(5, false)); // same hand → no refire
+  bot.send(frame(6, false)); // next hand, still idle → fires
+  assert.equal(fired.length, 2, "fired once per table-hand while idle");
+  bot.send(frame(7, true));  // now we're dealt in → no fire
+  assert.equal(fired.length, 2, "does not fire while we're in a hand");
 });
 
 // Bots read the table's variant and drive their equity sim off it, so the whole

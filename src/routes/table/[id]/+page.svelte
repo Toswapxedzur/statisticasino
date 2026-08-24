@@ -82,6 +82,13 @@
   );
   let botTier = $state("reg");
   $effect(() => { if (!botTiers.some(([k]) => k === botTier)) botTier = botTiers[0][0]; });
+  // You STAKE a bot: its buy-in is funded from your wallet (the server picks
+  // 100 big blinds, clamped to the table's buy-in range) and returns to you when
+  // the bot leaves. Mirror that here so the cost is visible before you click.
+  let botStake = $derived(config
+    ? Math.max(config.minBuyin, Math.min(config.maxBuyin, config.bigBlind * 100))
+    : 0);
+  let canAffordBot = $derived(walletChips >= botStake);
   let seatCount = $derived(view ? (view.seats || []).length : 0);
   let hasOpenSeat = $derived(seatCount < (config?.maxSeats ?? 0));
   function addBot() { poker.addBot(tableId, botTier); }
@@ -238,7 +245,10 @@
         <select bind:value={botTier} aria-label="Bot difficulty">
           {#each botTiers as [k, label]}<option value={k}>{label}</option>{/each}
         </select>
-        <button class="btn btn-secondary" onclick={addBot}>Add bot</button>
+        <button class="btn btn-secondary" onclick={addBot} disabled={!canAffordBot}>Add bot</button>
+        <span class="muted small" title="You stake the bot: its buy-in comes from your chips and returns to you when it leaves.">
+          stake {botStake.toLocaleString()}{#if !canAffordBot} · not enough chips{/if}
+        </span>
       </section>
     {/if}
   {/if}

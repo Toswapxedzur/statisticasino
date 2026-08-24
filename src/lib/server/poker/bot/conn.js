@@ -58,8 +58,8 @@ function defaultSchedule(fn) {
 }
 
 export class BotConn {
-  // { user:{id,displayName}, tier, table, rng?, schedule?(fn)->handle, strategy? }
-  constructor({ user, tier, table, rng = Math.random, schedule = defaultSchedule, strategy } = {}) {
+  // { user:{id,displayName}, tier, table, rng?, schedule?(fn)->handle, strategy?, onIdle? }
+  constructor({ user, tier, table, rng = Math.random, schedule = defaultSchedule, strategy, onIdle = null } = {}) {
     if (!user || user.id == null) throw new Error("BotConn needs a user with an id");
     if (!tier) throw new Error("BotConn needs a tier");
     if (!table) throw new Error("BotConn needs a table");
@@ -70,6 +70,12 @@ export class BotConn {
     this._schedule = schedule;
     // The game brain. Defaults to poker; a blackjack bot gets blackjackStrategy.
     this.strategy = strategy || pokerStrategy;
+    // Between-hands steward: called once per completed hand while we're idle at the
+    // seat, so a staked bot's manager can decide whether to rebuy or quit. null for
+    // bots nobody stakes (they just sit until removed).
+    this.onIdle = onIdle;
+    this._lastIdleHand = null;
+    this._idleTimer = null;
 
     // Connection surface the table/hub expect.
     this.watching = new Set();
@@ -111,6 +117,7 @@ export class BotConn {
           if (mine) this.seat = mine.seat;
         }
         if (this._model) this._observeFromView(msg.table);
+        this._maybeIdle();
         break;
       case S2C.TABLE_PRIVATE:
         this.seat = msg.seat;
@@ -157,6 +164,26 @@ export class BotConn {
     }
   }
 
+  // When OUR seat is between hands, fire the steward once per table-hand so the
+  // manager can rebuy or quit. We gate on our OWN seat being idle (not the table
+  // phase): on a busy table hands run back-to-back, but a busted bot sits out
+  // those hands and still needs to rebuy/leave — and a seat that isn't in the
+  // current hand is exactly when a rebuy is allowed. Deferred off the scheduler
+  // because this runs inside a broadcast (op-lock) that the steward re-enters.
+  _maybeIdle() {
+    if (!this.onIdle || this._detached || this._idleTimer != null) return;
+    const v = this.view;
+    if (!v) return;
+    const mine = (v.seats || []).find((s) => s.userId === this.user.id);
+    if (!mine || mine.inHand) return;              // playing a hand — not idle
+    if (v.handNo === this._lastIdleHand) return;   // once per table-hand
+    this._lastIdleHand = v.handNo;
+    this._idleTimer = this._schedule(() => {
+      this._idleTimer = null;
+      if (!this._detached) Promise.resolve(this.onIdle?.()).catch(() => {});
+    });
+  }
+
   // The adaptive read of the opponents still contesting the pot (null otherwise).
   _read() {
     if (!this._model || !this.view) return null;
@@ -198,9 +225,11 @@ export class BotConn {
   // Stop the bot from acting (called when it's removed / the table closes).
   detach() {
     this._detached = true;
-    if (this._timer != null) {
-      try { clearTimeout(this._timer); } catch { /* injected scheduler handle */ }
-      this._timer = null;
+    for (const key of ["_timer", "_idleTimer"]) {
+      if (this[key] != null) {
+        try { clearTimeout(this[key]); } catch { /* injected scheduler handle */ }
+        this[key] = null;
+      }
     }
   }
 }

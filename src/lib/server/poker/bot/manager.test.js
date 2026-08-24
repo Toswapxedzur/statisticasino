@@ -75,6 +75,17 @@ function makeAuth() {
 function makeStore() { let n = 0; return { async nextHandNo() { return ++n; }, async persistHand() { return "h"; } }; }
 const CFG = { id: "T", name: "Bots", max_seats: 6, small_blind: 5, big_blind: 10, min_buyin: 200, max_buyin: 1000 };
 
+// Simulate a seat losing chips down to `target` (a bust): move the delta OUT of
+// escrow into a sink wallet so the mock stays conserved, and mirror seat.stack —
+// keeping escrow and the in-memory stack consistent the way a real hand would.
+function drainSeatTo(bank, table, seatNo, target, sinkId = "pot") {
+  const r = bank.escrow.get(`${table.id}:${seatNo}`);
+  const delta = r.stack - target;
+  r.stack = target;
+  bank.balances.set(sinkId, (bank.balances.get(sinkId) ?? 0) + delta);
+  table.seats.get(seatNo).stack = target;
+}
+
 function makeTable(bank) {
   return new LiveTable(CFG, null, {
     wallet: bank, store: makeStore(),
@@ -152,4 +163,100 @@ test("reapIfNoHumans keeps bots while a human is seated", async () => {
   const reaped = await mgr.reapIfNoHumans(table);
   assert.equal(reaped, false, "did not reap");
   assert.equal(mgr.botsAtTable(table.id).length, 1, "bot stays while a human is present");
+});
+
+// ------------------------------------------------------- staked-bot economy
+
+test("a staked bot is funded by its inviter and holds no wallet of its own", async () => {
+  const bank = makeBank();
+  bank.balances.set("inviter", 50000);
+  const mgr = new BotManager({ auth: makeAuth(), wallet: bank, rng: mulberry32(9), schedule: () => null });
+  const table = makeTable(bank);
+
+  const bot = await mgr.attach(table, "reg", { seat: 0, inviterId: "inviter", buyin: 800 });
+  assert.ok(bot, "seated");
+  assert.equal(bank.balances.get("inviter"), 49200, "inviter debited the 800 buy-in");
+  assert.equal(bank.balances.get(bot.user.id) ?? 0, 0, "the bot itself was never funded (no own wallet)");
+  const esc = bank.escrow.get(`${table.id}:0`);
+  assert.equal(esc.userId, "inviter", "escrow is owned by the inviter, not the bot");
+  assert.equal(esc.stack, 800);
+  assert.equal(table.seatForUser(bot.user.id).funderId, "inviter", "seat records the funder");
+});
+
+test("inviting a bot you can't afford is rejected cleanly (no seat, no charge)", async () => {
+  const bank = makeBank();
+  bank.balances.set("broke", 100); // under the min buy-in
+  const mgr = new BotManager({ auth: makeAuth(), wallet: bank, rng: mulberry32(9), schedule: () => null });
+  const table = makeTable(bank);
+
+  const bot = await mgr.attach(table, "reg", { seat: 0, inviterId: "broke", buyin: 800 });
+  assert.equal(bot, null, "no bot seated");
+  assert.equal(table.seats.size, 0, "no seat taken");
+  assert.equal(bank.balances.get("broke"), 100, "inviter not charged");
+});
+
+test("removing a staked bot returns its chips to the inviter", async () => {
+  const bank = makeBank();
+  bank.balances.set("inviter", 50000);
+  const mgr = new BotManager({ auth: makeAuth(), wallet: bank, rng: mulberry32(9), schedule: () => null });
+  const table = makeTable(bank);
+  const total0 = bank.total();
+
+  const bot = await mgr.attach(table, "reg", { seat: 0, inviterId: "inviter", buyin: 800 });
+  await mgr.detach(table, bot);
+  assert.equal(table.seatForUser(bot.user.id), null, "seat gone");
+  assert.equal(bank.balances.get("inviter"), 50000, "inviter got the full 800 back");
+  assert.equal(bank.total(), total0, "chips conserved");
+});
+
+test("a staked bot rebuys from the inviter, then quits once it's getting crushed", async () => {
+  const bank = makeBank();
+  bank.balances.set("inviter", 50000);
+  const mgr = new BotManager({ auth: makeAuth(), wallet: bank, rng: mulberry32(9), schedule: (fn) => { fn(); return null; } });
+  const table = makeTable(bank);
+  const total0 = bank.total();
+
+  const bot = await mgr.attach(table, "reg", { seat: 0, inviterId: "inviter", buyin: 1000 });
+  const botId = bot.user.id;
+
+  // Bust down to 100 (below the 40% checkpoint); net loss < 1.5 buy-ins → auto-rebuy.
+  drainSeatTo(bank, table, 0, 100);
+  await mgr._onBotIdle(botId);
+  assert.equal(table.seatForUser(botId).stack, 1000, "topped back up to a full buy-in");
+  assert.equal(bank.escrow.get(`${table.id}:0`).stack, 1000, "escrow matches the refilled stack");
+  assert.equal(bank.balances.get("inviter"), 48100, "inviter funded the 900 rebuy (1000 + 900 in)");
+
+  // Bust to 0 again: staked 1900, stack 0 → net −1900 past 1.5 buy-ins → quit.
+  drainSeatTo(bank, table, 0, 0);
+  await mgr._onBotIdle(botId);
+  assert.equal(table.seatForUser(botId), null, "the crushed bot quit the table");
+  assert.ok(!mgr.isBotUser(botId), "identity freed");
+  assert.equal(bank.total(), total0, "chips conserved across the whole staking cycle");
+});
+
+test("staked bots play real hands with chips conserved across inviter wallets", async () => {
+  const bank = makeBank();
+  bank.balances.set("alice", 20000);
+  bank.balances.set("bob", 20000);
+  const pending = [];
+  const mgr = new BotManager({ auth: makeAuth(), wallet: bank, rng: mulberry32(4), schedule: (fn) => { pending.push(fn); return null; } });
+  const table = makeTable(bank);
+  const total0 = bank.total();
+
+  await mgr.attach(table, "reg", { seat: 0, inviterId: "alice", buyin: 800 });
+  await mgr.attach(table, "fish", { seat: 1, inviterId: "bob", buyin: 800 });
+  assert.equal(bank.balances.get("alice"), 19200, "alice funded her bot");
+  assert.equal(bank.balances.get("bob"), 19200, "bob funded his bot");
+
+  const drain = async () => { while (pending.length) await pending.shift()(); };
+  let hands = 0;
+  for (let h = 0; h < 15 && table.eligibleSeats().length >= 2; h += 1) {
+    await table.beginHand();
+    let guard = 0;
+    while (table.hand) { assert.ok(guard++ < 5000, "hand terminates"); if (!pending.length) break; await pending.shift()(); }
+    await drain(); // run any between-hands stewards (rebuy / quit)
+    assert.equal(bank.total(), total0, `chips conserved after hand ${h + 1}`);
+  }
+  assert.ok(hands >= 0);
+  assert.equal(bank.total(), total0, "chips conserved across the staked session");
 });

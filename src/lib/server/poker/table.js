@@ -629,7 +629,7 @@ export class LiveTable {
         holeCards: s.holeCards ? [...s.holeCards] : null,
         net
       });
-      escrowSnaps.push({ userId: s.userId, seatNo: p.seat, stack: p.stack });
+      escrowSnaps.push({ userId: s.funderId ?? s.userId, seatNo: p.seat, stack: p.stack });
     }
 
     // Update the durable escrow mirror to post-hand stacks so a crash refunds
@@ -736,7 +736,7 @@ export class LiveTable {
       this.clearVacateTimer(s);
       this.seats.delete(s.seat);
       try {
-        await this.wallet.cashOut(this.id, s.seat, s.userId);
+        await this.wallet.cashOut(this.id, s.seat, s.funderId ?? s.userId);
       } catch { /* best effort on shutdown; escrow covers a failure */ }
     }
     this._closed = true;
@@ -758,13 +758,15 @@ export class LiveTable {
     // twice. So we RETRY on error instead of assuming failure — a lost COMMIT
     // ack resolves to "already paid, seat stays gone", and only a persistent
     // outage falls through to restoring the seat (chips never lost).
+    const funderId = seat.funderId ?? seat.userId;
     let result = null;
     for (let attempt = 0; attempt < 3 && !result; attempt += 1) {
-      try { result = await this.wallet.cashOut(this.id, seat.seat, seat.userId); }
+      try { result = await this.wallet.cashOut(this.id, seat.seat, funderId); }
       catch { /* transient / ambiguous — retry */ }
     }
     if (result) {
-      if (result.refunded > 0) this.sendChips(seat.userId, result.balance);
+      // Refund the FUNDER (a staked bot's chips return to the inviter who backed it).
+      if (result.refunded > 0) this.sendChips(funderId, result.balance);
       return;
     }
     // Persistent failure: restore the seat (its escrow row survived the rolled-
@@ -807,12 +809,19 @@ export class LiveTable {
       return fail("Invalid buy-in amount.");
     }
 
+    // `funderId` is the wallet that OWNS this seat's chips (escrow owner), which
+    // is normally the player themselves. A STAKED bot is funded by the human who
+    // invited it: the seat is played by the bot (userId) but its chips are debited
+    // from / refunded to the inviter (funderId). Every money op below keys on
+    // funderId; gameplay + hand-history stay keyed on userId. bank.js is unchanged.
+    const funderId = opts.funderId != null ? opts.funderId : conn.user.id;
+
     let balance;
     try {
-      // Atomic: debit the wallet + create this seat's escrow row (= buyin).
+      // Atomic: debit the funder's wallet + create this seat's escrow row (= buyin).
       // opts.opId is the client's request-boundary idempotency key (a resend of
       // the same sit resolves rather than double-charging).
-      balance = await this.wallet.buyIn(conn.user.id, buyin, this.id, seatNo, opts.opId);
+      balance = await this.wallet.buyIn(funderId, buyin, this.id, seatNo, opts.opId);
     } catch (err) {
       if (err?.code === "INSUFFICIENT_CHIPS") {
         return fail("Not enough chips.", "INSUFFICIENT_CHIPS");
@@ -823,6 +832,7 @@ export class LiveTable {
     this.seats.set(seatNo, {
       seat: seatNo,
       userId: conn.user.id,
+      funderId,
       name: conn.user.displayName || conn.user.email || String(conn.user.id),
       stack: buyin,
       sittingOut: false,
@@ -835,7 +845,7 @@ export class LiveTable {
       lastAction: null
     });
 
-    this.sendChips(conn.user.id, balance);
+    this.sendChips(funderId, balance);
     this.broadcast();
     this.maybeStartHand();
   }
@@ -882,11 +892,12 @@ export class LiveTable {
       return this._error(conn, "Rebuy would exceed the max buy-in.");
     }
 
+    const funderId = seat.funderId ?? seat.userId;
     let res;
     try {
-      // Atomic: debit the wallet + add to THIS seat's escrow row (owner-matched).
-      // opId is the client's request-boundary idempotency key.
-      res = await this.wallet.rebuy(conn.user.id, amount, this.id, seat.seat, opId);
+      // Atomic: debit the funder's wallet + add to THIS seat's escrow row
+      // (owner-matched). opId is the client's request-boundary idempotency key.
+      res = await this.wallet.rebuy(funderId, amount, this.id, seat.seat, opId);
     } catch (err) {
       if (err?.code === "INSUFFICIENT_CHIPS") {
         return this._error(conn, "Not enough chips.", "INSUFFICIENT_CHIPS");
@@ -897,7 +908,7 @@ export class LiveTable {
     // Set from the AUTHORITATIVE escrow stack, not by incrementing, so a resend
     // (same opId) that resolves to the already-applied result can't double-count.
     seat.stack = res.stack;
-    this.sendChips(conn.user.id, res.balance);
+    this.sendChips(funderId, res.balance);
     this.broadcast();
     this.maybeStartHand();
   }

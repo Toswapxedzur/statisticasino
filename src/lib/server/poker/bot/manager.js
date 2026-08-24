@@ -61,6 +61,12 @@ const GAME_BRAINS = {
 // ever collides with a real signup, and gives the leaderboard a clean filter.
 export const BOT_EMAIL_DOMAIN = "bot.riverside.invalid";
 
+// Staked-bot economy (see attach / _onBotIdle). A staked bot rebuys from the
+// inviter's wallet until its bankroll is spent OR it's clearly getting crushed.
+export const STAKE_MAX_REBUYS = 2;      // rebuys allowed ⇒ up to 3 buy-ins staked
+export const STAKE_CRUSH_BUYINS = 1.5;  // quit early once net loss passes this × buy-in
+export const STAKE_REBUY_AT = 0.4;      // rebuy/quit checkpoint: stack below 40% of a buy-in
+
 // A small roster of personas. Each maps to one persistent bot `user` row.
 const ROSTER = [
   { slug: "ivy", name: "Ivy" },
@@ -122,7 +128,9 @@ export class BotManager {
       const pw = randomBytes(24).toString("hex");
       const created = await this.auth.createUser(email, pw, persona.name);
       row = { id: created.id, display_name: persona.name };
-      await this.wallet.ensureStartingGrant(created.id);
+      // No starting grant: a bot has no wallet of its own. Staked bots are funded
+      // by their inviter; the house banker and self-funded bots top up on demand
+      // via _ensureFunded at attach time.
     }
     const identity = { id: row.id, displayName: row.display_name || persona.name };
     this._identityCache.set(persona.slug, identity);
@@ -145,7 +153,12 @@ export class BotManager {
   }
 
   // Seat a bot at `table`. Returns the BotConn, or null if it couldn't seat
-  // (no open seat, roster exhausted, or the buy-in failed).
+  // (no open seat, roster exhausted, or the buy-in failed / unaffordable).
+  //
+  // `opts.inviterId` STAKES the bot: it plays the seat but its chips are funded
+  // from — and returned to — the inviter's wallet (the bot has no wallet of its
+  // own). A staked bot also auto-rebuys or quits between hands per its stake (see
+  // _onBotIdle). Without an inviter the bot self-funds (legacy / bots-only tables).
   async attach(table, tierKey, opts = {}) {
     if (table._closed) return null;
     this._sweep();
@@ -165,8 +178,19 @@ export class BotManager {
     const bb = table.config.bigBlind;
     let buyin = opts.buyin != null ? Number(opts.buyin) : bb * 100;
     buyin = Math.max(table.config.minBuyin, Math.min(table.config.maxBuyin, buyin));
-    // Keep a couple of buy-ins in the wallet so a rebuy after a bust also works.
-    await this._ensureFunded(identity.id, Math.max(buyin, table.config.maxBuyin) * 2);
+
+    const inviterId = opts.inviterId != null ? opts.inviterId : null;
+    if (inviterId != null) {
+      // Staked: the inviter funds the buy-in. Bail early if they can't afford it,
+      // so we never half-seat a bot (the atomic buyIn would also reject, but this
+      // gives the caller a clean null without touching the table).
+      const bal = await this.wallet.getBalance(inviterId);
+      if (bal < buyin) return null;
+    } else {
+      // Self-funded: top the bot's own wallet up so its buy-in (+ a rebuy) works.
+      await this._ensureFunded(identity.id, Math.max(buyin, table.config.maxBuyin) * 2);
+    }
+    const funderId = inviterId != null ? inviterId : identity.id;
 
     const botConn = new BotConn({
       user: { id: identity.id, displayName: identity.displayName },
@@ -174,11 +198,13 @@ export class BotManager {
       table,
       rng: this.rng === Math.random ? Math.random : this.rng,
       ...(brain ? { strategy: brain.strategy } : {}),
-      ...(this.schedule ? { schedule: this.schedule } : {})
+      ...(this.schedule ? { schedule: this.schedule } : {}),
+      // Only staked bots steward themselves (rebuy/quit); self-funded ones just sit.
+      ...(inviterId != null ? { onIdle: () => this._onBotIdle(identity.id) } : {})
     });
 
     table.addWatcher(botConn);
-    await table.sit(botConn, seat, buyin, { silent: true });
+    await table.sit(botConn, seat, buyin, { silent: true, funderId });
     if (!table.seatForUser(identity.id)) {
       // Buy-in lost a race / failed — roll the watcher back.
       table.removeWatcher(botConn);
@@ -186,11 +212,43 @@ export class BotManager {
       return null;
     }
 
-    this._busy.set(identity.id, { botConn, table });
+    // Stake bookkeeping: `staked` is the running total the inviter has funded into
+    // this bot (buy-in + rebuys); `rebuysUsed` bounds it to STAKE_MAX_REBUYS.
+    this._busy.set(identity.id, { botConn, table, inviterId, buyin, staked: buyin, rebuysUsed: 0 });
     let set = this._byTable.get(table.id);
     if (!set) { set = new Set(); this._byTable.set(table.id, set); }
     set.add(botConn);
     return botConn;
+  }
+
+  // A staked bot has gone idle between hands: rebuy or quit, by a combined score.
+  // Quit (cash remaining back to the inviter) when EITHER the stake bankroll is
+  // spent (STAKE_MAX_REBUYS reached) OR the bot is getting crushed (net loss past
+  // STAKE_CRUSH_BUYINS buy-ins), whichever comes first; otherwise top back up to a
+  // full buy-in, debited from the inviter. A healthy stack just keeps playing.
+  async _onBotIdle(userId) {
+    const rec = this._busy.get(userId);
+    if (!rec || rec.inviterId == null) return;
+    const { table, botConn, buyin } = rec;
+    const seat = table.seatForUser(userId);
+    if (!seat || seat.inHand) return;
+    if (seat.stack >= Math.floor(buyin * STAKE_REBUY_AT)) return; // healthy enough
+
+    const netPnL = seat.stack - rec.staked;               // inviter's P&L if we stop now
+    const crushed = netPnL <= -Math.ceil(buyin * STAKE_CRUSH_BUYINS);
+    const broke = rec.rebuysUsed >= STAKE_MAX_REBUYS;
+    const amount = buyin - seat.stack;
+    if (broke || crushed || amount <= 0) { await this.detach(table, botConn); return; }
+
+    // Affordability: if the inviter can't cover the top-up, the bot walks.
+    const bal = await this.wallet.getBalance(rec.inviterId);
+    if (bal < amount) { await this.detach(table, botConn); return; }
+
+    const before = seat.stack;
+    await table.rebuy(botConn, amount);
+    const after = table.seatForUser(userId)?.stack ?? 0;
+    if (after > before) { rec.rebuysUsed += 1; rec.staked += after - before; }
+    else { await this.detach(table, botConn); } // rebuy didn't land (race) → quit
   }
 
   // Seat a wealthy bot as the BANKER (house) of a banked table — used when no
