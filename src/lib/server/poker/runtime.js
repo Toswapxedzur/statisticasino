@@ -105,6 +105,10 @@ export class GameTable extends LiveTable {
     const gone = !!(seat && (!this.isConnected(seat) || seat.sittingOut));
     if (seat) seat._graceClock = gone;
     this._armActionTimer(gone ? DISCONNECT_GRACE_MS : ACTION_TIMEOUT_MS);
+    // Re-push private hands each turn: shedding games (Big Two, Crazy Eights)
+    // change a player's hand every play/draw. No-op for games whose privateFor
+    // returns null (all the banked games show cards publicly).
+    this.sendAllPrivates();
     this.broadcast();
     if (seat) this.sendTurnTo(seat);
   }

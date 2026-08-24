@@ -22,6 +22,7 @@ import { slots } from "./slots.js";
 import { keno } from "./keno.js";
 import { craps } from "./craps.js";
 import { paiGow } from "./pai-gow.js";
+import { crazyEights } from "./crazy-eights.js";
 
 export const GAMES = {
   blackjack,
@@ -42,7 +43,9 @@ export const GAMES = {
   slots,
   keno,
   craps,
-  "pai-gow": paiGow
+  "pai-gow": paiGow,
+  // Shedding games run on GameTable too, but with usesBanker:false (no house).
+  "crazy-eights": crazyEights
 };
 
 export const BANKED_GAME_KEYS = Object.keys(GAMES);

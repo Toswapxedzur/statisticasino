@@ -22,7 +22,8 @@ export const GAME_MODES = [
   { key: "slots", label: "Slots" },
   { key: "keno", label: "Keno" },
   { key: "craps", label: "Craps" },
-  { key: "pai-gow", label: "Pai Gow Poker" }
+  { key: "pai-gow", label: "Pai Gow Poker" },
+  { key: "crazy-eights", label: "Crazy Eights" }
 ];
 
 // Banked (vs-the-house) games — keep in sync with games/registry.js.
@@ -32,6 +33,11 @@ export const BANKED_GAMES = [
   "caribbean-stud", "red-dog", "ultimate-holdem", "let-it-ride", "video-poker", "slots", "keno", "craps", "pai-gow"
 ];
 export function isBanked(key) { return BANKED_GAMES.includes(key); }
+
+// Shedding games (player-vs-player card play for chips; no house). Run on
+// GameTable with usesBanker:false — keep in sync with games/registry.js.
+export const SHEDDING_GAMES = ["crazy-eights"];
+export function isShedding(key) { return SHEDDING_GAMES.includes(key); }
 
 // Poker variants offered in the New Table modal, grouped for a tidy picker.
 export const POKER_VARIANTS = [
@@ -66,7 +72,8 @@ const SHORT_BY_KEY = new Map([
   ["slots", "Slots"],
   ["keno", "Keno"],
   ["craps", "Craps"],
-  ["pai-gow", "Pai Gow Poker"]
+  ["pai-gow", "Pai Gow Poker"],
+  ["crazy-eights", "Crazy Eights"]
 ]);
 const LABEL_BY_KEY = new Map([
   ...POKER_VARIANTS.map((v) => [v.key, v.label]),
@@ -88,7 +95,8 @@ const LABEL_BY_KEY = new Map([
   ["slots", "Slots"],
   ["keno", "Keno"],
   ["craps", "Craps"],
-  ["pai-gow", "Pai Gow Poker"]
+  ["pai-gow", "Pai Gow Poker"],
+  ["crazy-eights", "Crazy Eights"]
 ]);
 
 export function variantShort(key) {
@@ -97,8 +105,8 @@ export function variantShort(key) {
 export function variantLabel(key) {
   return LABEL_BY_KEY.get(key) || "No-Limit Hold'em";
 }
-// The game mode a table belongs to: a banked game is its own mode; any poker
-// variant maps to "poker".
+// The game mode a table belongs to: a banked or shedding game is its own mode;
+// any poker variant maps to "poker".
 export function modeOf(variant) {
-  return isBanked(variant) ? variant : "poker";
+  return isBanked(variant) || isShedding(variant) ? variant : "poker";
 }

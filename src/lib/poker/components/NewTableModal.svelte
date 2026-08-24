@@ -8,11 +8,12 @@
   // VARIANT (for poker) is chosen here. A blackjack creator either banks (deep
   // bankroll, up to their whole wallet) or plays while a wealthy bot banks.
 
-  import { POKER_VARIANTS, variantLabel } from "$lib/poker/games.js";
+  import { POKER_VARIANTS, variantLabel, isShedding as isSheddingFn } from "$lib/poker/games.js";
 
   let { walletChips = 0, mode = "poker", onCreate = () => {}, onCancel = () => {} } = $props();
 
-  const isBanked = $derived(mode !== "poker");           // any vs-the-house game
+  const isBanked = $derived(mode !== "poker");           // any GameTable game (vs-house or shedding)
+  const isShedding = $derived(isSheddingFn(mode));        // player-vs-player card play, no house
   const isBlackjackMode = $derived(mode === "blackjack"); // only blackjack has rule knobs
   const modeLabel = $derived(isBanked ? variantLabel(mode) : "");
 
@@ -197,15 +198,19 @@
     </div>
 
     {#if isBanked}
-      <label class="toggle">
-        <input type="checkbox" bind:checked={beBanker} />
-        <span>I'll be the banker (host the house)</span>
-      </label>
-      <p class="hint muted">
-        {beBanker
-          ? "You bank the table with your bankroll and win/lose against every player."
-          : "A wealthy bot will bank the table so you can just play."}
-      </p>
+      {#if isShedding}
+        <p class="hint muted">Everyone antes the minimum; the first to shed all their cards takes the pot.</p>
+      {:else}
+        <label class="toggle">
+          <input type="checkbox" bind:checked={beBanker} />
+          <span>I'll be the banker (host the house)</span>
+        </label>
+        <p class="hint muted">
+          {beBanker
+            ? "You bank the table with your bankroll and win/lose against every player."
+            : "A wealthy bot will bank the table so you can just play."}
+        </p>
+      {/if}
 
       {#if isBlackjackMode}
         <div class="field">

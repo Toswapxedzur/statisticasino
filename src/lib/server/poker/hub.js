@@ -387,6 +387,12 @@ class PokerHub {
   // Seat the creator of a banked table: either as the banker (deep bankroll, may
   // exceed the table max), or as a player with a wealthy bot banking.
   async _seatBankedCreator(conn, table, cfg, buyin) {
+    // Player-vs-player GameTable games (shedding: Big Two, Crazy Eights) have no
+    // house — just seat the creator as a normal player.
+    if (!table.game.usesBanker) {
+      await table.sit(conn, this.firstOpenSeat(table), buyin);
+      return;
+    }
     if (cfg.beBanker) {
       await table.sit(conn, this.firstOpenSeat(table), buyin, { asBanker: true });
       const seat = table.seatForUser(conn.user.id);

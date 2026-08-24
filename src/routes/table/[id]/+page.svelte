@@ -15,9 +15,11 @@
   import KenoBar from "$lib/poker/components/KenoBar.svelte";
   import PaiGowTable from "$lib/poker/components/PaiGowTable.svelte";
   import PaiGowBar from "$lib/poker/components/PaiGowBar.svelte";
+  import ShedTable from "$lib/poker/components/ShedTable.svelte";
+  import ShedBar from "$lib/poker/components/ShedBar.svelte";
   import BuyInModal from "$lib/poker/components/BuyInModal.svelte";
   import TableChat from "$lib/poker/components/TableChat.svelte";
-  import { variantLabel, isBanked as isBankedGame } from "$lib/poker/games.js";
+  import { variantLabel, isBanked as isBankedGame, isShedding } from "$lib/poker/games.js";
 
   let { data } = $props();
   const tableId = data.table.id;
@@ -46,6 +48,9 @@
   let isDrawTurn = $derived(!!turn && (turn.actions || []).some((a) => a.type === "draw"));
   // Hand-split games (pai gow) render a two-hand layout with a split picker.
   let setGame = $derived(banked && !!view?.round?.setGame);
+  // Shedding games (Crazy Eights, Big Two) — player-vs-player, no house.
+  let shedding = $derived(isShedding(gameKey));
+  let shedGame = $derived(!!view?.round?.shedGame);
   let rules = $derived(view?.rules || null);
 
   // Add-bot control: tiers depend on the game; keep the selection valid.
@@ -68,10 +73,11 @@
     slots: [["low", "Low stakes"], ["high", "High roller"]],
     keno: [["casual", "Casual"], ["chaser", "Jackpot chaser"]],
     craps: [["pass", "Pass Line"], ["dontpass", "Don't Pass"], ["field", "Field"]],
-    "pai-gow": [["house", "House way"]]
+    "pai-gow": [["house", "House way"]],
+    "crazy-eights": [["basic", "Basic"], ["reckless", "Reckless"]]
   };
   const botTiers = $derived(
-    banked ? (BOT_TIERS[gameKey] || [["basic", "Basic"]]) : [["reg", "Reg"], ["fish", "Fish"]]
+    (banked || shedding) ? (BOT_TIERS[gameKey] || [["basic", "Basic"]]) : [["reg", "Reg"], ["fish", "Fish"]]
   );
   let botTier = $state("reg");
   $effect(() => { if (!botTiers.some(([k]) => k === botTier)) botTier = botTiers[0][0]; });
@@ -153,7 +159,9 @@
   <a href="/" class="back">‹ Lobby</a>
   <h2>{data.table.name}</h2>
   <span class="stakes">
-    {#if banked}
+    {#if shedding}
+      {variantLabel(gameKey)} · ante {config.smallBlind}
+    {:else if banked}
       {variantLabel(gameKey)} · min bet {config.smallBlind}{#if rules && rules.blackjackPays} · {rules.blackjackPays} · {rules.decks} deck{rules.decks > 1 ? "s" : ""} · {rules.dealerHitsSoft17 ? "H17" : "S17"}{rules.surrender ? " · surrender" : ""}{rules.peek === false ? " · no-peek" : ""}{/if}
     {:else}
       {variantLabel(config.variant)} · {config.smallBlind}/{config.bigBlind}
@@ -169,7 +177,12 @@
 {/if}
 
 {#if view}
-  {#if holdGame}
+  {#if shedGame}
+    <ShedTable {view} {me} onSit={openBuyIn} />
+    {#if isSeated}
+      <ShedBar hand={privates?.holeCards || []} {turn} onAct={(a) => poker.act(tableId, a)} />
+    {/if}
+  {:else if holdGame}
     <VideoPokerTable {view} {me} onSit={openBuyIn} />
     {#if turn}
       <VideoPokerBar {turn} onAct={(a) => poker.act(tableId, a)} />
