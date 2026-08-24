@@ -152,6 +152,15 @@ export async function persistHand(hand) {
   return handId;
 }
 
+// Lifetime count of hands a user has been dealt into (for milestone achievements).
+export async function handsPlayedByUser(userId) {
+  const row = await queryOne(
+    "SELECT COUNT(*) AS n FROM poker_hand_player WHERE user_id = ?",
+    [userId]
+  );
+  return row ? Number(row.n) : 0;
+}
+
 // Recent hands a user played, for their history page.
 export async function recentHandsForUser(userId, limit = 25) {
   return query(

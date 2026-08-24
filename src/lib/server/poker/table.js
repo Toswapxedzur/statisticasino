@@ -674,6 +674,11 @@ export class LiveTable {
       /* swallow persistence errors */
     }
 
+    // Retention: award any hand-based achievements for the human seats. Fire-and-
+    // forget (NOT awaited) so it never adds latency to the op-lock or breaks the
+    // hand; the hub handles its own errors.
+    this.hub?.onHandComplete?.(this, { seats: persistSeats, potTotal });
+
     // 4. Clear hand-scoped seat fields.
     for (const s of this.seats.values()) {
       s.inHand = false;

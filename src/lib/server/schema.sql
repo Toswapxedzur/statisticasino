@@ -111,7 +111,12 @@ CREATE TABLE IF NOT EXISTS user (
   chips              BIGINT NOT NULL DEFAULT 0,
   -- ms-epoch of the last daily-bonus grant, NULL if never. Used to gate
   -- the once-per-day login bonus.
-  last_daily_bonus_at BIGINT
+  last_daily_bonus_at BIGINT,
+  -- v14 (retention): consecutive-day login streak. This is VISIBLE STATUS ONLY —
+  -- it does NOT change the daily bonus amount (the bonus stays flat). best_streak
+  -- keeps the personal record. On existing DBs migrateToV14 adds these.
+  daily_streak INT NOT NULL DEFAULT 0,
+  best_streak  INT NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS session (
@@ -410,9 +415,27 @@ CREATE TABLE IF NOT EXISTS poker_escrow (
     REFERENCES poker_table(id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- -----------------------------------------------------------------
+-- v14 (2026-08-24, "retention"): unlocked achievements. Pure STATUS —
+-- badges only, they grant no chips. The achievement catalog (keys,
+-- names, descriptions, how each is earned) lives in code
+-- (server/achievements.js); this table only records which user unlocked
+-- which and when. One row per (user, achievement); the PK makes an
+-- unlock idempotent (INSERT IGNORE).
+-- -----------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS user_achievement (
+  user_id      VARCHAR(64) NOT NULL,
+  achievement  VARCHAR(48) NOT NULL,
+  unlocked_at  BIGINT NOT NULL,
+  PRIMARY KEY (user_id, achievement),
+  KEY idx_user_achievement_user (user_id, unlocked_at),
+  CONSTRAINT fk_user_achievement_user FOREIGN KEY (user_id)
+    REFERENCES user(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS meta (
   meta_key   VARCHAR(64)  NOT NULL PRIMARY KEY,
   meta_value VARCHAR(255) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT IGNORE INTO meta(meta_key, meta_value) VALUES ('schema_version', '13');
+INSERT IGNORE INTO meta(meta_key, meta_value) VALUES ('schema_version', '14');

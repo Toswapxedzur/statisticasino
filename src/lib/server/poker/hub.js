@@ -13,9 +13,11 @@ import {
   createTableRow,
   closeTableRow,
   chipsForUsers,
-  leaderboard
+  leaderboard,
+  handsPlayedByUser
 } from "./store.js";
 import { getBalance } from "../wallet.js";
+import { unlock, handAchievements } from "../achievements.js";
 import { LiveTable } from "./table.js";
 import { GameTable } from "./runtime.js";
 import { getGame, isBankedGame } from "./games/registry.js";
@@ -200,6 +202,25 @@ class PokerHub {
   // Called by LiveTable when a hand starts/ends (status changed).
   onTableChanged() {
     this.pushLobby();
+  }
+
+  // Retention: award hand-based achievements to the HUMAN seats of a finished
+  // hand. Called fire-and-forget from LiveTable.finishHand, so it owns its errors
+  // and never affects gameplay. Bots (funder or player) are skipped; a bot AT the
+  // table makes the humans' wins count toward "Bot Slayer".
+  async onHandComplete(table, { seats, potTotal }) {
+    try {
+      const rows = seats || [];
+      const vsBot = rows.some((s) => s.userId != null && this.botManager.isBotUser(s.userId));
+      for (const s of rows) {
+        if (s.userId == null || this.botManager.isBotUser(s.userId)) continue; // humans only
+        const won = (s.net ?? 0) > 0;
+        const handsPlayed = await handsPlayedByUser(s.userId);
+        await unlock(s.userId, handAchievements({
+          won, vsBot, allInWin: false, potWon: won ? (s.net ?? 0) : 0, handsPlayed
+        }));
+      }
+    } catch { /* achievements are best-effort; never disrupt the table */ }
   }
 
   // Remove a table already determined empty+closed, and its dangling invites.

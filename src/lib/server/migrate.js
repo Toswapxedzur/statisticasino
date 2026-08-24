@@ -141,15 +141,33 @@ export async function ensureMigrated() {
   await migrateToV11();
   await migrateToV12();
   await migrateToV13();
+  await migrateToV14();
 
   // Stamp the version row (idempotent — schema.sql also INSERT IGNOREs
   // it, but we want to be defensive).
   await execute(
-    "INSERT INTO meta(meta_key, meta_value) VALUES ('schema_version', '13') "
+    "INSERT INTO meta(meta_key, meta_value) VALUES ('schema_version', '14') "
     + "ON DUPLICATE KEY UPDATE meta_value = VALUES(meta_value)"
   );
 
   _migrated = true;
+}
+
+// v13 -> v14 upgrade (retention): add the login-streak columns to `user`. The
+// user_achievement table is created by schema.sql (CREATE TABLE IF NOT EXISTS,
+// applied above), so only the ALTERs need imperative, info_schema-gated handling.
+async function migrateToV14() {
+  for (const [col, ddl] of [
+    ["daily_streak", "ALTER TABLE user ADD COLUMN daily_streak INT NOT NULL DEFAULT 0 AFTER last_daily_bonus_at"],
+    ["best_streak", "ALTER TABLE user ADD COLUMN best_streak INT NOT NULL DEFAULT 0 AFTER daily_streak"]
+  ]) {
+    const cols = await query(
+      "SELECT COLUMN_NAME FROM information_schema.COLUMNS "
+      + "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = ?",
+      [col]
+    );
+    if (cols.length === 0) await execute(ddl);
+  }
 }
 
 // v4 -> v5 upgrade: drop soft-delete from hand_canonical.

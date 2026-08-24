@@ -13,6 +13,7 @@ import {
   dailyBonusReady,
   DAILY_BONUS
 } from "$lib/server/wallet.js";
+import { listForUser, unlock, streakAchievements } from "$lib/server/achievements.js";
 
 const MAX_DISPLAY_NAME_LEN = 64;
 const MAX_ADMIN_ADJUST = 10_000_000;
@@ -21,11 +22,14 @@ export async function load({ locals }) {
   if (!locals.user) throw redirect(303, "/account/login");
 
   const walletRow = await queryOne(
-    "SELECT chips, last_daily_bonus_at FROM user WHERE id = ?",
+    "SELECT chips, last_daily_bonus_at, daily_streak, best_streak FROM user WHERE id = ?",
     [locals.user.id]
   );
   const chips = walletRow ? Number(walletRow.chips) : 0;
   const bonusReady = walletRow ? dailyBonusReady(walletRow.last_daily_bonus_at) : false;
+  const streak = walletRow ? Number(walletRow.daily_streak || 0) : 0;
+  const bestStreak = walletRow ? Number(walletRow.best_streak || 0) : 0;
+  const achievements = await listForUser(locals.user.id);
   const ledger = await recentLedger(locals.user.id, 20);
 
   // v2: `hand_upload.perspective_seat_id` is gone — per-row hero seat
@@ -57,6 +61,9 @@ export async function load({ locals }) {
     chips,
     bonusReady,
     dailyBonus: DAILY_BONUS,
+    streak,
+    bestStreak,
+    achievements,
     ledger
   };
 }
@@ -76,7 +83,12 @@ export const actions = {
       const mins = Math.max(1, Math.ceil((res.nextAt - Date.now()) / 60000));
       return fail(429, { bonusError: `Already claimed. Come back in ~${mins} min.` });
     }
-    return { bonusOk: true, bonusAmount: res.amount, chips: res.balance };
+    // Streak milestones are status badges (no chips) — award any the new streak hit.
+    const newBadges = await unlock(locals.user.id, streakAchievements(res.streak));
+    return {
+      bonusOk: true, bonusAmount: res.amount, chips: res.balance,
+      streak: res.streak, bestStreak: res.bestStreak, newBadges
+    };
   },
 
   // Admin: grant or claw back chips for any account. `delta` is signed.

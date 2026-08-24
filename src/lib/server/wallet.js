@@ -25,6 +25,10 @@ export const DAILY_BONUS = 2_000;
 // Cooldown between daily-bonus claims. 20h (not a strict 24h) so a player
 // who logs in at roughly the same time each day never "misses" the window.
 export const DAILY_BONUS_COOLDOWN_MS = 20 * 60 * 60 * 1000;
+// Login-streak grace: a claim within this window of the last one CONTINUES the
+// streak; a longer gap resets it to 1. 44h ≈ "you came back within a day or so."
+// The streak is VISIBLE STATUS ONLY — it never changes the (flat) bonus amount.
+export const STREAK_GRACE_MS = 44 * 60 * 60 * 1000;
 
 // Ledger reason tags. Keep these stable — they're persisted.
 export const REASON = {
@@ -166,7 +170,7 @@ export async function ensureStartingGrant(userId) {
 export async function claimDailyBonus(userId) {
   return tx(async (conn) => {
     const [rows] = await conn.query(
-      "SELECT chips, last_daily_bonus_at FROM user WHERE id = ? FOR UPDATE",
+      "SELECT chips, last_daily_bonus_at, daily_streak, best_streak FROM user WHERE id = ? FOR UPDATE",
       [userId]
     );
     if (rows.length === 0) {
@@ -179,17 +183,22 @@ export async function claimDailyBonus(userId) {
     if (last && now - last < DAILY_BONUS_COOLDOWN_MS) {
       return { granted: false, nextAt: last + DAILY_BONUS_COOLDOWN_MS };
     }
+    // Streak: continue if the previous claim was recent enough, else restart at 1.
+    // The bonus AMOUNT is flat — the streak is status only, never a chip multiplier.
+    const continued = last > 0 && now - last < STREAK_GRACE_MS;
+    const streak = continued ? Number(rows[0].daily_streak || 0) + 1 : 1;
+    const best = Math.max(Number(rows[0].best_streak || 0), streak);
     const next = Number(rows[0].chips) + DAILY_BONUS;
     await conn.execute(
-      "UPDATE user SET chips = ?, last_daily_bonus_at = ? WHERE id = ?",
-      [next, now, userId]
+      "UPDATE user SET chips = ?, last_daily_bonus_at = ?, daily_streak = ?, best_streak = ? WHERE id = ?",
+      [next, now, streak, best, userId]
     );
     await conn.execute(
       `INSERT INTO chip_ledger (id, user_id, delta, balance_after, reason, ref, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [newLedgerId(), userId, DAILY_BONUS, next, REASON.DAILY_BONUS, null, now]
     );
-    return { granted: true, amount: DAILY_BONUS, balance: next };
+    return { granted: true, amount: DAILY_BONUS, balance: next, streak, bestStreak: best };
   });
 }
 

@@ -37,14 +37,21 @@
       <span class="balance-num">{chips(data.chips)}</span>
       <span class="muted">chips</span>
     </div>
-    <form method="POST" action="?/claimDailyBonus" style="margin:0">
-      <button class="btn" type="submit" disabled={!data.bonusReady}>
-        {data.bonusReady ? `Claim daily +${chips(data.dailyBonus)}` : "Daily bonus claimed"}
-      </button>
-    </form>
+    <div class="bonus-side">
+      {#if (form?.streak ?? data.streak) > 0}
+        <span class="streak" title="Consecutive daily logins. Status only — no extra chips.">
+          🔥 {form?.streak ?? data.streak}-day streak{#if (form?.bestStreak ?? data.bestStreak) > (form?.streak ?? data.streak)} · best {form?.bestStreak ?? data.bestStreak}{/if}
+        </span>
+      {/if}
+      <form method="POST" action="?/claimDailyBonus" style="margin:0">
+        <button class="btn" type="submit" disabled={!data.bonusReady}>
+          {data.bonusReady ? `Claim daily +${chips(data.dailyBonus)}` : "Daily bonus claimed"}
+        </button>
+      </form>
+    </div>
   </div>
   {#if form?.bonusError}<p class="form-error">{form.bonusError}</p>{/if}
-  {#if form?.bonusOk}<p class="form-success">+{chips(form.bonusAmount)} chips added.</p>{/if}
+  {#if form?.bonusOk}<p class="form-success">+{chips(form.bonusAmount)} chips added. 🔥 {form.streak}-day streak.{#if form.newBadges?.length} New badge{form.newBadges.length > 1 ? "s" : ""} unlocked!{/if}</p>{/if}
 
   {#if data.ledger?.length}
     <h4 class="sub">Recent activity</h4>
@@ -58,6 +65,25 @@
     </ul>
   {/if}
 </section>
+
+{#if data.achievements?.length}
+  <section class="card">
+    <div class="card-head">
+      <h3>Achievements</h3>
+      <span class="muted">{data.achievements.filter((a) => a.unlocked).length} / {data.achievements.length}</span>
+    </div>
+    <p class="muted" style="margin:0 0 12px">Badges for milestones. Status only — they don't grant chips.</p>
+    <div class="badges">
+      {#each data.achievements as a (a.key)}
+        <div class="badge" class:locked={!a.unlocked} title={a.desc}>
+          <span class="badge-ico">{a.unlocked ? "🏅" : "🔒"}</span>
+          <span class="badge-name">{a.name}</span>
+          <span class="badge-desc muted">{a.desc}</span>
+        </div>
+      {/each}
+    </div>
+  </section>
+{/if}
 
 <section class="card">
   <div class="card-head"><h3>Change display name</h3></div>
@@ -176,6 +202,18 @@
   }
   .balance { display: inline-flex; align-items: baseline; gap: 8px; }
   .balance-num { font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .bonus-side { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
+  .streak { font-size: 13px; font-weight: 600; color: var(--fg); white-space: nowrap; }
+  .badges { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .badge {
+    display: flex; flex-direction: column; gap: 3px; padding: 10px 12px;
+    border: 1px solid var(--border, rgba(255,255,255,0.1)); border-radius: 10px;
+    background: rgba(255,255,255,0.03);
+  }
+  .badge.locked { opacity: 0.5; }
+  .badge-ico { font-size: 20px; }
+  .badge-name { font-weight: 700; font-size: 13px; }
+  .badge-desc { font-size: 11.5px; line-height: 1.3; }
   .chip-ico.big {
     width: 20px; height: 20px; border-radius: 50%; align-self: center;
     background: radial-gradient(circle at 35% 30%, #ffe08a, #f5b301 60%, #b8860b);
