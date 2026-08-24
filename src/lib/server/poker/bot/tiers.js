@@ -46,6 +46,25 @@ export const TIERS = {
     bluffFreq: 0.08,
     betSizeFrac: 0.65,
     noise: 0.02
+  },
+  // Range-aware "shark": estimates equity vs a plausible opponent RANGE (tighter
+  // when facing a bet) rather than vs random, so it folds marginal hands to
+  // aggression and value-raises on a real edge. Dials TUNED by self-play (see
+  // selfplay.test.js): it beats reg on every tested seed (~+14 chips/hand) and
+  // crushes fish. Key tuning lessons the harness surfaced — bluff SPARINGLY
+  // (loose opponents don't fold) and keep a real value-raise margin (0.30);
+  // an over-aggressive first cut (margin 0.14, bluff 0.14) actually lost.
+  shark: {
+    key: "shark",
+    name: "Shark",
+    iters: 200,
+    callSlack: 0.0,
+    valueRaiseMargin: 0.30,
+    valueBetThreshold: 0.56,
+    bluffFreq: 0.05,
+    betSizeFrac: 0.66,
+    noise: 0.01,
+    rangeTightness: 0.38
   }
 };
 

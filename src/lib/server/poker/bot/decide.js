@@ -67,7 +67,14 @@ export function decide(obs, tier, rng = Math.random) {
   const putChips = find(obs, "bet") || raise; // aggressive option, if any
   const allin = find(obs, "allin");
   const variant = obs.variant || getVariant("holdem");
-  const E = equity(obs.hole, obs.board, obs.numOpponents, tier.iters, rng, variant);
+  // Range-aware tiers (rangeTightness > 0) estimate equity vs a plausible
+  // opponent RANGE, tightened further when facing a bet (chips in = stronger
+  // range). Opponent-blind tiers (reg/fish) keep equity-vs-random unchanged.
+  const base = tier.rangeTightness ?? 0;
+  // Only assume a tight opponent range when they've put chips in (a bet/raise);
+  // unopened, opponents play a wide range, so barely tighten.
+  const tightness = base > 0 ? (obs.toCall > 0 ? base : base * 0.25) : 0;
+  const E = equity(obs.hole, obs.board, obs.numOpponents, tier.iters, rng, variant, tightness);
   const eEff = E + (rng() - 0.5) * tier.noise;
 
   if (obs.toCall > 0) {
