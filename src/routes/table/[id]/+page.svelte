@@ -8,6 +8,8 @@
   import BankedActionBar from "$lib/poker/components/BankedActionBar.svelte";
   import BetGameTable from "$lib/poker/components/BetGameTable.svelte";
   import BankedBetBar from "$lib/poker/components/BankedBetBar.svelte";
+  import VideoPokerTable from "$lib/poker/components/VideoPokerTable.svelte";
+  import VideoPokerBar from "$lib/poker/components/VideoPokerBar.svelte";
   import BuyInModal from "$lib/poker/components/BuyInModal.svelte";
   import TableChat from "$lib/poker/components/TableChat.svelte";
   import { variantLabel, isBanked as isBankedGame } from "$lib/poker/games.js";
@@ -31,6 +33,8 @@
   let banked = $derived(isBankedGame(gameKey));
   // Bet-selection games (baccarat/roulette/…) render a betting layout, not a hand.
   let betGame = $derived(banked && !!view?.round?.betSelection);
+  // Hold-and-draw games (video poker) render an interactive five-card layout.
+  let holdGame = $derived(banked && !!view?.round?.holdGame);
   let rules = $derived(view?.rules || null);
 
   // Add-bot control: tiers depend on the game; keep the selection valid.
@@ -48,7 +52,8 @@
     "caribbean-stud": [["basic", "Basic"], ["aggressive", "Aggressive"], ["tight", "Tight"]],
     "red-dog": [["basic", "Basic"], ["aggressive", "Aggressive"], ["tight", "Tight"]],
     "ultimate-holdem": [["basic", "Basic"], ["aggressive", "Aggressive"], ["tight", "Tight"]],
-    "let-it-ride": [["basic", "Basic"], ["aggressive", "Aggressive"], ["tight", "Tight"]]
+    "let-it-ride": [["basic", "Basic"], ["aggressive", "Aggressive"], ["tight", "Tight"]],
+    "video-poker": [["basic", "Basic"], ["aggressive", "Aggressive"], ["tight", "Tight"]]
   };
   const botTiers = $derived(
     banked ? (BOT_TIERS[gameKey] || [["basic", "Basic"]]) : [["reg", "Reg"], ["fish", "Fish"]]
@@ -149,7 +154,12 @@
 {/if}
 
 {#if view}
-  {#if betGame}
+  {#if holdGame}
+    <VideoPokerTable {view} {me} onSit={openBuyIn} />
+    {#if turn}
+      <VideoPokerBar {turn} onAct={(a) => poker.act(tableId, a)} />
+    {/if}
+  {:else if betGame}
     <BetGameTable {view} {me} onSit={openBuyIn} />
     {#if turn}
       <BankedBetBar {turn} onAct={(a) => poker.act(tableId, a)} />

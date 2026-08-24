@@ -17,14 +17,15 @@ export const GAME_MODES = [
   { key: "caribbean-stud", label: "Caribbean Stud" },
   { key: "red-dog", label: "Red Dog" },
   { key: "ultimate-holdem", label: "Ultimate Texas Hold'em" },
-  { key: "let-it-ride", label: "Let It Ride" }
+  { key: "let-it-ride", label: "Let It Ride" },
+  { key: "video-poker", label: "Video Poker" }
 ];
 
 // Banked (vs-the-house) games — keep in sync with games/registry.js.
 export const BANKED_GAMES = [
   "blackjack", "casino-holdem", "three-card", "baccarat", "roulette", "sic-bo",
   "dragon-tiger", "casino-war", "andar-bahar", "money-wheel",
-  "caribbean-stud", "red-dog", "ultimate-holdem", "let-it-ride"
+  "caribbean-stud", "red-dog", "ultimate-holdem", "let-it-ride", "video-poker"
 ];
 export function isBanked(key) { return BANKED_GAMES.includes(key); }
 
@@ -53,7 +54,8 @@ const SHORT_BY_KEY = new Map([
   ["caribbean-stud", "Caribbean Stud"],
   ["red-dog", "Red Dog"],
   ["ultimate-holdem", "Ultimate Texas Hold'em"],
-  ["let-it-ride", "Let It Ride"]
+  ["let-it-ride", "Let It Ride"],
+  ["video-poker", "Video Poker"]
 ]);
 const LABEL_BY_KEY = new Map([
   ...POKER_VARIANTS.map((v) => [v.key, v.label]),
@@ -70,7 +72,8 @@ const LABEL_BY_KEY = new Map([
   ["caribbean-stud", "Caribbean Stud"],
   ["red-dog", "Red Dog"],
   ["ultimate-holdem", "Ultimate Texas Hold'em"],
-  ["let-it-ride", "Let It Ride"]
+  ["let-it-ride", "Let It Ride"],
+  ["video-poker", "Video Poker"]
 ]);
 
 export function variantShort(key) {
