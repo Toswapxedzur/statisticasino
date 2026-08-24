@@ -12,6 +12,8 @@
   import VideoPokerBar from "$lib/poker/components/VideoPokerBar.svelte";
   import KenoTable from "$lib/poker/components/KenoTable.svelte";
   import KenoBar from "$lib/poker/components/KenoBar.svelte";
+  import PaiGowTable from "$lib/poker/components/PaiGowTable.svelte";
+  import PaiGowBar from "$lib/poker/components/PaiGowBar.svelte";
   import BuyInModal from "$lib/poker/components/BuyInModal.svelte";
   import TableChat from "$lib/poker/components/TableChat.svelte";
   import { variantLabel, isBanked as isBankedGame } from "$lib/poker/games.js";
@@ -39,6 +41,8 @@
   let holdGame = $derived(banked && !!view?.round?.holdGame);
   // Number-pick games (keno) render a ticket grid.
   let pickGame = $derived(banked && !!view?.round?.pickGame);
+  // Hand-split games (pai gow) render a two-hand layout with a split picker.
+  let setGame = $derived(banked && !!view?.round?.setGame);
   let rules = $derived(view?.rules || null);
 
   // Add-bot control: tiers depend on the game; keep the selection valid.
@@ -60,7 +64,8 @@
     "video-poker": [["basic", "Basic"], ["aggressive", "Aggressive"], ["tight", "Tight"]],
     slots: [["low", "Low stakes"], ["high", "High roller"]],
     keno: [["casual", "Casual"], ["chaser", "Jackpot chaser"]],
-    craps: [["pass", "Pass Line"], ["dontpass", "Don't Pass"], ["field", "Field"]]
+    craps: [["pass", "Pass Line"], ["dontpass", "Don't Pass"], ["field", "Field"]],
+    "pai-gow": [["house", "House way"]]
   };
   const botTiers = $derived(
     banked ? (BOT_TIERS[gameKey] || [["basic", "Basic"]]) : [["reg", "Reg"], ["fish", "Fish"]]
@@ -170,6 +175,11 @@
     <KenoTable {view} {me} onSit={openBuyIn} />
     {#if turn}
       <KenoBar {turn} onAct={(a) => poker.act(tableId, a)} />
+    {/if}
+  {:else if setGame}
+    <PaiGowTable {view} {me} onSit={openBuyIn} />
+    {#if turn}
+      <PaiGowBar {turn} onAct={(a) => poker.act(tableId, a)} />
     {/if}
   {:else if betGame}
     <BetGameTable {view} {me} onSit={openBuyIn} />

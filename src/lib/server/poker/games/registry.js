@@ -21,6 +21,7 @@ import { videoPoker } from "./video-poker.js";
 import { slots } from "./slots.js";
 import { keno } from "./keno.js";
 import { craps } from "./craps.js";
+import { paiGow } from "./pai-gow.js";
 
 export const GAMES = {
   blackjack,
@@ -40,7 +41,8 @@ export const GAMES = {
   "video-poker": videoPoker,
   slots,
   keno,
-  craps
+  craps,
+  "pai-gow": paiGow
 };
 
 export const BANKED_GAME_KEYS = Object.keys(GAMES);

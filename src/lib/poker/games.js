@@ -21,14 +21,15 @@ export const GAME_MODES = [
   { key: "video-poker", label: "Video Poker" },
   { key: "slots", label: "Slots" },
   { key: "keno", label: "Keno" },
-  { key: "craps", label: "Craps" }
+  { key: "craps", label: "Craps" },
+  { key: "pai-gow", label: "Pai Gow Poker" }
 ];
 
 // Banked (vs-the-house) games — keep in sync with games/registry.js.
 export const BANKED_GAMES = [
   "blackjack", "casino-holdem", "three-card", "baccarat", "roulette", "sic-bo",
   "dragon-tiger", "casino-war", "andar-bahar", "money-wheel",
-  "caribbean-stud", "red-dog", "ultimate-holdem", "let-it-ride", "video-poker", "slots", "keno", "craps"
+  "caribbean-stud", "red-dog", "ultimate-holdem", "let-it-ride", "video-poker", "slots", "keno", "craps", "pai-gow"
 ];
 export function isBanked(key) { return BANKED_GAMES.includes(key); }
 
@@ -61,7 +62,8 @@ const SHORT_BY_KEY = new Map([
   ["video-poker", "Video Poker"],
   ["slots", "Slots"],
   ["keno", "Keno"],
-  ["craps", "Craps"]
+  ["craps", "Craps"],
+  ["pai-gow", "Pai Gow Poker"]
 ]);
 const LABEL_BY_KEY = new Map([
   ...POKER_VARIANTS.map((v) => [v.key, v.label]),
@@ -82,7 +84,8 @@ const LABEL_BY_KEY = new Map([
   ["video-poker", "Video Poker"],
   ["slots", "Slots"],
   ["keno", "Keno"],
-  ["craps", "Craps"]
+  ["craps", "Craps"],
+  ["pai-gow", "Pai Gow Poker"]
 ]);
 
 export function variantShort(key) {
