@@ -5,7 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { videoPoker } from "./video-poker.js";
-import { videoPokerStrategy, VP_TIERS } from "../bot/video-poker-strategy.js";
+import { videoPokerStrategy, VP_TIERS, optimalHolds } from "../bot/video-poker-strategy.js";
 
 const FILLER = ["2s", "3h", "4c", "5d", "6s", "7h", "8c", "9d", "Ts", "Jc"];
 function runRound(deck, holds, config = { minBet: 10 }, stack = 100000) {
@@ -48,4 +48,12 @@ test("a busted draw loses the bet", () => {
 test("the bot holds a made pair", () => {
   const move = videoPokerStrategy.decide({ turn: { cards: ["Ah", "As", "2c", "3d", "4h"] }, tier: VP_TIERS.basic });
   assert.deepEqual(move, { type: "draw", holds: [true, true, false, false, false] });
+});
+
+test("EV-optimal holds match the known best play", () => {
+  assert.deepEqual(optimalHolds(["Ah", "Kh", "Qh", "Jh", "2c"]), [true, true, true, true, false], "4 to a royal");
+  assert.deepEqual(optimalHolds(["5h", "5d", "Kc", "7s", "2h"]), [true, true, false, false, false], "low pair over a lone high card");
+  assert.deepEqual(optimalHolds(["Kh", "2d", "5c", "8s", "9h"]), [true, false, false, false, false], "keep the lone high card");
+  assert.deepEqual(optimalHolds(["2h", "4d", "6c", "8s", "9h"]), [false, false, false, false, false], "junk → draw five");
+  assert.deepEqual(optimalHolds(["2h", "5h", "8h", "9h", "Jh"]), [true, true, true, true, true], "stand pat on a made flush");
 });

@@ -19,7 +19,7 @@ export const PAYTABLE = [
   { name: "Jacks or Better", pays: 1 }
 ];
 
-function payout(rank) {
+export function payout(rank) {
   switch (rank.category) {
     case 8: return rank.ranks[0] === 14 ? 250 : 50; // royal / straight flush
     case 7: return 25;  // four of a kind

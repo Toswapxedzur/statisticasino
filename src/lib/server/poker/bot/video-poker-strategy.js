@@ -1,51 +1,69 @@
-// Video Poker bot. One decision: which of the five cards to hold before the draw.
-// Heuristic close to basic strategy: keep any made flush/straight, keep pairs and
-// better, keep four-to-a-flush; otherwise keep high cards (J+) and redraw the rest.
-// (Bot skill only affects its own results.)
+// Video Poker bot — EV-optimal (Video Poker is a solved, single-player game: the
+// best play is simply the hold pattern with the highest expected value). For each
+// way to keep ≥2 of the five cards we compute the EXACT expected payout over every
+// possible draw from the 47 unseen cards; the "keep one high card" and "draw five"
+// cases (only relevant for junk hands) use their known baseline EVs. This is
+// optimal for essentially every hand and fast enough to run per turn.
 
-import { RANKS } from "../engine/cards.js";
+import { standardDeck } from "../engine/cards.js";
+import { bestHand, STANDARD_MODEL } from "../engine/evaluator.js";
+import { payout } from "../games/video-poker.js";
 
-const rv = (c) => RANKS.indexOf(c[0]) + 2;
-
+// Tiers kept for the add-bot UI; Video Poker is solved, so all play optimally.
 export const VP_TIERS = {
-  basic: { key: "basic", name: "Basic", style: "basic" },
-  aggressive: { key: "aggressive", name: "Aggressive", style: "loose" },
-  tight: { key: "tight", name: "Tight", style: "tight" }
+  basic: { key: "basic", name: "Optimal" },
+  aggressive: { key: "aggressive", name: "Optimal" },
+  tight: { key: "tight", name: "Optimal" }
 };
 
-function holdsFor(cards, style) {
-  const vals = cards.map(rv);
-  const suits = cards.map((c) => c[1]);
-  const uniq = [...new Set(vals)].sort((a, b) => a - b);
-  const flush = suits.every((s) => s === suits[0]);
-  const straight = (uniq.length === 5 && uniq[4] - uniq[0] === 4) || JSON.stringify(uniq) === JSON.stringify([2, 3, 4, 5, 14]);
-  if (flush || straight) return [true, true, true, true, true];
+const HIGH = new Set(["J", "Q", "K", "A"]);
+const KEEP1_HIGH_EV = 0.47; // holding one high card, drawing four (Jacks or Better)
+const DRAW5_EV = 0.36;      // drawing five fresh
 
-  const byRank = new Map();
-  cards.forEach((c, i) => { const v = rv(c); if (!byRank.has(v)) byRank.set(v, []); byRank.get(v).push(i); });
-  const groups = [...byRank.values()].filter((ix) => ix.length >= 2);
-  if (groups.length) {
-    const holds = [false, false, false, false, false];
-    for (const ix of groups) for (const i of ix) holds[i] = true;
-    return holds;
+function* combinations(items, k) {
+  const n = items.length;
+  if (k > n) return;
+  const idx = Array.from({ length: k }, (_, i) => i);
+  while (true) {
+    yield idx.map((i) => items[i]);
+    let i = k - 1;
+    while (i >= 0 && idx[i] === i + n - k) i -= 1;
+    if (i < 0) return;
+    idx[i] += 1;
+    for (let j = i + 1; j < k; j += 1) idx[j] = idx[j - 1] + 1;
   }
-  if (style === "tight") return [false, false, false, false, false]; // no made hand → redraw all
+}
 
-  // four to a flush
-  const bySuit = new Map();
-  cards.forEach((c, i) => { if (!bySuit.has(c[1])) bySuit.set(c[1], []); bySuit.get(c[1]).push(i); });
-  for (const ix of bySuit.values()) {
-    if (ix.length === 4) { const h = [false, false, false, false, false]; ix.forEach((i) => (h[i] = true)); return h; }
+function expectedValue(held, remaining) {
+  const drawN = 5 - held.length;
+  if (drawN === 0) return payout(bestHand(held, STANDARD_MODEL));
+  let sum = 0;
+  let n = 0;
+  for (const draw of combinations(remaining, drawN)) { sum += payout(bestHand([...held, ...draw], STANDARD_MODEL)); n += 1; }
+  return n ? sum / n : 0;
+}
+
+export function optimalHolds(cards) {
+  const remaining = standardDeck().filter((c) => !cards.includes(c));
+  let bestMask = 0;              // 0 = draw five
+  let bestEv = DRAW5_EV;
+  for (let mask = 1; mask < 32; mask += 1) {
+    const held = cards.filter((_, i) => (mask >> i) & 1);
+    if (held.length < 2) continue; // keep-1 / keep-0 handled below
+    const ev = expectedValue(held, remaining);
+    if (ev > bestEv + 1e-9) { bestEv = ev; bestMask = mask; }
   }
-  if (style === "loose") return cards.map((c) => rv(c) >= 10); // keep tens too
-  return cards.map((c) => rv(c) >= 11); // basic: keep jacks or better
+  if (bestEv < KEEP1_HIGH_EV) {
+    const hiIdx = cards.findIndex((c) => HIGH.has(c[0]));
+    if (hiIdx >= 0) bestMask = 1 << hiIdx; // keep the lone high card
+  }
+  return cards.map((_, i) => ((bestMask >> i) & 1) === 1);
 }
 
 export const videoPokerStrategy = {
-  decide({ turn, tier }) {
-    const t = tier || VP_TIERS.basic;
+  decide({ turn }) {
     const cards = turn?.cards || [];
     if (cards.length < 5) return { type: "draw", holds: [true, true, true, true, true] };
-    return { type: "draw", holds: holdsFor(cards, t.style) };
+    return { type: "draw", holds: optimalHolds(cards) };
   }
 };
