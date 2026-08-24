@@ -54,7 +54,10 @@ export class LiveTable {
       maxBuyin: config.max_buyin ?? config.maxBuyin,
       // A straddle table: the seat left of the BB auto-posts a 2xBB live blind
       // each hand (3+ handed). Flop variants only; harmless elsewhere.
-      straddle: !!(config.straddle ?? config.straddle_on)
+      straddle: !!(config.straddle ?? config.straddle_on),
+      // Run-it-twice: an all-in with cards to come deals the board twice and splits
+      // the pot across both runs (reduces variance). Flop variants only.
+      runItTwice: !!(config.runItTwice ?? config.run_it_twice)
     };
     // The poker variant this table deals (see engine/variants.js). Drives the
     // deck, hole-card count, board schedule, showdown eval and betting structure.
@@ -460,6 +463,7 @@ export class LiveTable {
         smallBlind: this.config.smallBlind,
         bigBlind: this.config.bigBlind,
         straddle: this.config.straddle,
+        runItTwice: this.config.runItTwice,
         deck
       });
     } catch {
@@ -645,7 +649,9 @@ export class LiveTable {
       holeCards: [...h.holeCards],
       handName: h.name
     }));
-    return { type: "showdown", board: [...hand.board], winners, revealed };
+    // Run-it-twice: expose every run's board so the client can show both.
+    const boards = hand.result?.runItTwice ? (hand.result.runs || []).map((r) => [...r.board]) : null;
+    return { type: "showdown", board: [...hand.board], boards, winners, revealed };
   }
 
   async finishHand() {

@@ -164,22 +164,21 @@ function runOutBoard(state, events) {
   state.toActSeat = null;
 }
 
-function settleShowdown(state, events) {
-  const variant = variantOf(state);
-  state.street = "showdown";
-  state.toActSeat = null;
-  state.pots = buildPots(state.players);
-
+// Evaluate the showdown on ONE complete `board` and award `pots` — where
+// `amountFor(pot, potIndex)` gives how many chips of each pot to award on THIS
+// board (the whole pot for a normal showdown; a 1/N slice for run-it-twice).
+// Accumulates winnings into `payoutBySeat` and returns the evaluated hands +
+// per-pot result descriptors. This is the single source of showdown award logic,
+// shared by settleShowdown and settleRunItTwice so they can never diverge.
+function awardBoard(state, variant, board, pots, amountFor, payoutBySeat) {
   const hands = nonFoldedPlayers(state)
     .map((player) => ({
       seat: player.seat,
       holeCards: [...player.holeCards],
-      ...variant.evaluate(player.holeCards, state.board)
+      ...variant.evaluate(player.holeCards, board)
     }))
     .sort((a, b) => a.seat - b.seat);
   const handBySeat = new Map(hands.map((hand) => [hand.seat, hand]));
-  const payoutBySeat = new Map();
-  const resultPots = [];
 
   // Split `amount` among the winners; odd chips go clockwise from the button.
   const distribute = (amount, winnerSeats) => {
@@ -206,12 +205,14 @@ function settleShowdown(state, events) {
   const lowBySeat = new Map();
   if (variant.evaluateLow) {
     for (const hand of hands) {
-      const low = variant.evaluateLow(hand.holeCards, state.board);
+      const low = variant.evaluateLow(hand.holeCards, board);
       if (low) lowBySeat.set(hand.seat, low);
     }
   }
 
-  for (const [potIndex, pot] of state.pots.entries()) {
+  const resultPots = [];
+  for (const [potIndex, pot] of pots.entries()) {
+    const amount = amountFor(pot, potIndex);
     const eligible = pot.eligibleSeats.filter((seat) => handBySeat.has(seat));
     if (eligible.length === 0) throw new Error(`pot ${potIndex} has no eligible player`);
 
@@ -220,15 +221,18 @@ function settleShowdown(state, events) {
     let lowWinners = [];
     if (lowSeats.length) {
       lowWinners = bestSeats(lowSeats, (seat) => lowBySeat.get(seat), variant.compareLow, true);
-      distribute(Math.ceil(pot.amount / 2), highWinners); // odd chip to the high hand
-      distribute(Math.floor(pot.amount / 2), lowWinners);
+      distribute(Math.ceil(amount / 2), highWinners); // odd chip to the high hand
+      distribute(Math.floor(amount / 2), lowWinners);
     } else {
-      distribute(pot.amount, highWinners); // no qualifying low → high scoops
+      distribute(amount, highWinners); // no qualifying low → high scoops
     }
-    resultPots.push({ amount: pot.amount, eligibleSeats: [...eligible], winnerSeats: [...highWinners], lowWinnerSeats: [...lowWinners] });
+    resultPots.push({ amount, eligibleSeats: [...eligible], winnerSeats: [...highWinners], lowWinnerSeats: [...lowWinners] });
   }
+  return { hands, resultPots };
+}
 
-  events.push({ type: "showdown", board: [...state.board], hands: clone(hands) });
+// Credit accumulated winnings to stacks + emit payout events + record state.payouts.
+function applyPayouts(state, events, payoutBySeat) {
   state.payouts = [...payoutBySeat.entries()]
     .map(([seat, amount]) => ({ seat, amount }))
     .sort((a, b) => a.seat - b.seat);
@@ -237,12 +241,77 @@ function settleShowdown(state, events) {
     player.stack += payout.amount;
     events.push({ type: "payout", seat: payout.seat, amount: payout.amount });
   }
+}
+
+function settleShowdown(state, events) {
+  const variant = variantOf(state);
+  state.street = "showdown";
+  state.toActSeat = null;
+  state.pots = buildPots(state.players);
+
+  const payoutBySeat = new Map();
+  const { hands, resultPots } = awardBoard(state, variant, state.board, state.pots, (pot) => pot.amount, payoutBySeat);
+
+  events.push({ type: "showdown", board: [...state.board], hands: clone(hands) });
+  applyPayouts(state, events, payoutBySeat);
 
   state.result = {
     type: "showdown",
     board: [...state.board],
     hands: clone(hands),
     pots: resultPots
+  };
+  state.street = "complete";
+  events.push({ type: "handComplete", result: clone(state.result) });
+}
+
+// Run-it-twice: with the pot decided but cards still to come, deal the remaining
+// board `runsWanted` times (distinct cards each) and split EVERY pot into that many
+// equal slices — each slice awarded by its own board's showdown. Remainder chips of
+// a non-divisible pot go to the earliest runs, so the slices always sum back to the
+// pot exactly (chips conserved). Falls back to fewer runs if the deck is short.
+function settleRunItTwice(state, events, runsWanted) {
+  const variant = variantOf(state);
+  state.street = "showdown";
+  state.toActSeat = null;
+  state.pots = buildPots(state.players);
+
+  const boardSize = variant.boardSchedule.reduce((sum, entry) => sum + entry.deal, 0);
+  const known = [...state.board];
+  const remaining = boardSize - known.length;
+  const available = state.deck.length - state.deckPosition;
+  const runs = remaining > 0 ? Math.max(1, Math.min(runsWanted, Math.floor(available / remaining))) : 1;
+
+  // Deal `runs` distinct completions of the board off the remaining deck.
+  const boards = [];
+  for (let r = 0; r < runs; r += 1) {
+    const board = [...known];
+    for (let i = 0; i < remaining; i += 1) board.push(takeCards(state, 1)[0]);
+    boards.push(board);
+  }
+
+  const payoutBySeat = new Map();
+  const runResults = [];
+  for (let r = 0; r < runs; r += 1) {
+    // This run's slice of each pot: floor share, with the remainder to earlier runs.
+    const amountFor = (pot) => Math.floor(pot.amount / runs) + (r < (pot.amount % runs) ? 1 : 0);
+    const { hands, resultPots } = awardBoard(state, variant, boards[r], state.pots, amountFor, payoutBySeat);
+    runResults.push({ board: [...boards[r]], hands: clone(hands), pots: resultPots });
+    events.push({ type: "showdown", run: r, board: [...boards[r]], hands: clone(hands) });
+  }
+
+  applyPayouts(state, events, payoutBySeat);
+
+  // state.board holds the FIRST run's board so legacy readers still see a complete
+  // board; `runs`/`runItTwice` carry every board for RIT-aware clients.
+  state.board = boards[0];
+  state.result = {
+    type: "showdown",
+    runItTwice: runs > 1,
+    runs: runResults,
+    board: boards[0],
+    hands: runResults[0].hands,
+    pots: runResults[0].pots
   };
   state.street = "complete";
   events.push({ type: "handComplete", result: clone(state.result) });
@@ -302,6 +371,12 @@ function finishTransition(state, events, afterSeat) {
   }
 
   if (activePlayers(state).length <= 1) {
+    // Everyone's all-in with cards to come. Optionally RUN IT TWICE (deal the rest
+    // of the board N times and split the pot across the runs) to cut variance.
+    if (state.runItTwice && nonFoldedPlayers(state).length >= 2) {
+      settleRunItTwice(state, events, state.runItTwiceRuns || 2);
+      return;
+    }
     runOutBoard(state, events);
     settleShowdown(state, events);
     return;
@@ -358,6 +433,10 @@ export function createHand(config) {
     smallBlind: config.smallBlind,
     bigBlind: config.bigBlind,
     ante,
+    // When set, an all-in with cards to come deals the remaining board this many
+    // times and splits the pot across the runs (default 2). See settleRunItTwice.
+    runItTwice: !!config.runItTwice,
+    runItTwiceRuns: config.runItTwiceRuns || 2,
     players: orderedPlayers(config.players).map((player) => ({
       seat: player.seat,
       id: player.id,

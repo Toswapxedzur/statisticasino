@@ -32,10 +32,11 @@
   let maxSeats = $state(6);
   let beBanker = $state(false);
   let straddle = $state(false);
+  let runItTwice = $state(false);
   let buyin = $state(0);
-  // Straddle only makes sense in flop games (draw/stud/shedding have no BB to
-  // straddle behind).
-  const showStraddle = $derived(!isBanked && !isSheddingFn(variant) && variant !== "five-card-draw" && variant !== "seven-card-stud");
+  // Straddle + run-it-twice only make sense in flop games (draw/stud/shedding have
+  // no big blind to straddle / no board runout to deal twice).
+  const showFlopOpts = $derived(!isBanked && !isSheddingFn(variant) && variant !== "five-card-draw" && variant !== "seven-card-stud");
 
   // Blackjack house rules
   let bjPays = $state("3:2");
@@ -117,7 +118,8 @@
       minBuyin,
       maxBuyin,
       buyin: amount,
-      straddle: showStraddle && straddle
+      straddle: showFlopOpts && straddle,
+      runItTwice: showFlopOpts && runItTwice
     });
   }
 
@@ -162,8 +164,9 @@
       </div>
     {/if}
 
-    {#if showStraddle}
+    {#if showFlopOpts}
       <label class="toggle"><input type="checkbox" bind:checked={straddle} /><span>Straddle table (UTG posts a live 2×BB blind)</span></label>
+      <label class="toggle"><input type="checkbox" bind:checked={runItTwice} /><span>Run it twice (deal the board twice on all-ins)</span></label>
     {/if}
 
     <div class="field">
