@@ -42,7 +42,8 @@ export const POKER_VARIANTS = [
   { key: "omaha-hilo", label: "Pot-Limit Omaha Hi-Lo", short: "PLO Hi-Lo" },
   { key: "shortdeck", label: "No-Limit Short Deck", short: "NL Short Deck" },
   { key: "shortdeck-pl", label: "Pot-Limit Short Deck", short: "PL Short Deck" },
-  { key: "five-card-draw", label: "No-Limit Five-Card Draw", short: "5-Card Draw" }
+  { key: "five-card-draw", label: "No-Limit Five-Card Draw", short: "5-Card Draw" },
+  { key: "seven-card-stud", label: "Seven-Card Stud", short: "7-Card Stud" }
 ];
 
 const SHORT_BY_KEY = new Map([

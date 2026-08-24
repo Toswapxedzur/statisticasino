@@ -60,6 +60,8 @@
     if (mySeatNo === seatNo && privates && privates.seat === seatNo) {
       return privates.holeCards || null;
     }
+    // Seven-Card Stud: opponents' up-cards are public (shown face-up).
+    if (s && s.upCards && s.upCards.length) return s.upCards;
     return null;
   }
 

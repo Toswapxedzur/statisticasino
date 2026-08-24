@@ -250,6 +250,7 @@ export class LiveTable {
         status: s.inHand ? (ep ? ep.status : s.status) : null,
         inHand: !!s.inHand,
         hasCards: !!(s.holeCards && s.holeCards.length),
+        upCards: s.upCards ? [...s.upCards] : [], // face-up cards (Seven-Card Stud); empty otherwise
         sittingOut: !!s.sittingOut,
         connected: this.isConnected(s),
         isButton: seatNo === this.buttonSeat,
@@ -450,6 +451,7 @@ export class LiveTable {
       if (!s) continue;
       s.inHand = true;
       s.holeCards = [...p.holeCards];
+      s.upCards = p.upCards ? [...p.upCards] : undefined; // Seven-Card Stud face-up cards
       s.status = p.status;
       s.committedThisStreet = p.committedThisStreet;
       s.totalCommitted = p.totalCommitted;
@@ -534,6 +536,9 @@ export class LiveTable {
     });
     this.hand = state;
     this.syncSeatsFromHand();
+    // Re-push privates: cards may have changed (draw / stud streets). Idempotent
+    // for flop games where hole cards are static.
+    this.sendAllPrivates();
     this.setLastAction(seatNo, action);
     this.clearActionTimer();
   }
@@ -546,6 +551,10 @@ export class LiveTable {
       s.status = p.status;
       s.committedThisStreet = p.committedThisStreet;
       s.totalCommitted = p.totalCommitted;
+      // Cards can change mid-hand (Five-Card Draw's draw, Seven-Card Stud's
+      // streets), so keep the seat copy current; upCards (stud) are public.
+      s.holeCards = [...p.holeCards];
+      if (p.upCards) s.upCards = [...p.upCards];
     }
   }
 
@@ -669,6 +678,7 @@ export class LiveTable {
     for (const s of this.seats.values()) {
       s.inHand = false;
       s.holeCards = null;
+      s.upCards = null;
       s.status = null;
       s.committedThisStreet = 0;
       s.totalCommitted = 0;

@@ -77,6 +77,10 @@ export const VARIANTS = {
   "five-card-draw": {
     key: "five-card-draw", name: "No-Limit Five-Card Draw", family: "poker",
     deck: standardDeck, holeCount: 5, bettingStructure: "no-limit", compare: compareRank
+  },
+  "seven-card-stud": {
+    key: "seven-card-stud", name: "Seven-Card Stud", family: "poker",
+    deck: standardDeck, holeCount: 7, bettingStructure: "no-limit", compare: compareRank
   }
 };
 

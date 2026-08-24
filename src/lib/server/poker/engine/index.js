@@ -9,8 +9,9 @@ export { VARIANTS, VARIANT_KEYS, getVariant } from "./variants.js";
 // (Hold'em / Omaha / Short Deck) handled by holdem.js.
 import * as holdemEngine from "./holdem.js";
 import * as drawEngine from "./draw.js";
+import * as studEngine from "./stud.js";
 
-const ENGINES = { "five-card-draw": drawEngine };
+const ENGINES = { "five-card-draw": drawEngine, "seven-card-stud": studEngine };
 const engineFor = (variant) => ENGINES[variant] || holdemEngine;
 
 export function createHand(config) { return engineFor(config?.variant).createHand(config); }

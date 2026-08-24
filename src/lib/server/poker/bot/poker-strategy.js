@@ -55,6 +55,30 @@ function drawBet(hole, turn) {
   return has("check") ? { type: "check" } : { type: "fold" };
 }
 
+// Seven-Card Stud strength (bot sees all its own cards): category of the best 5
+// once it holds 5+, else pair/trips among 3–4 known cards.
+function studStrength(hole) {
+  if (hole.length >= 5) return bestHand(hole, STANDARD_MODEL).category;
+  const counts = {};
+  for (const c of hole) counts[c[0]] = (counts[c[0]] || 0) + 1;
+  const max = Math.max(0, ...Object.values(counts));
+  return max >= 3 ? 3 : max === 2 ? 1 : 0;
+}
+function studBet(hole, turn) {
+  const actions = turn.actions || [];
+  const has = (t) => actions.some((a) => a.type === t);
+  const cat = studStrength(hole);
+  const made = cat >= 1;
+  const strong = cat >= 3;
+  if ((turn.callAmount || 0) > 0) {
+    if (strong && has("raise")) return { type: "raise", amount: actions.find((a) => a.type === "raise").min };
+    if (made && has("call")) return { type: "call" };
+    return has("check") ? { type: "check" } : { type: "fold" };
+  }
+  if (made && has("bet")) return { type: "bet", amount: actions.find((a) => a.type === "bet").min };
+  return has("check") ? { type: "check" } : { type: "fold" };
+}
+
 export const pokerStrategy = {
   // ctx: { view, turn, hole, seat, tier, rng, variantKey }
   decide({ view, turn, hole, seat, tier, rng, variantKey }) {
@@ -64,6 +88,7 @@ export const pokerStrategy = {
     // Five-Card Draw betting uses a simple strength heuristic (no community cards
     // for the equity engine to model).
     if (variantKey === "five-card-draw") return drawBet(hole, turn);
+    if (variantKey === "seven-card-stud") return studBet(hole, turn);
     const v = view || {};
     const seats = v.seats || [];
     const numOpponents = seats.filter(
