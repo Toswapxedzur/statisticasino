@@ -135,6 +135,13 @@
   function stand() { poker.stand(tableId); }
   function toggleSitOut() { if (mySeat) poker.sitOut(tableId, !mySeat.sittingOut); }
 
+  // Waitlist (a full table). Optimistic local flag; the server seats us + pulls us
+  // in via a TABLE_CREATED nav when a seat opens. Clears once we're seated.
+  let onWaitlist = $state(false);
+  function joinWaitlist() { poker.joinWaitlist(tableId); onWaitlist = true; }
+  function leaveWaitlist() { poker.leaveWaitlist(tableId); onWaitlist = false; }
+  $effect(() => { if (isSeated) onWaitlist = false; });
+
   // --- transient toast ---
   let toastMsg = $state(null);
   let _toastTimer = null;
@@ -251,6 +258,16 @@
         </span>
       </section>
     {/if}
+  {:else if me && !hasOpenSeat}
+    <section class="seat-controls">
+      {#if onWaitlist}
+        <span class="muted small">You're on the waitlist — we'll seat you the moment a spot opens.</span>
+        <button class="btn btn-secondary" onclick={leaveWaitlist}>Leave waitlist</button>
+      {:else}
+        <span class="muted small">Table's full.</span>
+        <button class="btn" onclick={joinWaitlist}>Join waitlist</button>
+      {/if}
+    </section>
   {/if}
 {:else}
   <section class="felt-shell">

@@ -231,6 +231,8 @@ class PokerClient {
     delete this._pendingMoney[`rebuy:${tableId}`];
     this._raw(encode(C2S.TABLE_LEAVE, { tableId }));
   }
+  joinWaitlist(tableId, buyin) { this.connect(); this._raw(encode(C2S.WAITLIST_JOIN, { tableId, ...(buyin != null ? { buyin } : {}) })); }
+  leaveWaitlist(tableId) { this._raw(encode(C2S.WAITLIST_LEAVE, { tableId })); }
 
   _opId() {
     if (browser && globalThis.crypto?.randomUUID) return crypto.randomUUID();

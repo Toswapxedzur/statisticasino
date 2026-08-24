@@ -29,12 +29,13 @@ import { BotManager } from "./bot/manager.js";
 const INVITE_TTL_MS = 60_000;
 const LEADERBOARD_SIZE = 10;
 
-class PokerHub {
+export class PokerHub {
   constructor() {
     this.tables = new Map();        // tableId -> LiveTable (in-memory only)
     this.connections = new Set();   // all live connections
     this.lobbySubs = new Set();     // connections subscribed to the lobby
     this.invites = new Map();       // inviteId -> {fromUserId,toUserId,tableId,expiresAt}
+    this.waitlists = new Map();     // tableId -> [{ userId, name, buyin }] FIFO queue
     this.userLocks = new Map();     // userId -> in-flight seat-op promise chain
     this._lobbyGen = 0;             // coalesces overlapping lobby snapshots
     this.shuttingDown = false;      // set during a graceful drain (rejects ops)
@@ -106,6 +107,8 @@ class PokerHub {
   async removeConnection(conn) {
     this.connections.delete(conn);
     this.lobbySubs.delete(conn);
+    // If this was the user's LAST connection, drop them from every waitlist.
+    if (conn.user && this.connsForUser(conn.user.id).length === 0) this._forgetWaitlists(conn.user.id);
     const watched = [...(conn.watching ?? [])];
     for (const tableId of watched) {
       const t = this.tables.get(tableId);
@@ -131,7 +134,8 @@ class PokerHub {
       ...table.lobbyRow(),
       status: table.hand ? "playing" : "waiting",
       createdBy: table.createdBy ?? null,
-      creatorName: table.creatorName ?? null
+      creatorName: table.creatorName ?? null,
+      waiting: this.waitlistFor(table.id).length
     };
   }
 
@@ -202,8 +206,11 @@ class PokerHub {
   }
 
   // Called by LiveTable when a hand starts/ends (status changed).
-  onTableChanged() {
+  onTableChanged(table) {
     this.pushLobby();
+    // A seat may have opened (a vacate/auto-stand routes through here) — try the
+    // waitlist. Fire-and-forget so we never re-enter the table op-lock synchronously.
+    if (table) this.processWaitlist(table).then(() => this.pushLobby()).catch(() => {});
   }
 
   // Retention: award hand-based achievements to the HUMAN seats of a finished
@@ -666,6 +673,8 @@ class PokerHub {
         case C2S.TABLE_SITOUT:
         case C2S.TABLE_ADD_BOT:
         case C2S.TABLE_REMOVE_BOT:
+        case C2S.WAITLIST_JOIN:
+        case C2S.WAITLIST_LEAVE:
         case C2S.CHAT: {
           if (!conn.user) return this._err(conn, "Sign in to play.", "AUTH");
           const t = await this.getOrLoadTable(msg.tableId);
@@ -703,8 +712,16 @@ class PokerHub {
         break;
       case C2S.TABLE_STAND:
         await table.stand(conn);
+        await this.processWaitlist(table); // a seat may have just opened
         await this.pushLobby();
         await this.maybeCloseTable(table);
+        break;
+      case C2S.WAITLIST_JOIN:
+        await this.joinWaitlist(conn, table, msg.buyin);
+        break;
+      case C2S.WAITLIST_LEAVE:
+        this.leaveWaitlist(conn.user.id, table.id);
+        await this.pushLobby();
         break;
       case C2S.TABLE_ACTION:
         await table.act(conn, msg.action);
@@ -758,8 +775,75 @@ class PokerHub {
     const botConn = this.botManager.botsAtTable(table.id).find((b) => b.user.id === s.userId);
     if (!botConn) return this._err(conn, "That bot is no longer here.");
     await this.botManager.detach(table, botConn);
+    await this.processWaitlist(table); // freed a seat
     await this.pushLobby();
     await this.maybeCloseTable(table);
+  }
+
+  // ------------------------------------------------------- waitlist (full tables)
+
+  waitlistFor(tableId) { return this.waitlists.get(tableId) || []; }
+
+  // Queue `conn`'s user for a seat at a full table. No-op (with a toast) if they're
+  // already seated, already queued, or the table has room (they should just sit).
+  async joinWaitlist(conn, table, buyin) {
+    const uid = conn.user.id;
+    if (table.seatForUser(uid)) return this._err(conn, "You're already seated here.");
+    if (table.seats.size < table.config.maxSeats) return this._err(conn, "There's an open seat — just sit down.");
+    const list = this.waitlists.get(table.id) || [];
+    if (list.some((e) => e.userId === uid)) return; // already waiting
+    const bb = table.config.bigBlind;
+    let amt = buyin != null ? Number(buyin) : bb * 100;
+    amt = Math.max(table.config.minBuyin, Math.min(table.config.maxBuyin, amt));
+    list.push({ userId: uid, name: conn.user.displayName || conn.user.email, buyin: amt });
+    this.waitlists.set(table.id, list);
+    conn.send(encode(S2C.TOAST, { level: "info", text: `You're #${list.length} on the waitlist.` }));
+    await this.pushLobby();
+  }
+
+  leaveWaitlist(userId, tableId) {
+    const list = this.waitlists.get(tableId);
+    if (!list) return;
+    const next = list.filter((e) => e.userId !== userId);
+    if (next.length) this.waitlists.set(tableId, next); else this.waitlists.delete(tableId);
+  }
+
+  // Drop a user from EVERY waitlist (on disconnect).
+  _forgetWaitlists(userId) {
+    for (const [tid, list] of this.waitlists) {
+      const next = list.filter((e) => e.userId !== userId);
+      if (next.length !== list.length) { if (next.length) this.waitlists.set(tid, next); else this.waitlists.delete(tid); }
+    }
+  }
+
+  // Seat waitlisted players into open seats, head-first, until the table is full or
+  // the queue empties. A candidate with no live connection, or whose buy-in fails
+  // (e.g. insufficient chips), is dropped and we move on. Safe to call any time a
+  // seat may have opened.
+  async processWaitlist(table) {
+    if (table._closed) return;
+    const list = this.waitlists.get(table.id);
+    if (!list || list.length === 0) return;
+    while (list.length > 0 && table.seats.size < table.config.maxSeats) {
+      const head = list[0];
+      const targetConn = this.connsForUser(head.userId)[0];
+      if (!targetConn || table.seatForUser(head.userId)) { list.shift(); continue; }
+      const seat = this._firstOpenSeat(table);
+      if (seat < 0) break;
+      table.addWatcher(targetConn);
+      await table.sit(targetConn, seat, head.buyin, { silent: true });
+      list.shift(); // seated (or the buy-in failed — either way they leave the queue)
+      if (table.seatForUser(head.userId)) {
+        targetConn.send(encode(S2C.TOAST, { level: "success", text: `A seat opened at ${table.config.name} — you're in!` }));
+        targetConn.send(encode(S2C.TABLE_CREATED, { tableId: table.id })); // pull them to the table
+      }
+    }
+    if (list.length) this.waitlists.set(table.id, list); else this.waitlists.delete(table.id);
+  }
+
+  _firstOpenSeat(table) {
+    for (let i = 0; i < table.config.maxSeats; i += 1) if (!table.seats.has(i)) return i;
+    return -1;
   }
 
   relayChat(table, conn, text) {

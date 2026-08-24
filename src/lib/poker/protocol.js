@@ -29,6 +29,8 @@ export const C2S = {
   TABLE_ADD_BOT: "table.addbot",     // { tableId, tier?, seat? } — seat a bot
   TABLE_REMOVE_BOT: "table.removebot", // { tableId, seat } — remove the bot at seat
   CHAT: "chat",                // { tableId, text }
+  WAITLIST_JOIN: "waitlist.join",   // { tableId, buyin } — queue for a full table
+  WAITLIST_LEAVE: "waitlist.leave", // { tableId }
   DM_SEND: "dm.send",          // { toUserId, text } — private message to a friend
   DM_READ: "dm.read",          // { withUserId } — mark a conversation read
   PONG: "pong"
