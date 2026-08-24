@@ -60,3 +60,8 @@ export const MONEY_WHEEL_TIERS = betGameTiers([
   { key: "twenty", name: "$20", betOption: "20" },
   { key: "joker", name: "Joker", betOption: "joker" } // 45:1 gambler
 ]);
+
+export const SLOTS_TIERS = betGameTiers([
+  { key: "low", name: "Low stakes", betOption: "spin" },
+  { key: "high", name: "High roller", betOption: "spin", betUnits: 5 }
+]);
