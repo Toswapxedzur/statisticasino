@@ -70,7 +70,14 @@ export const VARIANTS = {
     key: "shortdeck-pl", name: "Pot-Limit Short Deck",
     deck: shortDeck, holeCount: 2, bettingStructure: "pot-limit",
     evaluate: (hole, board) => bestHand([...hole, ...board], SHORTDECK_MODEL)
-  })
+  }),
+  // Non-flop families: their engine (draw.js, dispatched in index.js) owns dealing
+  // + streets. The descriptor exists so getVariant().deck() and the hub's
+  // VARIANT_KEYS validation work; boardSchedule/streets are unused here.
+  "five-card-draw": {
+    key: "five-card-draw", name: "No-Limit Five-Card Draw", family: "poker",
+    deck: standardDeck, holeCount: 5, bettingStructure: "no-limit", compare: compareRank
+  }
 };
 
 export const VARIANT_KEYS = Object.keys(VARIANTS);

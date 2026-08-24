@@ -526,10 +526,11 @@ export class LiveTable {
 
   // Apply one action to the engine and mirror it onto seats. May throw.
   _commitAction(seatNo, action) {
+    // Spread the action so engine-specific fields (e.g. Five-Card Draw's
+    // `discards`) pass through; seat is forced to the authenticated seat.
     const { state } = applyAction(this.hand, {
-      seat: seatNo,
-      type: action.type,
-      amount: action.amount
+      ...action,
+      seat: seatNo
     });
     this.hand = state;
     this.syncSeatsFromHand();

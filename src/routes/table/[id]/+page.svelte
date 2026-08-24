@@ -4,6 +4,7 @@
   import { SITE_NAME } from "$lib/config.js";
   import PokerTable from "$lib/poker/components/PokerTable.svelte";
   import ActionBar from "$lib/poker/components/ActionBar.svelte";
+  import DrawBar from "$lib/poker/components/DrawBar.svelte";
   import BankedTable from "$lib/poker/components/BankedTable.svelte";
   import BankedActionBar from "$lib/poker/components/BankedActionBar.svelte";
   import BetGameTable from "$lib/poker/components/BetGameTable.svelte";
@@ -41,6 +42,8 @@
   let holdGame = $derived(banked && !!view?.round?.holdGame);
   // Number-pick games (keno) render a ticket grid.
   let pickGame = $derived(banked && !!view?.round?.pickGame);
+  // Five-Card Draw's draw phase surfaces a "draw" action → show the discard UI.
+  let isDrawTurn = $derived(!!turn && (turn.actions || []).some((a) => a.type === "draw"));
   // Hand-split games (pai gow) render a two-hand layout with a split picker.
   let setGame = $derived(banked && !!view?.round?.setGame);
   let rules = $derived(view?.rules || null);
@@ -193,7 +196,9 @@
     {/if}
   {:else}
     <PokerTable {view} {me} {privates} onSit={openBuyIn} />
-    {#if turn}
+    {#if turn && isDrawTurn}
+      <DrawBar cards={privates?.holeCards || []} onAct={(a) => poker.act(tableId, a)} />
+    {:else if turn}
       <ActionBar
         {turn}
         {config}
