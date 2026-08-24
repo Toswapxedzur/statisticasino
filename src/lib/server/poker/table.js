@@ -51,7 +51,10 @@ export class LiveTable {
       smallBlind: config.small_blind ?? config.smallBlind,
       bigBlind: config.big_blind ?? config.bigBlind,
       minBuyin: config.min_buyin ?? config.minBuyin,
-      maxBuyin: config.max_buyin ?? config.maxBuyin
+      maxBuyin: config.max_buyin ?? config.maxBuyin,
+      // A straddle table: the seat left of the BB auto-posts a 2xBB live blind
+      // each hand (3+ handed). Flop variants only; harmless elsewhere.
+      straddle: !!(config.straddle ?? config.straddle_on)
     };
     // The poker variant this table deals (see engine/variants.js). Drives the
     // deck, hole-card count, board schedule, showdown eval and betting structure.
@@ -456,6 +459,7 @@ export class LiveTable {
         buttonSeat: button,
         smallBlind: this.config.smallBlind,
         bigBlind: this.config.bigBlind,
+        straddle: this.config.straddle,
         deck
       });
     } catch {

@@ -399,11 +399,29 @@ export function createHand(config) {
   const smallBlindPosted = contribute(smallBlindPlayer, state.smallBlind);
   const bigBlindPosted = contribute(bigBlindPlayer, state.bigBlind);
 
+  // Optional straddle: the seat left of the BB posts a LIVE blind of 2×BB before
+  // the deal, becoming the effective big blind (highest current bet) and taking
+  // last action preflop. Only 3+ handed, and only if that player can cover it in
+  // full (no partial/all-in straddle). Enabled per-hand via config.straddle.
+  let straddlePlayer = null;
+  let straddlePosted = 0;
+  if (config.straddle && state.players.length >= 3) {
+    const cand = nextClockwise(state.players, bigBlindPlayer.seat);
+    const straddleAmount = state.bigBlind * 2;
+    if (cand && cand !== smallBlindPlayer && cand !== bigBlindPlayer && cand.stack >= straddleAmount) {
+      straddlePlayer = cand;
+      straddlePosted = contribute(cand, straddleAmount);
+      state.currentBet = straddlePosted;   // the straddle is the bet to match
+      state.minRaise = state.bigBlind;      // raise increment stays one BB
+    }
+  }
+
   state.initialEvents.push({
     type: "blindsPosted",
     antes: antePosts,
     smallBlind: { seat: smallBlindPlayer.seat, amount: smallBlindPosted },
-    bigBlind: { seat: bigBlindPlayer.seat, amount: bigBlindPosted }
+    bigBlind: { seat: bigBlindPlayer.seat, amount: bigBlindPosted },
+    straddle: straddlePlayer ? { seat: straddlePlayer.seat, amount: straddlePosted } : null
   });
 
   const dealOrder = [];
@@ -427,11 +445,14 @@ export function createHand(config) {
   }
   state.pots = buildPots(state.players);
 
-  const first = nextClockwise(state.players, bigBlindPlayer.seat, (player) => player.status === "active");
+  // Action opens left of the BB — or left of the STRADDLE when one is posted (the
+  // straddler then closes the round with their option).
+  const lastBlindSeat = (straddlePlayer || bigBlindPlayer).seat;
+  const first = nextClockwise(state.players, lastBlindSeat, (player) => player.status === "active");
   state.toActSeat = first?.seat ?? null;
   if (bettingRoundClosed(state)) {
     const setupEvents = [];
-    finishTransition(state, setupEvents, bigBlindPlayer.seat);
+    finishTransition(state, setupEvents, lastBlindSeat);
     state.initialEvents.push(...setupEvents);
   }
 

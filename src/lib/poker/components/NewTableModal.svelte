@@ -31,7 +31,11 @@
   let variant = $state("holdem");
   let maxSeats = $state(6);
   let beBanker = $state(false);
+  let straddle = $state(false);
   let buyin = $state(0);
+  // Straddle only makes sense in flop games (draw/stud/shedding have no BB to
+  // straddle behind).
+  const showStraddle = $derived(!isBanked && !isSheddingFn(variant) && variant !== "five-card-draw" && variant !== "seven-card-stud");
 
   // Blackjack house rules
   let bjPays = $state("3:2");
@@ -112,7 +116,8 @@
       maxSeats,
       minBuyin,
       maxBuyin,
-      buyin: amount
+      buyin: amount,
+      straddle: showStraddle && straddle
     });
   }
 
@@ -155,6 +160,10 @@
           {/each}
         </div>
       </div>
+    {/if}
+
+    {#if showStraddle}
+      <label class="toggle"><input type="checkbox" bind:checked={straddle} /><span>Straddle table (UTG posts a live 2×BB blind)</span></label>
     {/if}
 
     <div class="field">

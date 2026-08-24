@@ -338,7 +338,7 @@ export class PokerHub {
         peek: cfg.peek === false ? false : true
       };
     }
-    return { game, variant: game, sb: minBet, bb: minBet, maxSeats, minBuyin, maxBuyin, buyin, beBanker, rules };
+    return { game, variant: game, sb: minBet, bb: minBet, maxSeats, minBuyin, maxBuyin, buyin, beBanker, rules, straddle: !!cfg.straddle };
   }
 
   // Default buy-in: requested (clamped) else ~100 big blinds, bounded by the
@@ -377,7 +377,10 @@ export class PokerHub {
       small_blind: rowCfg.smallBlind,
       big_blind: rowCfg.bigBlind,
       min_buyin: rowCfg.minBuyin,
-      max_buyin: rowCfg.maxBuyin
+      max_buyin: rowCfg.maxBuyin,
+      // In-memory only (not persisted to poker_table): a straddle table resets to
+      // off if the process restarts and rebuilds the row. Fine for ephemeral tables.
+      straddle: !!cfg.straddle
     };
     const bankedGame = isBankedGame(cfg.game) ? getGame(cfg.game) : null;
     const table = bankedGame
@@ -458,7 +461,7 @@ export class PokerHub {
     if (bal < v.buyin) return this._err(conn, "Not enough chips for that buy-in.", "INSUFFICIENT_CHIPS");
     await this._spawnTable(
       conn,
-      { name: cfg.name, game: v.game, variant: v.variant, beBanker: v.beBanker, rules: v.rules, maxSeats: v.maxSeats, smallBlind: v.sb, bigBlind: v.bb, minBuyin: v.minBuyin, maxBuyin: v.maxBuyin },
+      { name: cfg.name, game: v.game, variant: v.variant, beBanker: v.beBanker, rules: v.rules, maxSeats: v.maxSeats, smallBlind: v.sb, bigBlind: v.bb, minBuyin: v.minBuyin, maxBuyin: v.maxBuyin, straddle: v.straddle },
       v.buyin
     );
   }
