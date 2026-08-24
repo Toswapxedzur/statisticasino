@@ -65,3 +65,9 @@ export const SLOTS_TIERS = betGameTiers([
   { key: "low", name: "Low stakes", betOption: "spin" },
   { key: "high", name: "High roller", betOption: "spin", betUnits: 5 }
 ]);
+
+export const CRAPS_TIERS = betGameTiers([
+  { key: "pass", name: "Pass Line", betOption: "pass" }, // the classic bet — default
+  { key: "dontpass", name: "Don't Pass", betOption: "dontpass" },
+  { key: "field", name: "Field", betOption: "field" }
+]);

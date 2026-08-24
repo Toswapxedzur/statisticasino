@@ -20,7 +20,7 @@ import { casinoHoldemStrategy, CH_TIERS } from "./casino-holdem-strategy.js";
 import { threeCardStrategy, TC_TIERS } from "./three-card-strategy.js";
 import {
   betGameStrategy, BACCARAT_TIERS, ROULETTE_TIERS, SIC_BO_TIERS,
-  DRAGON_TIGER_TIERS, CASINO_WAR_TIERS, ANDAR_BAHAR_TIERS, MONEY_WHEEL_TIERS, SLOTS_TIERS
+  DRAGON_TIGER_TIERS, CASINO_WAR_TIERS, ANDAR_BAHAR_TIERS, MONEY_WHEEL_TIERS, SLOTS_TIERS, CRAPS_TIERS
 } from "./bet-game-strategy.js";
 import { caribbeanStudStrategy, CS_TIERS } from "./caribbean-stud-strategy.js";
 import { redDogStrategy, RD_TIERS } from "./red-dog-strategy.js";
@@ -47,7 +47,8 @@ const GAME_BRAINS = {
   "let-it-ride": { strategy: letItRideStrategy, tiers: LR_TIERS, def: "basic" },
   "video-poker": { strategy: videoPokerStrategy, tiers: VP_TIERS, def: "basic" },
   slots: { strategy: betGameStrategy, tiers: SLOTS_TIERS, def: "low" },
-  keno: { strategy: kenoStrategy, tiers: KENO_TIERS, def: "casual" }
+  keno: { strategy: kenoStrategy, tiers: KENO_TIERS, def: "casual" },
+  craps: { strategy: betGameStrategy, tiers: CRAPS_TIERS, def: "pass" }
 };
 
 // Reserved, non-routable domain (RFC 6761 `.invalid`) — guarantees no bot email

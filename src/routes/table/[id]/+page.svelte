@@ -59,7 +59,8 @@
     "let-it-ride": [["basic", "Basic"], ["aggressive", "Aggressive"], ["tight", "Tight"]],
     "video-poker": [["basic", "Basic"], ["aggressive", "Aggressive"], ["tight", "Tight"]],
     slots: [["low", "Low stakes"], ["high", "High roller"]],
-    keno: [["casual", "Casual"], ["chaser", "Jackpot chaser"]]
+    keno: [["casual", "Casual"], ["chaser", "Jackpot chaser"]],
+    craps: [["pass", "Pass Line"], ["dontpass", "Don't Pass"], ["field", "Field"]]
   };
   const botTiers = $derived(
     banked ? (BOT_TIERS[gameKey] || [["basic", "Basic"]]) : [["reg", "Reg"], ["fish", "Fish"]]
