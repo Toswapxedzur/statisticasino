@@ -456,9 +456,33 @@ CREATE TABLE IF NOT EXISTS friendship (
     REFERENCES user(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- -----------------------------------------------------------------
+-- v16 (2026-08-24, "friend DMs"): private 1:1 messages between friends.
+-- `pair_key` is min(from,to)+"|"+max(from,to) so an entire conversation
+-- (both directions) is one indexed range scan. `read_at` is set on the
+-- RECIPIENT's rows when they open the thread (drives unread badges).
+-- -----------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS dm_message (
+  id           VARCHAR(64) NOT NULL PRIMARY KEY,
+  -- Monotonic insertion order — the sort key for a thread. created_at (ms) can
+  -- tie for rapid messages, so we order by seq to keep threads stable.
+  seq          BIGINT NOT NULL AUTO_INCREMENT,
+  pair_key     VARCHAR(160) NOT NULL,
+  from_user_id VARCHAR(64) NOT NULL,
+  to_user_id   VARCHAR(64) NOT NULL,
+  body         VARCHAR(2000) NOT NULL,
+  created_at   BIGINT NOT NULL,
+  read_at      BIGINT,
+  UNIQUE KEY uq_dm_seq (seq),
+  KEY idx_dm_pair (pair_key, seq),
+  KEY idx_dm_unread (to_user_id, read_at),
+  CONSTRAINT fk_dm_from FOREIGN KEY (from_user_id) REFERENCES user(id) ON DELETE CASCADE,
+  CONSTRAINT fk_dm_to FOREIGN KEY (to_user_id) REFERENCES user(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS meta (
   meta_key   VARCHAR(64)  NOT NULL PRIMARY KEY,
   meta_value VARCHAR(255) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT IGNORE INTO meta(meta_key, meta_value) VALUES ('schema_version', '15');
+INSERT IGNORE INTO meta(meta_key, meta_value) VALUES ('schema_version', '16');

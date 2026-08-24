@@ -18,6 +18,8 @@ import {
 } from "./store.js";
 import { getBalance } from "../wallet.js";
 import { unlock, handAchievements } from "../achievements.js";
+import { areFriends } from "../friends.js";
+import { sendMessage, markRead } from "../dm.js";
 import { LiveTable } from "./table.js";
 import { GameTable } from "./runtime.js";
 import { getGame, isBankedGame } from "./games/registry.js";
@@ -672,6 +674,14 @@ class PokerHub {
           break;
         }
 
+        case C2S.DM_SEND:
+          await this.routeDM(conn, msg);
+          break;
+
+        case C2S.DM_READ:
+          if (conn.user && msg.withUserId) { try { await markRead(conn.user.id, msg.withUserId); } catch { /* best effort */ } }
+          break;
+
         case C2S.PONG:
           conn.alive = true;
           break;
@@ -762,6 +772,28 @@ class PokerHub {
       ts: Date.now()
     });
     for (const w of table.watchers) w.send(out);
+  }
+
+  // A private message to a friend: gated on friendship, persisted, then echoed to
+  // BOTH parties' online connections (so every open tab of either user updates).
+  async routeDM(conn, msg) {
+    if (!conn.user) return this._err(conn, "Sign in to message.", "AUTH");
+    const toUserId = String(msg.toUserId || "");
+    if (!toUserId || toUserId === conn.user.id) return;
+    if (!(await areFriends(conn.user.id, toUserId))) {
+      return this._err(conn, "You can only message friends.");
+    }
+    let row;
+    try { row = await sendMessage(conn.user.id, toUserId, msg.text); }
+    catch { return this._err(conn, "Message failed to send."); }
+    if (!row) return; // empty after trim
+    const out = encode(S2C.DM, {
+      id: row.id, fromUserId: row.fromUserId, toUserId: row.toUserId,
+      fromName: conn.user.displayName || conn.user.email,
+      text: row.body, ts: row.createdAt
+    });
+    for (const c of this.connsForUser(conn.user.id)) c.send(out);
+    for (const c of this.connsForUser(toUserId)) c.send(out);
   }
 
   relayLobbyChat(conn, text) {

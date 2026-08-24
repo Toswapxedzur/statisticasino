@@ -142,13 +142,14 @@ export async function ensureMigrated() {
   await migrateToV12();
   await migrateToV13();
   await migrateToV14();
-  // v15 (friends): the `friendship` table is created by schema.sql's
-  // CREATE TABLE IF NOT EXISTS (applied above) — no ALTER, so no migrateToV15.
+  // v15 (friends) + v16 (friend DMs): the `friendship` and `dm_message` tables are
+  // created by schema.sql's CREATE TABLE IF NOT EXISTS (applied above) — no ALTERs,
+  // so no migrateToV15/V16 functions are needed.
 
   // Stamp the version row (idempotent — schema.sql also INSERT IGNOREs
   // it, but we want to be defensive).
   await execute(
-    "INSERT INTO meta(meta_key, meta_value) VALUES ('schema_version', '15') "
+    "INSERT INTO meta(meta_key, meta_value) VALUES ('schema_version', '16') "
     + "ON DUPLICATE KEY UPDATE meta_value = VALUES(meta_value)"
   );
 

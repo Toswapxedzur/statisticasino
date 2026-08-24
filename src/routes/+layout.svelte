@@ -3,8 +3,14 @@
   import { page } from "$app/stores";
   import { onMount } from "svelte";
   import { SITE_NAME } from "$lib/config.js";
+  import { poker } from "$lib/poker/client.svelte.js";
 
   let { data, children } = $props();
+
+  // Signed-in users keep a live socket app-wide so private messages (and presence)
+  // arrive on any page, and the nav can badge unread DMs.
+  $effect(() => { if (data.user) poker.connect(); });
+  const dmUnread = $derived(poker.dmUnreadTotal);
 
   // Live chip balance for the topbar pill. Seeded from the SSR layout load
   // and re-synced on navigation, but also updated in real time from the
@@ -35,6 +41,7 @@
   <nav class="nav-tabs" aria-label="Sections">
     <a class="nav-tab" href="/" aria-current={isActive("/") ? "page" : undefined}>Lobby</a>
     {#if data.user}<a class="nav-tab" href="/friends" aria-current={isActive("/friends") ? "page" : undefined}>Friends</a>{/if}
+    {#if data.user}<a class="nav-tab" href="/messages" aria-current={isActive("/messages") ? "page" : undefined}>Messages{#if dmUnread > 0}<span class="nav-badge">{dmUnread}</span>{/if}</a>{/if}
     <a class="nav-tab" href="/data" aria-current={isActive("/data") ? "page" : undefined}>Data</a>
     <a class="nav-tab" href="/blog" aria-current={isActive("/blog") ? "page" : undefined}>Blog</a>
     <a class="nav-tab" href="/contribute" aria-current={isActive("/contribute") ? "page" : undefined}>Contribute</a>
@@ -63,6 +70,11 @@
 </main>
 
 <style>
+  .nav-badge {
+    display: inline-block; margin-left: 5px; min-width: 16px; padding: 0 5px;
+    background: #e0483a; color: #fff; border-radius: 999px;
+    font-size: 11px; font-weight: 700; line-height: 16px; text-align: center; vertical-align: middle;
+  }
   .topbar-right {
     display: flex;
     align-items: center;

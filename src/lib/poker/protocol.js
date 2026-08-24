@@ -29,6 +29,8 @@ export const C2S = {
   TABLE_ADD_BOT: "table.addbot",     // { tableId, tier?, seat? } — seat a bot
   TABLE_REMOVE_BOT: "table.removebot", // { tableId, seat } — remove the bot at seat
   CHAT: "chat",                // { tableId, text }
+  DM_SEND: "dm.send",          // { toUserId, text } — private message to a friend
+  DM_READ: "dm.read",          // { withUserId } — mark a conversation read
   PONG: "pong"
 };
 
@@ -46,6 +48,7 @@ export const S2C = {
   CHIPS: "chips",              // { chips }  — wallet balance changed
   CHAT: "chat",                // { tableId, from, text, ts }
   TOAST: "toast",              // { level, text }
+  DM: "dm",                    // { id, fromUserId, fromName, toUserId, text, ts } — a private message (echoed to both parties)
   ERROR: "error",             // { code?, msg }
   PING: "ping"
 };

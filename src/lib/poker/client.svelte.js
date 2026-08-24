@@ -22,8 +22,12 @@ class PokerClient {
   privates = $state({});        // tableId -> { seat, holeCards }
   turns = $state({});           // tableId -> legal-action menu when it's MY turn
   chat = $state({});            // tableId -> [{from,text,ts}]
+  dms = $state({});             // otherUserId -> [{id, fromUserId, fromName, text, ts, mine}]
+  dmUnread = $state({});        // otherUserId -> count of unseen incoming messages
   toast = $state(null);         // { level, text } transient
   lastError = $state(null);
+  // The conversation currently open in the UI (so incoming DMs there don't badge).
+  _activeDm = null;
 
   _wantLobby = false;
   _watching = new Set();
@@ -149,6 +153,20 @@ class PokerClient {
         this.chat = { ...this.chat, [msg.tableId]: [...list, { from: msg.from, text: msg.text, ts: msg.ts }].slice(-100) };
         break;
       }
+      case S2C.DM: {
+        // Echoed to both parties — the "other" end is whichever id isn't me.
+        const mine = this.me && msg.fromUserId === this.me.id;
+        const other = mine ? msg.toUserId : msg.fromUserId;
+        const list = this.dms[other] || [];
+        this.dms = { ...this.dms, [other]: [...list, {
+          id: msg.id, fromUserId: msg.fromUserId, fromName: msg.fromName, text: msg.text, ts: msg.ts, mine
+        }].slice(-200) };
+        // Badge the sender unless I sent it or I'm actively viewing that thread.
+        if (!mine && this._activeDm !== other) {
+          this.dmUnread = { ...this.dmUnread, [other]: (this.dmUnread[other] || 0) + 1 };
+        }
+        break;
+      }
       case S2C.TOAST:
         this.toast = { level: msg.level, text: msg.text };
         break;
@@ -180,6 +198,29 @@ class PokerClient {
     this._raw(encode(C2S.INVITE_RESPOND, { inviteId, accept: !!accept }));
   }
   clearNav() { this.pendingNav = null; }
+
+  // -------------------------------------------------- direct messages
+
+  sendDM(toUserId, text) {
+    const t = String(text || "").trim();
+    if (!t) return;
+    this.connect();
+    this._raw(encode(C2S.DM_SEND, { toUserId, text: t }));
+  }
+  // Seed a thread's history (from the page's HTTP load) into the store.
+  seedDm(otherUserId, messages) {
+    const mapped = (messages || []).map((m) => ({ ...m, mine: this.me && m.fromUserId === this.me.id }));
+    this.dms = { ...this.dms, [otherUserId]: mapped };
+  }
+  // Mark a conversation open (its incoming messages stop badging) and read.
+  openDm(otherUserId) {
+    this._activeDm = otherUserId;
+    if (this.dmUnread[otherUserId]) { const u = { ...this.dmUnread }; delete u[otherUserId]; this.dmUnread = u; }
+    this.connect();
+    this._raw(encode(C2S.DM_READ, { withUserId: otherUserId }));
+  }
+  closeDm() { this._activeDm = null; }
+  get dmUnreadTotal() { return Object.values(this.dmUnread).reduce((a, b) => a + b, 0); }
 
   // -------------------------------------------------- table
 

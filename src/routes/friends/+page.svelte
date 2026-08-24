@@ -52,6 +52,7 @@
             {#if p.tableId}<span class="muted small">· at {p.tableName || "a table"}</span>{/if}
           </span>
           <span class="actions">
+            <a class="btn btn-small" href={`/messages?to=${p.id}`}>Message</a>
             {#if p.tableId}<a class="btn btn-small" href={`/table/${p.tableId}`}>Join</a>{/if}
             <form method="POST" action="?/remove" style="margin:0">
               <input type="hidden" name="userId" value={p.id} />
