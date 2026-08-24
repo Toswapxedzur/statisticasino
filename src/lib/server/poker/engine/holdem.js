@@ -181,30 +181,51 @@ function settleShowdown(state, events) {
   const payoutBySeat = new Map();
   const resultPots = [];
 
+  // Split `amount` among the winners; odd chips go clockwise from the button.
+  const distribute = (amount, winnerSeats) => {
+    if (!winnerSeats.length || amount <= 0) return;
+    const share = Math.floor(amount / winnerSeats.length);
+    let oddChips = amount % winnerSeats.length;
+    for (const seat of winnerSeats) payoutBySeat.set(seat, (payoutBySeat.get(seat) ?? 0) + share);
+    for (const player of clockwiseFromButton(state)) {
+      if (oddChips === 0) break;
+      if (winnerSeats.includes(player.seat)) { payoutBySeat.set(player.seat, payoutBySeat.get(player.seat) + 1); oddChips -= 1; }
+    }
+  };
+  // The seats tied for best among `seats`, by `cmp` (wantLower flips it for lows).
+  const bestSeats = (seats, rankOf, cmp, wantLower) => {
+    let best = rankOf(seats[0]);
+    for (const seat of seats.slice(1)) {
+      const cand = rankOf(seat);
+      if (wantLower ? cmp(cand, best) < 0 : cmp(cand, best) > 0) best = cand;
+    }
+    return seats.filter((seat) => cmp(rankOf(seat), best) === 0);
+  };
+
+  // Hi-lo: precompute each showdown hand's best qualifying low (null if none).
+  const lowBySeat = new Map();
+  if (variant.evaluateLow) {
+    for (const hand of hands) {
+      const low = variant.evaluateLow(hand.holeCards, state.board);
+      if (low) lowBySeat.set(hand.seat, low);
+    }
+  }
+
   for (const [potIndex, pot] of state.pots.entries()) {
     const eligible = pot.eligibleSeats.filter((seat) => handBySeat.has(seat));
     if (eligible.length === 0) throw new Error(`pot ${potIndex} has no eligible player`);
 
-    let best = handBySeat.get(eligible[0]);
-    for (const seat of eligible.slice(1)) {
-      const candidate = handBySeat.get(seat);
-      if (variant.compare(candidate, best) > 0) best = candidate;
+    const highWinners = bestSeats(eligible, (seat) => handBySeat.get(seat), variant.compare, false);
+    const lowSeats = variant.evaluateLow ? eligible.filter((seat) => lowBySeat.has(seat)) : [];
+    let lowWinners = [];
+    if (lowSeats.length) {
+      lowWinners = bestSeats(lowSeats, (seat) => lowBySeat.get(seat), variant.compareLow, true);
+      distribute(Math.ceil(pot.amount / 2), highWinners); // odd chip to the high hand
+      distribute(Math.floor(pot.amount / 2), lowWinners);
+    } else {
+      distribute(pot.amount, highWinners); // no qualifying low → high scoops
     }
-    const winners = eligible.filter((seat) => variant.compare(handBySeat.get(seat), best) === 0);
-    const share = Math.floor(pot.amount / winners.length);
-    let oddChips = pot.amount % winners.length;
-
-    for (const seat of winners) {
-      payoutBySeat.set(seat, (payoutBySeat.get(seat) ?? 0) + share);
-    }
-    for (const player of clockwiseFromButton(state)) {
-      if (oddChips === 0) break;
-      if (winners.includes(player.seat)) {
-        payoutBySeat.set(player.seat, payoutBySeat.get(player.seat) + 1);
-        oddChips -= 1;
-      }
-    }
-    resultPots.push({ amount: pot.amount, eligibleSeats: [...eligible], winnerSeats: [...winners] });
+    resultPots.push({ amount: pot.amount, eligibleSeats: [...eligible], winnerSeats: [...highWinners], lowWinnerSeats: [...lowWinners] });
   }
 
   events.push({ type: "showdown", board: [...state.board], hands: clone(hands) });

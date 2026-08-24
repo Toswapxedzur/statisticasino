@@ -39,6 +39,7 @@ export const POKER_VARIANTS = [
   { key: "holdem-pl", label: "Pot-Limit Hold'em", short: "PL Hold'em" },
   { key: "plo", label: "Pot-Limit Omaha", short: "PLO" },
   { key: "plo5", label: "5-Card PLO", short: "5-Card PLO" },
+  { key: "omaha-hilo", label: "Pot-Limit Omaha Hi-Lo", short: "PLO Hi-Lo" },
   { key: "shortdeck", label: "No-Limit Short Deck", short: "NL Short Deck" },
   { key: "shortdeck-pl", label: "Pot-Limit Short Deck", short: "PL Short Deck" }
 ];

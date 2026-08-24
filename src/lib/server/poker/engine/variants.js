@@ -12,7 +12,7 @@
 // the engine resolves the descriptor — which carries functions — via getVariant().
 
 import { standardDeck, shortDeck } from "./cards.js";
-import { bestHand, bestOmaha, compareRank, SHORTDECK_MODEL, STANDARD_MODEL } from "./evaluator.js";
+import { bestHand, bestOmaha, bestOmahaLow, compareRank, compareLowRanks, SHORTDECK_MODEL, STANDARD_MODEL } from "./evaluator.js";
 
 const FLOP_BOARD = [
   { street: "flop", deal: 3 },
@@ -51,6 +51,15 @@ export const VARIANTS = {
     key: "plo5", name: "Pot-Limit 5-Card Omaha",
     deck: standardDeck, holeCount: 5, bettingStructure: "pot-limit",
     evaluate: (hole, board) => bestOmaha(hole, board, STANDARD_MODEL)
+  }),
+  "omaha-hilo": flopVariant({
+    key: "omaha-hilo", name: "Pot-Limit Omaha Hi-Lo",
+    deck: standardDeck, holeCount: 4, bettingStructure: "pot-limit",
+    evaluate: (hole, board) => bestOmaha(hole, board, STANDARD_MODEL),
+    // Hi-lo: half the pot to the best 8-or-better low (exactly 2 hole + 3 board).
+    // A null return means no qualifying low, so the high hand scoops.
+    evaluateLow: (hole, board) => bestOmahaLow(hole, board),
+    compareLow: compareLowRanks
   }),
   shortdeck: flopVariant({
     key: "shortdeck", name: "No-Limit Short Deck",

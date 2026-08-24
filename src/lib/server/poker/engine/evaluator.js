@@ -150,3 +150,40 @@ export function evaluate7(cards7) {
   assertCards(cards7, 7);
   return bestHand(cards7, STANDARD_MODEL);
 }
+
+// --- Ace-to-5 low ("8 or better"), for hi-lo split games ---------------------
+// A qualifying low is five distinct ranks all 8 or lower (ace plays low). Read
+// high-card-first, the LOWER hand wins (the wheel A-2-3-4-5 is the best low).
+function lowFive(cards) {
+  const values = cards.map((card) => {
+    const rank = card[0];
+    if (rank === "A") return 1;
+    if ("TJQK".includes(rank)) return 99; // never low
+    return Number(rank);
+  });
+  if (values.some((v) => v > 8)) return null;      // a 9+ card can't make a low
+  if (new Set(values).size !== 5) return null;      // a pair breaks the low
+  return { lowRanks: values.sort((a, b) => b - a) }; // highest first
+}
+
+// Compare two lows: negative if `a` is the BETTER (lower) low.
+export function compareLowRanks(a, b) {
+  for (let i = 0; i < 5; i += 1) {
+    const d = a.lowRanks[i] - b.lowRanks[i];
+    if (d !== 0) return d;
+  }
+  return 0;
+}
+
+// Best Omaha low: the lowest qualifying 5-card low using EXACTLY 2 hole + 3 board.
+// Returns { lowRanks } or null when no 8-or-better low is possible.
+export function bestOmahaLow(hole, board) {
+  let best = null;
+  for (const h of combinations(hole, 2)) {
+    for (const b of combinations(board, 3)) {
+      const low = lowFive([...h, ...b]);
+      if (low && (best === null || compareLowRanks(low, best) < 0)) best = low;
+    }
+  }
+  return best;
+}
