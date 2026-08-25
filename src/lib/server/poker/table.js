@@ -57,8 +57,16 @@ export class LiveTable {
       straddle: !!(config.straddle ?? config.straddle_on),
       // Run-it-twice: an all-in with cards to come deals the board twice and splits
       // the pot across both runs (reduces variance). Flop variants only.
-      runItTwice: !!(config.runItTwice ?? config.run_it_twice)
+      runItTwice: !!(config.runItTwice ?? config.run_it_twice),
+      // Tournament mode: chips are pure TOURNAMENT counters, NOT wallet-backed — so
+      // every escrow/wallet touchpoint (buy-in, rebuy, cash-out, escrow sync) is
+      // skipped. A Tournament controller (poker/tournament.js) drives blinds +
+      // eliminations via table.tournament. See _sit/_rebuy/finishHand/creditAndRemove.
+      tournament: !!config.tournament
     };
+    // Set by the Tournament controller that owns this table (tournament mode only).
+    this.tournament = null;
+    this.isTournament = this.config.tournament;
     // The poker variant this table deals (see engine/variants.js). Drives the
     // deck, hole-card count, board schedule, showdown eval and betting structure.
     this.variantKey = this.config.variant;
@@ -681,8 +689,8 @@ export class LiveTable {
     // actual results, not pre-hand amounts. Bounded retry because a stale
     // mirror means a crash would refund the wrong split; conservation itself
     // still holds regardless (cash-out is escrow-authoritative), so we don't
-    // wedge the table if it ultimately fails.
-    let synced = false;
+    // wedge the table if it ultimately fails. (Tournament chips aren't escrowed.)
+    let synced = this.isTournament;
     for (let attempt = 0; attempt < 3 && !synced; attempt += 1) {
       try { await this.wallet.syncStacks(this.id, escrowSnaps); synced = true; }
       catch { /* transient DB hiccup — retry */ }
@@ -749,11 +757,19 @@ export class LiveTable {
       if (s.wantsToLeave) await this.creditAndRemove(s);
     }
 
-    // 6. Any seat still disconnected now the hand's over becomes idle → arm
-    // its auto-stand so a table left with only ghosts gets reclaimed. (During
-    // the hand these seats had inHand set, so no vacate timer was running.)
-    for (const s of this.seats.values()) {
-      if (!this.isConnected(s)) this.armVacateTimer(s);
+    // 6a. Tournament: let the controller escalate blinds + process eliminations
+    // (and end the event when one player remains) BEFORE the next hand. Tournament
+    // players are never auto-vacated on disconnect — they stay in until busted
+    // (the action clock folds them and blinds them off).
+    if (this.isTournament) {
+      await this.tournament?.onHandEnd?.(this);
+    } else {
+      // 6b. Any seat still disconnected now the hand's over becomes idle → arm
+      // its auto-stand so a table left with only ghosts gets reclaimed. (During
+      // the hand these seats had inHand set, so no vacate timer was running.)
+      for (const s of this.seats.values()) {
+        if (!this.isConnected(s)) this.armVacateTimer(s);
+      }
     }
 
     this.broadcast();
@@ -785,6 +801,8 @@ export class LiveTable {
     for (const s of [...this.seats.values()]) {
       this.clearVacateTimer(s);
       this.seats.delete(s.seat);
+      // Tournament chips aren't wallet-backed — nothing to cash out.
+      if (this.isTournament) continue;
       try {
         await this.wallet.cashOut(this.id, s.seat, s.funderId ?? s.userId);
       } catch { /* best effort on shutdown; escrow covers a failure */ }
@@ -803,6 +821,9 @@ export class LiveTable {
     // re-credit the same stack.
     this.seats.delete(seat.seat);
     this.clearVacateTimer(seat); // seat's leaving — drop any pending auto-stand
+    // Tournament chips aren't wallet-backed, so there's nothing to cash out —
+    // the seat just leaves (a bust/quit is handled by the Tournament controller).
+    if (this.isTournament) return;
     // cashOut is escrow-authoritative + idempotent: a committed-but-unacked
     // cash-out leaves NO escrow row, so a retry credits 0 rather than paying
     // twice. So we RETRY on error instead of assuming failure — a lost COMMIT
@@ -854,9 +875,15 @@ export class LiveTable {
     // The banker (house) in a banked game needs deep pockets to cover player
     // wins, so it may exceed the table's max buy-in. All ordinary seats are
     // bounded normally; poker never passes asBanker, so its behavior is unchanged.
+    // Tournament seats carry a starting T-CHIP stack (set by the controller); it's
+    // not wallet-bounded and not escrowed. Cash-game seats validate against the
+    // buy-in range and debit the funder's wallet into escrow.
     const overMax = buyin > this.config.maxBuyin && !opts.asBanker;
-    if (!Number.isInteger(buyin) || buyin < this.config.minBuyin || overMax) {
+    if (!this.isTournament && (!Number.isInteger(buyin) || buyin < this.config.minBuyin || overMax)) {
       return fail("Invalid buy-in amount.");
+    }
+    if (this.isTournament && (!Number.isInteger(buyin) || buyin < 1)) {
+      return fail("Invalid tournament stack.");
     }
 
     // `funderId` is the wallet that OWNS this seat's chips (escrow owner), which
@@ -866,17 +893,19 @@ export class LiveTable {
     // funderId; gameplay + hand-history stay keyed on userId. bank.js is unchanged.
     const funderId = opts.funderId != null ? opts.funderId : conn.user.id;
 
-    let balance;
-    try {
-      // Atomic: debit the funder's wallet + create this seat's escrow row (= buyin).
-      // opts.opId is the client's request-boundary idempotency key (a resend of
-      // the same sit resolves rather than double-charging).
-      balance = await this.wallet.buyIn(funderId, buyin, this.id, seatNo, opts.opId);
-    } catch (err) {
-      if (err?.code === "INSUFFICIENT_CHIPS") {
-        return fail("Not enough chips.", "INSUFFICIENT_CHIPS");
+    let balance = null;
+    if (!this.isTournament) {
+      try {
+        // Atomic: debit the funder's wallet + create this seat's escrow row (= buyin).
+        // opts.opId is the client's request-boundary idempotency key (a resend of
+        // the same sit resolves rather than double-charging).
+        balance = await this.wallet.buyIn(funderId, buyin, this.id, seatNo, opts.opId);
+      } catch (err) {
+        if (err?.code === "INSUFFICIENT_CHIPS") {
+          return fail("Not enough chips.", "INSUFFICIENT_CHIPS");
+        }
+        return fail(err?.message || "Buy-in failed.");
       }
-      return fail(err?.message || "Buy-in failed.");
     }
 
     this.seats.set(seatNo, {
@@ -896,7 +925,7 @@ export class LiveTable {
       timeBankMs: TIME_BANK_INIT_MS
     });
 
-    this.sendChips(funderId, balance);
+    if (!this.isTournament) this.sendChips(funderId, balance);
     this.broadcast();
     this.maybeStartHand();
   }
@@ -930,6 +959,7 @@ export class LiveTable {
   }
 
   async _rebuy(conn, amount, opId) {
+    if (this.isTournament) return this._error(conn, "No rebuys in a freezeout tournament.");
     const seat = this.seatForUser(conn.user?.id);
     if (!seat) return this._error(conn, "You are not seated.");
     if (seat.inHand) {

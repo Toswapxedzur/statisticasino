@@ -37,6 +37,9 @@ export const REASON = {
   ADMIN_ADJUST: "admin_adjust",
   TABLE_BUYIN: "table_buyin",
   TABLE_CASHOUT: "table_cashout",
+  // Tournament entry fee (wallet -> prize pool) and prize payout (pool -> wallet).
+  TOURNEY_ENTRY: "tourney_entry",
+  TOURNEY_PRIZE: "tourney_prize",
   // Boot reconciliation of crash-persisted on-table escrow (see bank.js).
   ESCROW_REFUND: "escrow_refund"
 };
