@@ -167,6 +167,15 @@ class PokerClient {
         }
         break;
       }
+      case S2C.VOICE_ROSTER:
+        this._voice?.roster?.(msg);
+        break;
+      case S2C.ICE_CONFIG:
+        this._voice?.ice?.(msg);
+        break;
+      case S2C.RTC_SIGNAL:
+        this._voice?.signal?.(msg);
+        break;
       case S2C.TOAST:
         this.toast = { level: msg.level, text: msg.text };
         break;
@@ -233,6 +242,13 @@ class PokerClient {
   }
   joinWaitlist(tableId, buyin) { this.connect(); this._raw(encode(C2S.WAITLIST_JOIN, { tableId, ...(buyin != null ? { buyin } : {}) })); }
   leaveWaitlist(tableId) { this._raw(encode(C2S.WAITLIST_LEAVE, { tableId })); }
+
+  // -------------------------------------------------- voice (WebRTC signaling)
+
+  setVoiceHandlers(h) { this._voice = h; }
+  voiceJoin(tableId) { this.connect(); this._raw(encode(C2S.VOICE_JOIN, { tableId })); }
+  voiceLeave(tableId) { this._raw(encode(C2S.VOICE_LEAVE, { tableId })); }
+  sendSignal(tableId, toUserId, signal) { this._raw(encode(C2S.RTC_SIGNAL, { tableId, toUserId, signal })); }
 
   // Every table I'm currently SEATED at (I keep watching them across navigation),
   // with a flag for whether it's my turn there — powers the multi-table switcher.

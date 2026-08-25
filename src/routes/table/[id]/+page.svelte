@@ -1,6 +1,8 @@
 <script>
   import { onMount, onDestroy } from "svelte";
   import { poker } from "$lib/poker/client.svelte.js";
+  import { voice } from "$lib/poker/voice.svelte.js";
+  import VoiceBar from "$lib/poker/components/VoiceBar.svelte";
   import { SITE_NAME } from "$lib/config.js";
   import PokerTable from "$lib/poker/components/PokerTable.svelte";
   import ActionBar from "$lib/poker/components/ActionBar.svelte";
@@ -162,6 +164,7 @@
     window.addEventListener("chips", onChips);
   });
   onDestroy(() => {
+    voice.leave(); // drop out of voice when leaving the table page
     // Multi-tabling: keep watching a table we're SEATED at after navigating away,
     // so its turn alerts keep coming and the switcher can bring us back. Only stop
     // watching tables we're just spectating.
@@ -238,6 +241,10 @@
         onAct={(a) => poker.act(tableId, a)}
       />
     {/if}
+  {/if}
+
+  {#if me}
+    <VoiceBar {tableId} />
   {/if}
 
   {#if isSeated}

@@ -20,6 +20,7 @@ import { getBalance } from "../wallet.js";
 import { unlock, handAchievements } from "../achievements.js";
 import { areFriends } from "../friends.js";
 import { sendMessage, markRead } from "../dm.js";
+import { iceConfig } from "../voice.js";
 import { LiveTable } from "./table.js";
 import { GameTable } from "./runtime.js";
 import { getGame, isBankedGame } from "./games/registry.js";
@@ -36,6 +37,7 @@ export class PokerHub {
     this.lobbySubs = new Set();     // connections subscribed to the lobby
     this.invites = new Map();       // inviteId -> {fromUserId,toUserId,tableId,expiresAt}
     this.waitlists = new Map();     // tableId -> [{ userId, name, buyin }] FIFO queue
+    this.voiceRooms = new Map();    // tableId -> Map<userId, name> in the voice mesh
     this.userLocks = new Map();     // userId -> in-flight seat-op promise chain
     this._lobbyGen = 0;             // coalesces overlapping lobby snapshots
     this.shuttingDown = false;      // set during a graceful drain (rejects ops)
@@ -107,8 +109,11 @@ export class PokerHub {
   async removeConnection(conn) {
     this.connections.delete(conn);
     this.lobbySubs.delete(conn);
-    // If this was the user's LAST connection, drop them from every waitlist.
-    if (conn.user && this.connsForUser(conn.user.id).length === 0) this._forgetWaitlists(conn.user.id);
+    // If this was the user's LAST connection, drop them from every waitlist + voice mesh.
+    if (conn.user && this.connsForUser(conn.user.id).length === 0) {
+      this._forgetWaitlists(conn.user.id);
+      this._forgetVoice(conn.user.id);
+    }
     const watched = [...(conn.watching ?? [])];
     for (const tableId of watched) {
       const t = this.tables.get(tableId);
@@ -695,6 +700,16 @@ export class PokerHub {
           if (conn.user && msg.withUserId) { try { await markRead(conn.user.id, msg.withUserId); } catch { /* best effort */ } }
           break;
 
+        case C2S.VOICE_JOIN:
+          this.voiceJoin(conn, msg.tableId);
+          break;
+        case C2S.VOICE_LEAVE:
+          this.voiceLeave(conn, msg.tableId);
+          break;
+        case C2S.RTC_SIGNAL:
+          this.relaySignal(conn, msg);
+          break;
+
         case C2S.PONG:
           conn.alive = true;
           break;
@@ -882,6 +897,63 @@ export class PokerHub {
     });
     for (const c of this.connsForUser(conn.user.id)) c.send(out);
     for (const c of this.connsForUser(toUserId)) c.send(out);
+  }
+
+  // ------------------------------------------------------- voice (WebRTC mesh)
+
+  // Everyone currently in a table's voice mesh, as [{ userId, name }].
+  voiceUsers(tableId) {
+    return [...(this.voiceRooms.get(tableId) || new Map()).entries()].map(([userId, name]) => ({ userId, name }));
+  }
+
+  // Push the current roster to every member's connections.
+  _broadcastVoiceRoster(tableId) {
+    const users = this.voiceUsers(tableId);
+    const frame = encode(S2C.VOICE_ROSTER, { tableId, users });
+    for (const { userId } of users) for (const c of this.connsForUser(userId)) c.send(frame);
+  }
+
+  // Join a table's voice mesh. Must be watching the table. The joiner gets the ICE
+  // config (fresh ephemeral TURN creds) + the current roster; everyone's roster
+  // updates so the WebRTC mesh can wire up (the newcomer is the offerer, client-side).
+  voiceJoin(conn, tableId) {
+    if (!conn.user) return this._err(conn, "Sign in to use voice.", "AUTH");
+    if (!conn.watching?.has(tableId)) return this._err(conn, "Join the table first.");
+    let room = this.voiceRooms.get(tableId);
+    if (!room) { room = new Map(); this.voiceRooms.set(tableId, room); }
+    room.set(conn.user.id, conn.user.displayName || conn.user.email);
+    conn.send(encode(S2C.ICE_CONFIG, iceConfig()));
+    this._broadcastVoiceRoster(tableId);
+  }
+
+  voiceLeave(conn, tableId) {
+    const room = this.voiceRooms.get(tableId);
+    if (!room || !conn.user) return;
+    if (room.delete(conn.user.id)) {
+      if (room.size === 0) this.voiceRooms.delete(tableId);
+      this._broadcastVoiceRoster(tableId);
+    }
+  }
+
+  // Drop a user from EVERY voice room (on disconnect), updating rosters.
+  _forgetVoice(userId) {
+    for (const [tableId, room] of this.voiceRooms) {
+      if (room.delete(userId)) {
+        if (room.size === 0) this.voiceRooms.delete(tableId);
+        this._broadcastVoiceRoster(tableId);
+      }
+    }
+  }
+
+  // Relay one WebRTC signal (offer/answer/ICE) to a specific peer — but ONLY
+  // between two members of the same table's voice mesh (so signaling can't be used
+  // to spam arbitrary users).
+  relaySignal(conn, msg) {
+    if (!conn.user) return;
+    const room = this.voiceRooms.get(msg.tableId);
+    if (!room || !room.has(conn.user.id) || !room.has(msg.toUserId)) return;
+    const frame = encode(S2C.RTC_SIGNAL, { tableId: msg.tableId, fromUserId: conn.user.id, signal: msg.signal });
+    for (const c of this.connsForUser(msg.toUserId)) c.send(frame);
   }
 
   relayLobbyChat(conn, text) {

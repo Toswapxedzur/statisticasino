@@ -33,6 +33,9 @@ export const C2S = {
   WAITLIST_LEAVE: "waitlist.leave", // { tableId }
   DM_SEND: "dm.send",          // { toUserId, text } — private message to a friend
   DM_READ: "dm.read",          // { withUserId } — mark a conversation read
+  VOICE_JOIN: "voice.join",    // { tableId } — join a table's voice mesh
+  VOICE_LEAVE: "voice.leave",  // { tableId }
+  RTC_SIGNAL: "rtc.signal",    // { tableId, toUserId, signal } — WebRTC offer/answer/ice relay
   PONG: "pong"
 };
 
@@ -51,6 +54,9 @@ export const S2C = {
   CHAT: "chat",                // { tableId, from, text, ts }
   TOAST: "toast",              // { level, text }
   DM: "dm",                    // { id, fromUserId, fromName, toUserId, text, ts } — a private message (echoed to both parties)
+  VOICE_ROSTER: "voice.roster",// { tableId, users:[{userId,name}] } — who's in the table's voice mesh
+  ICE_CONFIG: "voice.ice",     // { iceServers } — STUN/TURN config for RTCPeerConnection (ephemeral creds)
+  RTC_SIGNAL: "rtc.signal",    // { tableId, fromUserId, signal } — relayed WebRTC signal
   ERROR: "error",             // { code?, msg }
   PING: "ping"
 };
