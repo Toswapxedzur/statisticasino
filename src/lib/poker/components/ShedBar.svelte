@@ -1,4 +1,7 @@
 <script>
+  import { scale } from "svelte/transition";
+  import { d, DUR } from "$lib/motion.js";
+
   // Your hand for shedding games. Two modes, driven by the turn:
   //  • single-play (Crazy Eights): legal cards highlighted; click one to play it
   //    (an 8 opens a suit picker); Draw when you have nothing.
@@ -36,7 +39,7 @@
     {:else}{canDraw ? "Nothing to play — draw a card" : "Your turn — play a card"}{/if}
   </div>
   <div class="cards">
-    {#each hand as c}
+    {#each hand as c, i (c + '-' + i)}
       <button
         class="scard"
         class:playable={myTurn && (combo || legal.has(c))}
@@ -45,7 +48,7 @@
         onclick={() => clickCard(c)}
         disabled={!myTurn || (!combo && !legal.has(c))}
       >
-        <span class="face" class:red={isRed(c[1])}>{c[0]}<span class="suit">{SUIT[c[1]]}</span></span>
+        <span class="face" class:red={isRed(c[1])} in:scale={{ start: 0.6, duration: d(DUR.base), delay: d(i * 35) }}>{c[0]}<span class="suit">{SUIT[c[1]]}</span></span>
       </button>
     {/each}
   </div>

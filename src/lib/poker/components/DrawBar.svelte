@@ -1,4 +1,7 @@
 <script>
+  import { scale } from "svelte/transition";
+  import { d, DUR } from "$lib/motion.js";
+
   // Five-Card Draw action bar: tap cards to DISCARD, then Draw (or Stand pat).
   // Emits { type: "draw", discards: number[] }. Cards come from the private frame.
 
@@ -15,9 +18,9 @@
 <section class="drawbar">
   <div class="lbl">Tap cards to discard, then Draw — or stand pat</div>
   <div class="cards">
-    {#each cards as c, i}
+    {#each cards as c, i (c + '-' + i)}
       <button class="dcard" class:disc={discard.includes(i)} onclick={() => toggle(i)}>
-        <span class="face" class:red={c[1] === "d" || c[1] === "h"}>{c[0]}<span class="suit">{SUIT[c[1]]}</span></span>
+        <span class="face" class:red={c[1] === "d" || c[1] === "h"} in:scale={{ start: 0.6, duration: d(DUR.base), delay: d(i * 35) }}>{c[0]}<span class="suit">{SUIT[c[1]]}</span></span>
         <span class="tag">{discard.includes(i) ? "DISCARD" : "keep"}</span>
       </button>
     {/each}

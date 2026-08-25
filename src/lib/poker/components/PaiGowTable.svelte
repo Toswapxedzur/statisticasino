@@ -1,4 +1,7 @@
 <script>
+  import { fade, scale } from "svelte/transition";
+  import { d, DUR } from "$lib/motion.js";
+
   // Pai Gow felt: the dealer's back (5) + front (2), and each seat's split (or the
   // seven cards while still setting), plus win/push/lose per seat.
 
@@ -20,7 +23,7 @@
 
 {#snippet cardrow(cards)}
   <div class="cards">
-    {#each cards as c}<span class="card" class:red={c[1] === "d" || c[1] === "h"}>{c[0]}<span class="suit">{SUIT[c[1]]}</span></span>{/each}
+    {#each cards as c, i (c + '-' + i)}<span class="card" class:red={c[1] === "d" || c[1] === "h"} in:scale={{ start: 0.6, duration: d(DUR.base), delay: d(i * 35) }}>{c[0]}<span class="suit">{SUIT[c[1]]}</span></span>{/each}
   </div>
 {/snippet}
 
@@ -46,7 +49,7 @@
             {:else if hand && hand.cards && hand.cards.length}
               <div class="small">{@render cardrow(hand.cards)}</div>
             {:else}<span class="muted small">—</span>{/if}
-            {#if oc}<div class="outc {oc.outcome}">{oc.outcome}{oc.delta > 0 ? " +" + oc.delta : oc.delta < 0 ? " " + oc.delta : ""}</div>{/if}
+            {#if oc}<div class="outc {oc.outcome}" transition:fade={{ duration: d(DUR.base) }}>{oc.outcome}{oc.delta > 0 ? " +" + oc.delta : oc.delta < 0 ? " " + oc.delta : ""}</div>{/if}
           {:else}
             <button class="btn btn-secondary btn-sm sit" onclick={() => onSit(seatNo)}>Sit</button>
           {/if}

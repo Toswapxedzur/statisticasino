@@ -1,4 +1,7 @@
 <script>
+  import { fade, scale } from "svelte/transition";
+  import { d, DUR } from "$lib/motion.js";
+
   // Felt for shedding games (Crazy Eights, Big Two). Center shows the pile / last
   // play + the active suit; each opponent shows a fan of card-backs + their count;
   // your own hand lives in ShedBar. No dealer, no board.
@@ -25,7 +28,7 @@
     <div class="pile">
       {#if pileCards.length}
         <div class="pilecards">
-          {#each pileCards as t}<span class="card big" class:red={isRed(t[1])}>{t[0]}<span class="suit">{SUIT[t[1]]}</span></span>{/each}
+          {#each pileCards as t, i (t + '-' + i)}<span class="card big" class:red={isRed(t[1])} in:scale={{ start: 0.6, duration: d(DUR.base), delay: d(i * 35) }}>{t[0]}<span class="suit">{SUIT[t[1]]}</span></span>{/each}
         </div>
         <div class="pilenote">
           {#if round.currentSuit}suit <span class:red={isRed(round.currentSuit)}>{SUIT[round.currentSuit]}</span>{/if}
@@ -52,7 +55,7 @@
                 </div>
               {/if}
             {/if}
-            {#if oc}<div class="outc {oc.outcome}">{oc.outcome === "win" ? "🏆 " : ""}{oc.delta > 0 ? "+" + oc.delta : oc.delta}</div>{/if}
+            {#if oc}<div class="outc {oc.outcome}" transition:fade={{ duration: d(DUR.base) }}>{oc.outcome === "win" ? "🏆 " : ""}{oc.delta > 0 ? "+" + oc.delta : oc.delta}</div>{/if}
           {:else}
             <button class="btn btn-secondary btn-sm sit" onclick={() => onSit(seatNo)}>Sit</button>
           {/if}

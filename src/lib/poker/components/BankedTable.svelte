@@ -1,4 +1,7 @@
 <script>
+  import { fade, scale } from "svelte/transition";
+  import { d, DUR } from "$lib/motion.js";
+
   // Generic banked-game table (blackjack, casino-holdem, …). Renders whatever the
   // game's public view provides: the House (dealer) hand, an optional COMMUNITY
   // row, each player's HAND (cards + wager + status), and per-seat outcomes. New
@@ -38,9 +41,9 @@
       <div class="house-label">House{#if banker}<span class="bankroll"> · {banker.stack.toLocaleString()}</span>{/if}</div>
       <div class="cards">
         {#if dealer && dealer.cards.length}
-          {#each dealer.cards as c}
-            {#if c === "??"}<span class="card back">🂠</span>
-            {:else}<span class="card" class:red={c[1] === "d" || c[1] === "h"}>{c[0]}<span class="suit">{SUIT[c[1]]}</span></span>{/if}
+          {#each dealer.cards as c, i (c + '-' + i)}
+            {#if c === "??"}<span class="card back" in:scale={{ start: 0.6, duration: d(DUR.base), delay: d(i * 35) }}>🂠</span>
+            {:else}<span class="card" class:red={c[1] === "d" || c[1] === "h"} in:scale={{ start: 0.6, duration: d(DUR.base), delay: d(i * 35) }}>{c[0]}<span class="suit">{SUIT[c[1]]}</span></span>{/if}
           {/each}
           {#if dealerNote}<span class="val">{dealerNote}</span>{/if}
         {:else}<span class="waiting muted">waiting…</span>{/if}
@@ -51,8 +54,8 @@
       <div class="community">
         <div class="community-label">Board</div>
         <div class="cards">
-          {#each community as c}
-            <span class="card" class:red={c[1] === "d" || c[1] === "h"}>{c[0]}<span class="suit">{SUIT[c[1]]}</span></span>
+          {#each community as c, i (c + '-' + i)}
+            <span class="card" class:red={c[1] === "d" || c[1] === "h"} in:scale={{ start: 0.6, duration: d(DUR.base), delay: d(i * 35) }}>{c[0]}<span class="suit">{SUIT[c[1]]}</span></span>
           {/each}
         </div>
       </div>
@@ -68,8 +71,8 @@
             <div class="who"><span class="nm">{s.name}</span><span class="stk">{s.stack.toLocaleString()}</span></div>
             <div class="cards small">
               {#if hand && hand.cards.length}
-                {#each hand.cards as c}
-                  <span class="card" class:red={c[1] === "d" || c[1] === "h"}>{c[0]}<span class="suit">{SUIT[c[1]]}</span></span>
+                {#each hand.cards as c, i (c + '-' + i)}
+                  <span class="card" class:red={c[1] === "d" || c[1] === "h"} in:scale={{ start: 0.6, duration: d(DUR.base), delay: d(i * 35) }}>{c[0]}<span class="suit">{SUIT[c[1]]}</span></span>
                 {/each}
                 {#if hand.value != null}<span class="val" class:bust={hand.bust}>{hand.value}{hand.blackjack ? " BJ" : hand.bust ? " bust" : ""}</span>{/if}
                 {#if hand.folded}<span class="val muted">folded</span>{/if}
@@ -83,7 +86,7 @@
               </div>
             {/if}
             {#if outcome}
-              <div class="outcome {outcome.outcome}">
+              <div class="outcome {outcome.outcome}" transition:fade={{ duration: d(DUR.base) }}>
                 {outcome.outcome === "blackjack" ? "Blackjack!" : outcome.outcome}
                 {outcome.delta > 0 ? "+" + outcome.delta : outcome.delta}
               </div>

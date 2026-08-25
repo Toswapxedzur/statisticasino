@@ -1,4 +1,7 @@
 <script>
+  import { scale } from "svelte/transition";
+  import { d, DUR } from "$lib/motion.js";
+
   // Hold-and-draw action bar for Video Poker. The TABLE_TURN carries the player's
   // five cards; tap a card to HOLD it, then Draw to replace the rest:
   //   { type: "draw", holds: [bool × 5] }
@@ -20,9 +23,9 @@
 
 <section class="vpbar">
   <div class="cards">
-    {#each cards as c, i}
+    {#each cards as c, i (c + '-' + i)}
       <button class="vcard" class:held={held[i]} onclick={() => toggle(i)}>
-        <span class="face" class:red={c[1] === "d" || c[1] === "h"}>{c[0]}<span class="suit">{SUIT[c[1]]}</span></span>
+        <span class="face" class:red={c[1] === "d" || c[1] === "h"} in:scale={{ start: 0.6, duration: d(DUR.base), delay: d(i * 35) }}>{c[0]}<span class="suit">{SUIT[c[1]]}</span></span>
         <span class="tag">{held[i] ? "HELD" : "hold"}</span>
       </button>
     {/each}

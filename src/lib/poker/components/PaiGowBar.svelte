@@ -1,4 +1,7 @@
 <script>
+  import { scale } from "svelte/transition";
+  import { d, DUR } from "$lib/motion.js";
+
   // Pai Gow set UI: tap two of your seven cards to form the 2-card FRONT hand (the
   // other five are the back), then Set — or Auto for the house way.
   //   { type: "set", front: [c1, c2] }  |  { type: "set", auto: true }
@@ -20,9 +23,9 @@
 <section class="pgbar">
   <div class="lbl">Tap 2 cards for your <strong>front</strong> hand — the other five are your back hand</div>
   <div class="cards">
-    {#each cards as c}
+    {#each cards as c, i (c + '-' + i)}
       <button class="pcard" class:sel={front.includes(c)} onclick={() => toggle(c)}>
-        <span class="face" class:red={c[1] === "d" || c[1] === "h"}>{c[0]}<span class="suit">{SUIT[c[1]]}</span></span>
+        <span class="face" class:red={c[1] === "d" || c[1] === "h"} in:scale={{ start: 0.6, duration: d(DUR.base), delay: d(i * 35) }}>{c[0]}<span class="suit">{SUIT[c[1]]}</span></span>
         <span class="tag">{front.includes(c) ? "FRONT" : ""}</span>
       </button>
     {/each}

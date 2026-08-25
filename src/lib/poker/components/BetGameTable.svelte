@@ -1,4 +1,7 @@
 <script>
+  import { fade, scale } from "svelte/transition";
+  import { d, DUR } from "$lib/motion.js";
+
   // Generic table for bet-selection games (baccarat/roulette/sic-bo). Shows the
   // round OUTCOME the game provides (a headline + optional labeled card hands),
   // and each seat's BETS + result. No per-game code.
@@ -26,15 +29,15 @@
 
     <div class="outcome">
       {#if outcome}
-        <div class="headline">{outcome.headline}</div>
+        <div class="headline" transition:fade={{ duration: d(DUR.base) }}>{outcome.headline}</div>
         {#if outcome.hands}
           <div class="ohands">
             {#each outcome.hands as h}
               <div class="ohand">
                 <div class="hl">{h.label}</div>
                 <div class="cards">
-                  {#each h.cards as c}
-                    <span class="card" class:red={c[1] === "d" || c[1] === "h"}>{c[0]}<span class="suit">{SUIT[c[1]]}</span></span>
+                  {#each h.cards as c, i (c + '-' + i)}
+                    <span class="card" class:red={c[1] === "d" || c[1] === "h"} in:scale={{ start: 0.6, duration: d(DUR.base), delay: d(i * 35) }}>{c[0]}<span class="suit">{SUIT[c[1]]}</span></span>
                   {/each}
                 </div>
               </div>
@@ -57,7 +60,7 @@
             {#if bets && bets.length}
               <div class="bets">{#each bets as b}<span class="betchip">{b.option} {b.amount.toLocaleString()}</span>{/each}</div>
             {:else}<span class="muted small">—</span>{/if}
-            {#if oc && oc.delta !== 0}<div class="outc {oc.outcome}">{oc.delta > 0 ? "+" + oc.delta : oc.delta}</div>{/if}
+            {#if oc && oc.delta !== 0}<div class="outc {oc.outcome}" transition:fade={{ duration: d(DUR.base) }}>{oc.delta > 0 ? "+" + oc.delta : oc.delta}</div>{/if}
           {:else}
             <button class="btn btn-secondary btn-sm sit" onclick={() => onSit(seatNo)}>Sit</button>
           {/if}

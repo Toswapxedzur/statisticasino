@@ -1,4 +1,7 @@
 <script>
+  import { fade, scale } from "svelte/transition";
+  import { d, DUR } from "$lib/motion.js";
+
   // Felt for hold-and-draw games (Video Poker). No dealer/community — each seat has
   // its own five-card hand, plus a paytable reference. The interactive hold/draw
   // lives in VideoPokerBar; this just renders hands + outcomes.
@@ -34,12 +37,12 @@
             <div class="who"><span class="nm">{s.name}</span><span class="stk">{s.stack.toLocaleString()}</span></div>
             <div class="cards">
               {#if hand && hand.cards.length}
-                {#each hand.cards as c}
-                  <span class="card" class:red={c[1] === "d" || c[1] === "h"}>{c[0]}<span class="suit">{SUIT[c[1]]}</span></span>
+                {#each hand.cards as c, i (c + '-' + i)}
+                  <span class="card" class:red={c[1] === "d" || c[1] === "h"} in:scale={{ start: 0.6, duration: d(DUR.base), delay: d(i * 35) }}>{c[0]}<span class="suit">{SUIT[c[1]]}</span></span>
                 {/each}
               {:else}<span class="muted small">—</span>{/if}
             </div>
-            {#if oc}<div class="outc {oc.outcome}">{oc.hand ? oc.hand + " " : ""}{oc.delta > 0 ? "+" + oc.delta : oc.delta}</div>{/if}
+            {#if oc}<div class="outc {oc.outcome}" transition:fade={{ duration: d(DUR.base) }}>{oc.hand ? oc.hand + " " : ""}{oc.delta > 0 ? "+" + oc.delta : oc.delta}</div>{/if}
           {:else}
             <button class="btn btn-secondary btn-sm sit" onclick={() => onSit(seatNo)}>Sit</button>
           {/if}

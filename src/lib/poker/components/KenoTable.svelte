@@ -1,4 +1,7 @@
 <script>
+  import { fade, scale } from "svelte/transition";
+  import { d, DUR } from "$lib/motion.js";
+
   // Keno felt: the 20 drawn numbers (once revealed) and each seat's ticket with
   // caught spots highlighted, plus the result. No dealer.
 
@@ -24,7 +27,7 @@
 
     <div class="drawn">
       {#if drawn.length}
-        {#each drawn as n}<span class="dnum">{n}</span>{/each}
+        {#each drawn as n, i (n)}<span class="dnum" in:scale={{ start: 0.6, duration: d(DUR.base), delay: d(i * 35) }}>{n}</span>{/each}
       {:else}<span class="muted waiting">Mark your ticket…</span>{/if}
     </div>
 
@@ -41,7 +44,7 @@
               <div class="muted small">bet {t.amount.toLocaleString()}</div>
             {:else}<span class="muted small">—</span>{/if}
             {#if oc && oc.outcome !== "skip"}
-              <div class="outc {oc.outcome}">{oc.catches != null ? oc.catches + " caught · " : ""}{oc.delta > 0 ? "+" + oc.delta : oc.delta}</div>
+              <div class="outc {oc.outcome}" transition:fade={{ duration: d(DUR.base) }}>{oc.catches != null ? oc.catches + " caught · " : ""}{oc.delta > 0 ? "+" + oc.delta : oc.delta}</div>
             {/if}
           {:else}
             <button class="btn btn-secondary btn-sm sit" onclick={() => onSit(seatNo)}>Sit</button>
