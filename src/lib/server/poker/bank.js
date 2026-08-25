@@ -283,6 +283,18 @@ export async function reconcileEscrowOnBoot() {
 // automatically if that connection dies.
 let _leaseConn = null;
 let _leaseReleasing = false; // true during an intentional release (not a fault)
+let _leaseKeepalive = null;  // interval handle for the idle-timeout keepalive
+
+// How often to ping the lease connection. It holds no traffic of its own, so MySQL
+// / RDS would close it after `wait_timeout` (seen at ~8h on this RDS), dropping the
+// GET_LOCK and forcing a fail-stop restart that tears down every live table. A
+// trivial `SELECT 1` on a short interval keeps it warm forever. 4 min is far under
+// any realistic wait_timeout while costing essentially nothing.
+export const LEASE_KEEPALIVE_MS = 4 * 60 * 1000;
+
+function _clearLeaseKeepalive() {
+  if (_leaseKeepalive) { clearInterval(_leaseKeepalive); _leaseKeepalive = null; }
+}
 
 // Try to become the sole poker instance. Returns true if we now hold the lease
 // (caller may reconcile + serve poker), false if another live process holds it
@@ -307,10 +319,21 @@ export async function acquireInstanceLease(onLost = null) {
     _leaseConn = conn; // hold it — do NOT release back to the pool
     conn.on("error", (e) => {
       _leaseConn = null;
+      _clearLeaseKeepalive();
       if (_leaseReleasing) return; // expected during releaseInstanceLease()
       console.error("[riverside] instance-lease connection lost — poker singleton lock is gone:", e?.message || e);
       if (onLost) onLost(e);
     });
+    // Keep the connection from idling out (see LEASE_KEEPALIVE_MS). A failed ping
+    // means the connection is already gone — the `error` handler above then fires
+    // the fail-stop — so the ping just swallows its own rejection. unref() so this
+    // timer never keeps the process alive on shutdown.
+    _clearLeaseKeepalive();
+    _leaseKeepalive = setInterval(() => {
+      const c = _leaseConn;
+      if (c) Promise.resolve(c.query("SELECT 1")).catch(() => {});
+    }, LEASE_KEEPALIVE_MS);
+    _leaseKeepalive.unref?.();
     return true;
   } catch (err) {
     try { conn.release(); } catch { /* noop */ }
@@ -322,6 +345,7 @@ export async function acquireInstanceLease(onLost = null) {
 // immediately (no wait for MySQL to time out the dead connection).
 export async function releaseInstanceLease() {
   const conn = _leaseConn;
+  _clearLeaseKeepalive();
   if (!conn) return;
   _leaseReleasing = true;
   _leaseConn = null;
