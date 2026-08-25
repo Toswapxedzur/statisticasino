@@ -753,6 +753,41 @@
   /* The felt itself + all its descendants (seats, chips, pot, board,
      scrubber, ticks) are styled by /replay-engine/replay-felt.css. We
      only style the website-only "contributors" disclosure below it. */
+
+  /* The inner replay table is deliberately NOT part of the site redesign.
+     replay-felt.css reads the shared design tokens (--border-strong, --accent,
+     --btn*, --muted, …), and the app-wide font/heading changes cascade in too —
+     so we pin the ORIGINAL pre-redesign palette + font on the replay widget.
+     Custom properties + font-family cascade into the @html felt, leaving the
+     table exactly as it was while the rest of /data follows the new theme. */
+  .replay-inline {
+    --bg: #0d141d;
+    --surface: #131c28;
+    --surface-hover: #1a2330;
+    --row: transparent;
+    --border: #1f2a3a;
+    --border-strong: #2a3a52;
+    --text: #f3f6fb;
+    --muted: #8ea3bd;
+    --accent: #6dc6e8;
+    --accent-soft: rgba(109, 198, 232, 0.14);
+    --accent-strong: rgba(109, 198, 232, 0.42);
+    --btn: #a9dcef;
+    --btn-hover: #c2e6f4;
+    --btn-text: #0d141d;
+    --danger: #f87171;
+    --ok: #4ade80;
+    --hero: #ef4444;
+    --hero-soft: rgba(239, 68, 68, 0.18);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  .replay-inline :global(h1),
+  .replay-inline :global(h2),
+  .replay-inline :global(h3) {
+    font-family: inherit;
+    letter-spacing: normal;
+  }
+
   .contributors { margin-top: 10px; }
   .contributors ul { margin: 6px 0 0 18px; padding: 0; font-size: 12px; }
   .badge {
