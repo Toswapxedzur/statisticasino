@@ -52,7 +52,7 @@
 
   {#if myTurn && combo}
     <div class="acts">
-      {#if canPass}<button class="btn ghost" onclick={() => onAct({ type: "pass" })}>Pass</button>{/if}
+      {#if canPass}<button class="btn btn-secondary ghost" onclick={() => onAct({ type: "pass" })}>Pass</button>{/if}
       <button class="btn primary" onclick={() => selected.length && onAct({ type: "play", cards: [...selected] })} disabled={!selected.length}>Play {selected.length || ""}</button>
     </div>
   {:else if myTurn && canDraw}
@@ -65,7 +65,7 @@
       {#each ["c", "d", "h", "s"] as su}
         <button class="suitbtn" class:red={isRed(su)} onclick={() => { onAct({ type: "play", card: pendingEight, suit: su }); pendingEight = null; }}>{SUIT[su]}</button>
       {/each}
-      <button class="btn ghost" onclick={() => (pendingEight = null)}>Cancel</button>
+      <button class="btn btn-secondary ghost" onclick={() => (pendingEight = null)}>Cancel</button>
     </div>
   {/if}
 </section>
@@ -73,30 +73,34 @@
 <style>
   .shedbar {
     max-width: 680px; margin: 8px auto 4px; padding: 12px 16px;
-    background: var(--surface, #16161c); border: 1px solid var(--border, #333);
-    border-radius: 12px; display: flex; flex-direction: column; gap: 10px;
+    background: var(--surface); box-shadow: var(--shadow-card);
+    border-radius: var(--r-card); display: flex; flex-direction: column; gap: 10px;
   }
-  .lbl { font-size: 13px; color: var(--muted, #9aa); text-align: center; }
-  .lbl .red { color: #e06b6b; }
+  .lbl { font-size: 13px; color: var(--muted); text-align: center; }
+  .lbl .red { color: var(--card-red); }
   .cards { display: flex; gap: 5px; justify-content: center; flex-wrap: wrap; }
-  .scard { appearance: none; background: transparent; border: none; padding: 0; cursor: default; transition: transform 0.08s; }
+  .scard { appearance: none; background: transparent; padding: 0; cursor: default; transition: transform var(--dur) var(--ease); }
   .face {
-    display: inline-flex; align-items: center; gap: 1px; background: #fbfbfd; color: #1a1a1a;
+    display: inline-flex; align-items: center; gap: 1px; background: var(--card-face); color: var(--card-ink);
     border-radius: 7px; padding: 8px 9px; font-weight: 800; font-size: 17px; line-height: 1;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.3); border: 2px solid transparent;
+    box-shadow: var(--shadow-card);
+    transition: box-shadow var(--dur) var(--ease), opacity var(--dur) var(--ease);
   }
-  .face.red { color: #c0392b; }
+  .face.red { color: var(--card-red); }
   .suit { font-size: 0.85em; }
   .scard.playable { cursor: pointer; }
-  .scard.playable .face { border-color: var(--accent, #6cf); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #6cf) 35%, transparent), 0 2px 5px rgba(0,0,0,0.3); }
+  .scard.playable .face { box-shadow: 0 0 0 2px var(--accent), var(--shadow-card); }
   .scard.sel { transform: translateY(-8px); }
-  .scard.sel .face { border-color: #ffd166; box-shadow: 0 0 0 3px rgba(255,209,102,0.5), 0 2px 5px rgba(0,0,0,0.3); }
+  .scard.sel .face { box-shadow: 0 0 0 3px var(--gold-ink), var(--shadow-card); }
   .scard.dim .face { opacity: 0.45; }
   .acts { display: flex; gap: 12px; justify-content: center; }
   .suitpick { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; font-size: 13px; }
-  .suitbtn { appearance: none; cursor: pointer; border: 1px solid var(--border, #333); background: #fbfbfd; color: #1a1a1a; border-radius: 8px; padding: 6px 12px; font-size: 18px; font-weight: 800; }
-  .suitbtn.red { color: #c0392b; }
-  .btn.primary { background: var(--hero, #2e7d55); color: #fff; }
-  .btn.ghost { background: transparent; }
-  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .suitbtn {
+    appearance: none; cursor: pointer; background: var(--card-face); color: var(--card-ink);
+    border-radius: var(--r-btn); padding: 6px 12px; font-size: 18px; font-weight: 800;
+    box-shadow: var(--shadow-card);
+    transition: box-shadow var(--dur) var(--ease), transform var(--dur) var(--ease);
+  }
+  .suitbtn:hover { box-shadow: var(--shadow-hover); transform: translateY(-1px); }
+  .suitbtn.red { color: var(--card-red); }
 </style>

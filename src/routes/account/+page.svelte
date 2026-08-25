@@ -169,7 +169,7 @@
     <form method="POST" action="?/promote">
       <label class="field">
         <span>User</span>
-        <select name="userId" required style="background:var(--bg);border:1px solid var(--border-strong);color:var(--text);border-radius:6px;padding:6px 10px">
+        <select name="userId" required class="admin-select">
           {#each data.allUsers.filter((u) => !u.is_admin) as u (u.id)}
             <option value={u.id}>{u.email}{#if u.display_name} ({u.display_name}){/if}</option>
           {/each}
@@ -207,8 +207,7 @@
   .badges { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
   .badge {
     display: flex; flex-direction: column; gap: 3px; padding: 10px 12px;
-    border: 1px solid var(--border, rgba(255,255,255,0.1)); border-radius: 10px;
-    background: rgba(255,255,255,0.03);
+    border-radius: var(--r-btn); background: var(--well); box-shadow: var(--shadow-card);
   }
   .badge.locked { opacity: 0.5; }
   .badge-ico { font-size: 20px; }
@@ -216,16 +215,12 @@
   .badge-desc { font-size: 11.5px; line-height: 1.3; }
   .chip-ico.big {
     width: 20px; height: 20px; border-radius: 50%; align-self: center;
-    background: radial-gradient(circle at 35% 30%, #ffe08a, #f5b301 60%, #b8860b);
-    box-shadow: 0 0 0 2px rgba(255,255,255,0.15) inset; display: inline-block;
+    background: var(--gold-ink); box-shadow: inset 0 0 0 3px var(--gold-bg); display: inline-block;
   }
   .sub { margin: 16px 0 6px; font-size: 13px; color: var(--muted); }
   .ledger { list-style: none; margin: 0; padding: 0; font-size: 13px; }
   .led-ts { font-size: 11.5px; }
-  .pos { color: #33d17a; font-variant-numeric: tabular-nums; }
-  .neg { color: #e06c75; font-variant-numeric: tabular-nums; }
-  .adjust-form .admin-select {
-    background: var(--bg); border: 1px solid var(--border-strong);
-    color: var(--text); border-radius: 6px; padding: 6px 10px; width: 100%;
-  }
+  .pos { color: var(--ok); font-variant-numeric: tabular-nums; }
+  .neg { color: var(--danger); font-variant-numeric: tabular-nums; }
+  .admin-select { width: 100%; }
 </style>

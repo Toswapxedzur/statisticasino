@@ -54,7 +54,7 @@
             {/if}
             {#if oc}<div class="outc {oc.outcome}">{oc.outcome === "win" ? "🏆 " : ""}{oc.delta > 0 ? "+" + oc.delta : oc.delta}</div>{/if}
           {:else}
-            <button class="btn btn-sm sit" onclick={() => onSit(seatNo)}>Sit</button>
+            <button class="btn btn-secondary btn-sm sit" onclick={() => onSit(seatNo)}>Sit</button>
           {/if}
         </div>
       {/each}
@@ -65,39 +65,37 @@
 <style>
   .felt-shell { display: flex; justify-content: center; padding: 10px 0 20px; }
   .felt {
-    width: min(900px, 96vw); min-height: 300px; padding: 22px; border-radius: 24px;
-    background: radial-gradient(ellipse at center, #2e7d55 0%, #1f6043 70%, #17402f 100%);
-    border: 12px solid #5b3a24; box-shadow: inset 0 0 60px rgba(0,0,0,0.4), 0 20px 40px rgba(0,0,0,0.35);
-    display: flex; flex-direction: column; gap: 18px; color: #eafaf1;
+    width: min(900px, 96vw); min-height: 300px; padding: 22px; border-radius: var(--r-panel);
+    display: flex; flex-direction: column; gap: 18px; color: var(--text);
   }
   .pile { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; }
   .pilecards { display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; }
   .card {
-    display: inline-flex; align-items: center; gap: 1px; background: #fbfbfd; color: #1a1a1a;
-    border-radius: 8px; padding: 8px 10px; font-weight: 800; font-size: 20px; line-height: 1; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    display: inline-flex; align-items: center; gap: 1px; background: var(--card-face); color: var(--card-ink);
+    border-radius: 8px; padding: 8px 10px; font-weight: 800; font-size: 20px; line-height: 1; box-shadow: var(--shadow-card); margin-bottom: 0;
   }
   .card.big { font-size: 30px; padding: 14px 16px; }
-  .card.red, .red { color: #c0392b; }
+  .card.red, .red { color: var(--card-red); }
   .suit { font-size: 0.85em; }
   .pilenote { font-size: 12px; opacity: 0.85; }
   .waiting { font-size: 14px; }
   .seats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
   .seat {
-    background: rgba(0,0,0,0.22); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px;
+    background: var(--surface); border-radius: var(--r-card); box-shadow: var(--shadow-card);
     padding: 10px; min-height: 84px; display: flex; flex-direction: column; gap: 6px; align-items: center; justify-content: center;
+    transition: background-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), transform var(--dur) var(--ease);
   }
-  .seat.toact { border-color: #ffd166; box-shadow: 0 0 0 2px rgba(255,209,102,0.35); }
-  .seat.mine { background: rgba(108,207,255,0.12); }
-  .seat.won { border-color: #7be0a0; box-shadow: 0 0 0 2px rgba(123,224,160,0.4); }
+  .seat.toact { box-shadow: 0 0 0 2px var(--accent), var(--shadow-card); transform: translateY(-1px); }
+  .seat.mine { background: var(--surface-2); }
+  .seat.won { box-shadow: 0 0 0 2px var(--ok), var(--shadow-card); }
   .who { display: flex; justify-content: space-between; width: 100%; font-size: 12.5px; gap: 8px; }
   .nm { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .stk { font-variant-numeric: tabular-nums; opacity: 0.85; }
   .backs { display: flex; align-items: center; gap: 1px; flex-wrap: wrap; justify-content: center; }
-  .back { font-size: 22px; color: #274b8f; }
+  .back { font-size: 22px; color: var(--accent-ink); }
   .cnt { font-size: 12px; font-weight: 700; margin-left: 4px; opacity: 0.9; }
   .count { font-size: 12px; opacity: 0.85; }
   .outc { font-size: 12.5px; font-weight: 800; }
-  .outc.win { color: #7be0a0; }
-  .outc.lose { color: #ffb3b8; }
-  .sit { background: rgba(255,255,255,0.9); color: #143; }
+  .outc.win { color: var(--ok); }
+  .outc.lose { color: var(--danger); }
 </style>

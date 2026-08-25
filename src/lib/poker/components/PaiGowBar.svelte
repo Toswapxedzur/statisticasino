@@ -28,7 +28,7 @@
     {/each}
   </div>
   <div class="acts">
-    <button class="btn" onclick={() => onAct({ type: "set", auto: true })}>Auto (house way)</button>
+    <button class="btn btn-secondary" onclick={() => onAct({ type: "set", auto: true })}>Auto (house way)</button>
     <button class="btn primary" onclick={() => front.length === 2 && onAct({ type: "set", front: [...front] })} disabled={front.length !== 2}>Set hand</button>
   </div>
 </section>
@@ -36,26 +36,26 @@
 <style>
   .pgbar {
     max-width: 620px; margin: 8px auto 4px; padding: 14px 16px;
-    background: var(--surface, #16161c); border: 1px solid var(--border, #333);
-    border-radius: 12px; display: flex; flex-direction: column; gap: 12px;
+    background: var(--surface); box-shadow: var(--shadow-card);
+    border-radius: var(--r-card); display: flex; flex-direction: column; gap: 12px;
   }
-  .lbl { font-size: 13px; color: var(--muted, #9aa); text-align: center; }
+  .lbl { font-size: 13px; color: var(--muted); text-align: center; }
   .cards { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
   .pcard {
-    appearance: none; cursor: pointer; border: 2px solid transparent; background: transparent;
-    border-radius: 10px; padding: 3px; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    appearance: none; cursor: pointer; background: transparent;
+    border-radius: var(--r-btn); padding: 3px; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    transition: transform var(--dur) var(--ease);
   }
   .face {
-    display: inline-flex; align-items: center; gap: 1px; background: #fbfbfd; color: #1a1a1a;
+    display: inline-flex; align-items: center; gap: 1px; background: var(--card-face); color: var(--card-ink);
     border-radius: 7px; padding: 9px 9px; font-weight: 800; font-size: 18px; line-height: 1;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.3); min-width: 30px; justify-content: center;
+    box-shadow: var(--shadow-card); min-width: 30px; justify-content: center;
+    transition: box-shadow var(--dur) var(--ease);
   }
-  .face.red { color: #c0392b; }
+  .face.red { color: var(--card-red); }
   .suit { font-size: 0.85em; }
-  .tag { font-size: 9.5px; letter-spacing: 0.5px; height: 12px; color: var(--accent, #6cf); font-weight: 800; }
-  .pcard.sel { border-color: var(--accent, #6cf); }
-  .pcard.sel .face { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #6cf) 40%, transparent), 0 2px 5px rgba(0,0,0,0.3); }
+  .tag { font-size: 9.5px; letter-spacing: 0.5px; height: 12px; color: var(--accent-ink); font-weight: 800; }
+  .pcard.sel { transform: translateY(-2px); }
+  .pcard.sel .face { box-shadow: 0 0 0 3px var(--accent), var(--shadow-card); }
   .acts { display: flex; gap: 12px; justify-content: center; }
-  .btn.primary { background: var(--hero, #2e7d55); color: #fff; }
-  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

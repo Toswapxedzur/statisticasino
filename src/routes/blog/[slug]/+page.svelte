@@ -23,25 +23,26 @@
   .post-body :global(h3) { margin-top: 22px; font-size: 16px; }
   .post-body :global(p), .post-body :global(li) { line-height: 1.6; }
   .post-body :global(code) {
-    background: var(--bg); border: 1px solid var(--border);
+    background: var(--well);
     padding: 1px 5px; border-radius: 4px;
     font-family: ui-monospace, Menlo, monospace; font-size: 12.5px;
   }
   .post-body :global(pre) {
-    background: var(--bg); border: 1px solid var(--border);
-    padding: 12px; border-radius: 8px; overflow-x: auto;
+    background: var(--well); box-shadow: var(--shadow-card);
+    padding: 12px; border-radius: var(--r-btn); overflow-x: auto;
   }
-  .post-body :global(pre code) { background: transparent; border: 0; padding: 0; }
-  .post-body :global(a) { color: var(--accent); }
+  .post-body :global(pre code) { background: transparent; padding: 0; }
+  .post-body :global(a) { color: var(--accent-ink); }
   .post-body :global(blockquote) {
-    border-left: 3px solid var(--accent-strong);
-    margin: 12px 0; padding: 4px 12px;
+    box-shadow: inset 3px 0 0 var(--accent);
+    background: var(--accent-soft); border-radius: var(--r-btn);
+    margin: 12px 0; padding: 8px 12px;
     color: var(--muted);
   }
 
   /* Markdown tables (used for contingency tables, summary tables, etc.) */
   .post-body :global(table) {
-    border-collapse: collapse;
+    border-spacing: 0 4px;
     margin: 14px 0;
     font-size: 13.5px;
     overflow-x: auto;
@@ -52,13 +53,13 @@
     background: var(--surface);
   }
   .post-body :global(th), .post-body :global(td) {
-    border: 1px solid var(--border);
+    background: var(--well);
     padding: 6px 10px;
     text-align: left;
     vertical-align: top;
   }
   .post-body :global(tbody tr:nth-child(even)) {
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--surface-2);
   }
 
   /* KaTeX math: inherit the post text color (KaTeX defaults to black) and

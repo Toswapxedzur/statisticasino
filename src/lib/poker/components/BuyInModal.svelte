@@ -51,7 +51,7 @@
   >
     <div class="card-head">
       <h3>Buy in — seat {seat}</h3>
-      <button class="x" aria-label="Close" onclick={onCancel}>✕</button>
+      <button class="x btn btn-secondary btn-xs" aria-label="Close" onclick={onCancel}>✕</button>
     </div>
 
     <p class="muted sub">
@@ -63,8 +63,9 @@
       <div class="muted amount-label">chips at the table</div>
 
       <input
-        class="slider"
+        class="rng"
         type="range"
+        style="--fill:{((amount - min) / Math.max(1, Math.max(min, max) - min)) * 100}%"
         min={min}
         max={Math.max(min, max)}
         step="1"
@@ -119,26 +120,15 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.6);
+    background: color-mix(in srgb, var(--bg) 72%, transparent);
     padding: 16px;
   }
   .modal {
     width: 100%;
     max-width: 380px;
     margin: 0;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    box-shadow: var(--shadow-panel);
   }
-  .x {
-    appearance: none;
-    background: transparent;
-    border: 0;
-    color: var(--muted);
-    font-size: 15px;
-    cursor: pointer;
-    padding: 2px 6px;
-    line-height: 1;
-  }
-  .x:hover { color: var(--text); }
   .sub { margin: 0 0 14px; font-size: 12.5px; }
   .amount {
     text-align: center;
@@ -151,11 +141,6 @@
     text-align: center;
     font-size: 11.5px;
     margin-bottom: 14px;
-  }
-  .slider {
-    width: 100%;
-    accent-color: var(--accent);
-    cursor: pointer;
   }
   .bounds {
     display: flex;

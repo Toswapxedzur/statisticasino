@@ -140,7 +140,7 @@
   >
     <div class="card-head">
       <h3>{isBanked ? "New " + modeLabel + " table" : "New table"}</h3>
-      <button class="x" aria-label="Close" onclick={onCancel}>✕</button>
+      <button class="x btn btn-secondary btn-xs" aria-label="Close" onclick={onCancel}>✕</button>
     </div>
 
     <label class="field">
@@ -257,8 +257,9 @@
       {#if canAfford}
         <div class="amount">{buyin.toLocaleString()}</div>
         <input
-          class="slider"
+          class="rng"
           type="range"
+          style="--fill:{((buyin - rangeMin) / Math.max(1, Math.max(rangeMin, buyinCeil) - rangeMin)) * 100}%"
           min={rangeMin}
           max={Math.max(rangeMin, buyinCeil)}
           step="1"
@@ -304,18 +305,13 @@
   .modal-overlay {
     position: fixed; inset: 0; z-index: 100;
     display: flex; align-items: center; justify-content: center;
-    background: rgba(0, 0, 0, 0.6); padding: 16px;
+    background: color-mix(in srgb, var(--bg) 72%, transparent); padding: 16px;
   }
   .modal {
     width: 100%; max-width: 420px; margin: 0;
     max-height: calc(100vh - 32px); overflow-y: auto;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    box-shadow: var(--shadow-panel);
   }
-  .x {
-    appearance: none; background: transparent; border: 0; color: var(--muted);
-    font-size: 15px; cursor: pointer; padding: 2px 6px; line-height: 1;
-  }
-  .x:hover { color: var(--text); }
 
   .field { display: block; font-size: 12.5px; color: var(--muted); margin-bottom: 14px; }
   .field input[type="text"], .field input[type="number"] { width: 100%; margin-top: 6px; }
@@ -325,12 +321,12 @@
 
   .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
   .chip {
-    appearance: none; background: transparent; border: 1px solid var(--border);
-    color: var(--text); border-radius: 8px; padding: 7px 12px; font-size: 13px;
-    cursor: pointer; transition: border-color 0.12s, background 0.12s;
+    appearance: none; background: var(--well);
+    color: var(--text); border-radius: var(--r-btn); padding: 7px 12px; font-size: 13px;
+    cursor: pointer; transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), transform var(--dur) var(--ease);
   }
-  .chip:hover { border-color: var(--accent); }
-  .chip.on { border-color: var(--accent); background: var(--accent); color: #0b0b0b; font-weight: 600; }
+  .chip:hover { background: var(--surface-2); transform: translateY(-1px); }
+  .chip.on { background: var(--accent); color: var(--on-accent); box-shadow: 0 0 0 2px var(--accent-soft); font-weight: 600; }
 
   .toggle {
     display: flex; align-items: center; gap: 8px;
@@ -340,15 +336,13 @@
   .hint { font-size: 12px; margin: 0 0 14px; line-height: 1.4; }
 
   .amount { text-align: center; font-size: 30px; font-weight: 700; color: var(--accent); letter-spacing: 0.5px; margin: 8px 0 4px; }
-  .slider { width: 100%; accent-color: var(--accent); cursor: pointer; }
   .bounds { display: flex; justify-content: space-between; font-size: 11.5px; margin: 4px 0 10px; }
   .exact { width: 100%; }
 
   .short { font-size: 13px; line-height: 1.5; margin: 8px 0 0; color: var(--text); }
-  .short a { color: var(--accent); }
+  .short a { color: var(--accent-ink); }
 
   .wallet { font-size: 12px; margin-bottom: 14px; }
   .actions { display: flex; justify-content: flex-end; gap: 8px; }
   .actions .btn { text-decoration: none; }
-  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

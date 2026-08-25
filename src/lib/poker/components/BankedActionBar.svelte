@@ -34,7 +34,15 @@
   {#if wager}
     <div class="bet-row">
       <span class="lbl">{wager.type === "ante" ? "Ante" : "Your bet"}</span>
-      <input class="slider" type="range" min={wager.min} max={wager.max} step="1" bind:value={amt} />
+      <input
+        class="rng wager-range"
+        type="range"
+        style="--fill:{((amt - wager.min) / Math.max(1, wager.max - wager.min)) * 100}%"
+        min={wager.min}
+        max={wager.max}
+        step="1"
+        bind:value={amt}
+      />
       <span class="amt">{amt.toLocaleString()}</span>
       <button class="btn primary" onclick={() => onAct({ type: wager.type, amount: amt })}>
         {wager.type === "ante" ? "Ante" : "Bet"}
@@ -43,14 +51,18 @@
     <div class="quick">
       {#each [wager.min, wager.min * 2, wager.min * 5, wager.max] as q}
         {#if q >= wager.min && q <= wager.max}
-          <button class="btn btn-sm ghost" onclick={() => (amt = q)}>{q.toLocaleString()}</button>
+          <button class="btn btn-secondary btn-sm ghost" onclick={() => (amt = q)}>{q.toLocaleString()}</button>
         {/if}
       {/each}
     </div>
   {:else}
     <div class="acts">
       {#each decisions as a}
-        <button class="btn {primary(a.type) ? 'primary' : ghost(a.type) ? 'ghost' : ''}" onclick={() => onAct({ type: a.type })}>
+        <button
+          class="btn {primary(a.type) ? 'primary' : ghost(a.type) ? 'ghost' : ''}"
+          class:btn-secondary={ghost(a.type)}
+          onclick={() => onAct({ type: a.type })}
+        >
           {label(a)}
         </button>
       {/each}
@@ -61,16 +73,13 @@
 <style>
   .actionbar {
     max-width: 620px; margin: 8px auto 4px; padding: 12px 16px;
-    background: var(--surface, #16161c); border: 1px solid var(--border, #333);
-    border-radius: 12px; display: flex; flex-direction: column; gap: 10px;
+    background: var(--surface); box-shadow: var(--shadow-card);
+    border-radius: var(--r-card); display: flex; flex-direction: column; gap: 10px;
   }
   .bet-row { display: flex; align-items: center; gap: 12px; }
   .lbl { font-size: 13px; color: var(--muted); flex: 0 0 auto; }
-  .slider { flex: 1; accent-color: var(--accent, #6cf); cursor: pointer; }
+  .wager-range { flex: 1; min-width: 0; }
   .amt { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 64px; text-align: right; }
   .quick { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
   .acts { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
-  .btn.primary { background: var(--hero, #2e7d55); color: #fff; }
-  .btn.ghost { background: transparent; }
-  .btn-sm { padding: 5px 12px; font-size: 12px; }
 </style>

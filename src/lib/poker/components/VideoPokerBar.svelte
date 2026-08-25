@@ -36,26 +36,27 @@
 <style>
   .vpbar {
     max-width: 560px; margin: 8px auto 4px; padding: 14px 16px;
-    background: var(--surface, #16161c); border: 1px solid var(--border, #333);
-    border-radius: 12px; display: flex; flex-direction: column; gap: 12px;
+    background: var(--surface); box-shadow: var(--shadow-card);
+    border-radius: var(--r-card); display: flex; flex-direction: column; gap: 12px;
   }
   .cards { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
   .vcard {
-    appearance: none; cursor: pointer; border: 2px solid transparent; background: transparent;
-    border-radius: 10px; padding: 4px; display: flex; flex-direction: column; align-items: center; gap: 4px;
+    appearance: none; cursor: pointer; background: transparent;
+    border-radius: var(--r-btn); padding: 4px; display: flex; flex-direction: column; align-items: center; gap: 4px;
+    transition: transform var(--dur) var(--ease);
   }
   .face {
-    display: inline-flex; align-items: center; gap: 1px; background: #fbfbfd; color: #1a1a1a;
+    display: inline-flex; align-items: center; gap: 1px; background: var(--card-face); color: var(--card-ink);
     border-radius: 8px; padding: 12px 12px; font-weight: 800; font-size: 22px; line-height: 1;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.3); min-width: 40px; justify-content: center;
+    box-shadow: var(--shadow-card); min-width: 40px; justify-content: center;
+    transition: box-shadow var(--dur) var(--ease);
   }
-  .face.red { color: #c0392b; }
+  .face.red { color: var(--card-red); }
   .suit { font-size: 0.85em; }
-  .tag { font-size: 10.5px; letter-spacing: 0.5px; text-transform: uppercase; color: var(--muted, #9aa); }
-  .vcard.held { border-color: var(--accent, #6cf); }
-  .vcard.held .tag { color: var(--accent, #6cf); font-weight: 800; }
-  .vcard.held .face { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #6cf) 40%, transparent), 0 2px 6px rgba(0,0,0,0.3); }
+  .tag { font-size: 10.5px; letter-spacing: 0.5px; text-transform: uppercase; color: var(--muted); }
+  .vcard.held { transform: translateY(-2px); }
+  .vcard.held .tag { color: var(--accent-ink); font-weight: 800; }
+  .vcard.held .face { box-shadow: 0 0 0 3px var(--accent), var(--shadow-card); }
   .acts { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
   .small { font-size: 12px; }
-  .btn.primary { background: var(--hero, #2e7d55); color: #fff; }
 </style>

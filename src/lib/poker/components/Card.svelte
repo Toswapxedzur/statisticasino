@@ -67,13 +67,8 @@
   .card-loading {
     display: inline-block;
     border-radius: 7px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px dashed rgba(255, 255, 255, 0.14);
+    background: var(--well);
+    box-shadow: var(--shadow-card);
     box-sizing: border-box;
-  }
-  .card-loading.back {
-    background: #17263a;
-    border-style: solid;
-    border-color: rgba(255, 255, 255, 0.12);
   }
 </style>

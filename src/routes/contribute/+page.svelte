@@ -230,21 +230,23 @@
     margin: 12px 0 0;
     padding: 0;
     counter-reset: step-counter;
+    display: grid;
+    gap: 10px;
   }
   .step {
     display: grid;
     grid-template-columns: 36px 1fr;
     gap: 14px;
-    padding: 12px 0;
-    border-top: 1px solid var(--border);
+    padding: 12px;
+    background: var(--well);
+    border-radius: var(--r-card);
   }
-  .step:first-child { border-top: 0; }
   .step-num {
     width: 32px; height: 32px;
     display: flex; align-items: center; justify-content: center;
     border-radius: 999px;
-    background: var(--hero-soft, var(--surface-hover));
-    color: var(--hero);
+    background: var(--accent-soft);
+    color: var(--accent-ink);
     font-weight: 700;
   }
   .step-body h4 {

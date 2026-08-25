@@ -45,7 +45,7 @@
             <span class="chips">{fmt(p.chips)}</span>
             {#if !mine}
               <button
-                class="btn btn-secondary invite"
+                class="btn btn-secondary btn-xs invite"
                 onclick={() => onInvite(p.id)}
               >
                 Invite
@@ -95,31 +95,35 @@
     display: flex;
     flex-direction: column;
     padding-right: 4px;
+    gap: 4px;
   }
   .board {
     display: flex;
     flex-direction: column;
+    gap: 4px;
   }
 
   .prow {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 5px 0;
-    border-top: 1px solid var(--border);
+    padding: 6px 8px;
+    background: var(--well);
+    border-radius: var(--r-btn);
     font-size: 12.5px;
+    transition: background-color var(--dur) var(--ease);
   }
-  .prow:first-child { border-top: 0; }
+  .prow:hover { background: var(--surface-2); }
 
   .lrow {
     display: flex;
     align-items: baseline;
     gap: 8px;
-    padding: 5px 0;
-    border-top: 1px solid var(--border);
+    padding: 6px 8px;
+    background: var(--well);
+    border-radius: var(--r-btn);
     font-size: 12.5px;
   }
-  .lrow:first-child { border-top: 0; }
 
   .name {
     flex: 1 1 auto;
@@ -146,32 +150,25 @@
     max-width: 40%;
     font-size: 10.5px;
     color: var(--muted);
-    background: var(--surface-hover);
-    border: 1px solid var(--border);
-    border-radius: 999px;
+    background: var(--surface-2);
+    border-radius: var(--r-pill);
     padding: 1px 8px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .loc.playing {
-    color: var(--accent);
+    color: var(--accent-ink);
     background: var(--accent-soft);
-    border-color: var(--accent-strong);
   }
 
   .chips {
     flex: 0 0 auto;
-    color: var(--accent);
+    color: var(--gold-ink);
     font-weight: 700;
     font-variant-numeric: tabular-nums;
     text-align: right;
   }
 
-  .invite {
-    flex: 0 0 auto;
-    padding: 3px 10px;
-    font-size: 11.5px;
-    border-radius: 6px;
-  }
+  .invite { flex: 0 0 auto; }
 </style>

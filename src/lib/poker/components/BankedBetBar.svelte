@@ -45,8 +45,8 @@
     {/each}
   </div>
   <div class="acts">
-    <button class="btn ghost" onclick={clear} disabled={total === 0}>Clear</button>
-    <button class="btn" onclick={() => onAct({ type: "bet", bets: [] })}>Skip</button>
+    <button class="btn btn-secondary ghost" onclick={clear} disabled={total === 0}>Clear</button>
+    <button class="btn btn-secondary" onclick={() => onAct({ type: "bet", bets: [] })}>Skip</button>
     <button class="btn primary" onclick={place} disabled={total < minBet}>Place bets</button>
   </div>
 </section>
@@ -54,32 +54,32 @@
 <style>
   .betbar {
     max-width: 640px; margin: 8px auto 4px; padding: 12px 16px;
-    background: var(--surface, #16161c); border: 1px solid var(--border, #333);
-    border-radius: 12px; display: flex; flex-direction: column; gap: 12px;
+    background: var(--surface); box-shadow: var(--shadow-card);
+    border-radius: var(--r-card); display: flex; flex-direction: column; gap: 12px;
   }
   .chiprow { display: flex; align-items: center; gap: 8px; }
   .lbl { font-size: 13px; color: var(--muted); }
   .total { margin-left: auto; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
   .chip {
-    appearance: none; cursor: pointer; border: 1px solid var(--border); background: transparent;
-    color: var(--text); border-radius: 999px; padding: 5px 12px; font-size: 13px; font-weight: 600;
+    appearance: none; cursor: pointer; background: var(--well);
+    color: var(--text); border-radius: var(--r-pill); padding: 5px 12px; font-size: 13px; font-weight: 600;
+    transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), transform var(--dur) var(--ease);
   }
-  .chip.on { border-color: var(--accent, #6cf); background: color-mix(in srgb, var(--accent, #6cf) 18%, transparent); color: var(--accent, #6cf); }
+  .chip:hover { background: var(--surface-2); transform: translateY(-1px); }
+  .chip.on { background: var(--accent-soft); color: var(--accent-ink); box-shadow: 0 0 0 2px var(--accent); }
   .options { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
   .opt {
-    appearance: none; cursor: pointer; border: 1px solid var(--border); background: #10141b; color: var(--text);
-    border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 2px; align-items: center; position: relative;
+    appearance: none; cursor: pointer; background: var(--well); color: var(--text);
+    border-radius: var(--r-btn); padding: 10px; display: flex; flex-direction: column; gap: 2px; align-items: center; position: relative;
+    transition: background-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), transform var(--dur) var(--ease);
   }
-  .opt:hover { border-color: var(--accent, #6cf); }
-  .opt.staked { border-color: var(--accent, #6cf); background: color-mix(in srgb, var(--accent, #6cf) 10%, #10141b); }
+  .opt:hover { background: var(--surface-2); transform: translateY(-1px); }
+  .opt.staked { background: var(--accent-soft); box-shadow: 0 0 0 2px var(--accent); }
   .olabel { font-weight: 700; font-size: 14px; }
   .opay { font-size: 11.5px; color: var(--muted); }
   .ostake {
-    position: absolute; top: -8px; right: -8px; background: #f5b301; color: #0b0b0b;
-    border-radius: 999px; padding: 2px 8px; font-size: 12px; font-weight: 700;
+    position: absolute; top: -8px; right: -8px; background: var(--gold-bg); color: var(--gold-ink);
+    border-radius: var(--r-pill); padding: 2px 8px; font-size: 12px; font-weight: 700;
   }
   .acts { display: flex; gap: 10px; justify-content: flex-end; }
-  .btn.primary { background: var(--hero, #2e7d55); color: #fff; }
-  .btn.ghost { background: transparent; }
-  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>
