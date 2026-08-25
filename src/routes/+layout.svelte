@@ -2,9 +2,27 @@
   import "../app.css";
   import { page } from "$app/stores";
   import { onMount } from "svelte";
+  import { onNavigate } from "$app/navigation";
   import { SITE_NAME } from "$lib/config.js";
   import { poker } from "$lib/poker/client.svelte.js";
   import { slidingIndicator } from "$lib/actions/slider.js";
+  import { reducedMotion, d, DUR } from "$lib/motion.js";
+  import { fly } from "svelte/transition";
+  import Num from "$lib/poker/components/Num.svelte";
+
+  // Smooth slide+fade between main sections via the View Transitions API.
+  // Only <main> (view-transition-name: main-content) animates — the topbar and
+  // its sliding tab indicator stay put and glide on their own. Progressive
+  // enhancement: browsers without the API just navigate; reduced-motion skips it.
+  onNavigate((navigation) => {
+    if (typeof document === "undefined" || !document.startViewTransition || reducedMotion()) return;
+    return new Promise((resolve) => {
+      document.startViewTransition(async () => {
+        resolve();
+        await navigation.complete;
+      });
+    });
+  });
 
   let { data, children } = $props();
 
@@ -80,7 +98,7 @@
     {#if data.user}
       <a class="chips-pill" href="/account" title="Your chips balance">
         <span class="chip-ico"></span>
-        {fmtChips(chips)}
+        <Num value={chips} />
         {#if data.bonusReady}<span class="bonus-dot" title="Daily bonus ready"></span>{/if}
       </a>
       <a class="nav-tab" href="/account" aria-current={isActive("/account") ? "page" : undefined}>
@@ -95,7 +113,7 @@
 </header>
 
 {#if menuOpen}
-  <nav class="mobile-menu" aria-label="Sections">
+  <nav class="mobile-menu" aria-label="Sections" transition:fly={{ y: d(-10), duration: d(DUR.base) }}>
     {#each links as l}
       {#if l.show}
         <a class="m-link" href={l.href} aria-current={isActive(l.href) ? "page" : undefined}>

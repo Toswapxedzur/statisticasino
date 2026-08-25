@@ -1,4 +1,7 @@
 <script>
+  import { fly, fade } from "svelte/transition";
+  import { flip } from "svelte/animate";
+  import { d, DUR } from "$lib/motion.js";
   let { data, form } = $props();
 </script>
 
@@ -19,7 +22,7 @@
     <div class="card-head"><h3>Friend requests ({data.incoming.length})</h3></div>
     <ul class="people">
       {#each data.incoming as p (p.id)}
-        <li class="person">
+        <li class="person" in:fly={{ y: d(8), duration: d(DUR.base) }} out:fade={{ duration: d(DUR.fast) }} animate:flip={{ duration: d(DUR.base) }}>
           <span class="who"><span class="dot" class:on={p.online}></span>{p.name}</span>
           <span class="actions">
             <form method="POST" action="?/respond" style="margin:0">
@@ -46,7 +49,7 @@
   {:else}
     <ul class="people">
       {#each data.friends as p (p.id)}
-        <li class="person">
+        <li class="person" in:fly={{ y: d(8), duration: d(DUR.base) }} out:fade={{ duration: d(DUR.fast) }} animate:flip={{ duration: d(DUR.base) }}>
           <span class="who">
             <span class="dot" class:on={p.online}></span>{p.name}
             {#if p.tableId}<span class="muted small">· at {p.tableName || "a table"}</span>{/if}
@@ -70,7 +73,7 @@
     <div class="card-head"><h3>Pending sent ({data.outgoing.length})</h3></div>
     <ul class="people">
       {#each data.outgoing as p (p.id)}
-        <li class="person">
+        <li class="person" in:fly={{ y: d(8), duration: d(DUR.base) }} out:fade={{ duration: d(DUR.fast) }} animate:flip={{ duration: d(DUR.base) }}>
           <span class="who muted">{p.name} · awaiting reply</span>
           <form method="POST" action="?/remove" style="margin:0">
             <input type="hidden" name="userId" value={p.id} />

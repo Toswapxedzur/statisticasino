@@ -5,11 +5,18 @@
   // when new ones arrive (unless the user has scrolled up to read history).
   // Mirrors TableChat.svelte so lobby + table chat feel consistent.
 
+  import { onMount } from "svelte";
+  import { fly } from "svelte/transition";
+  import { d, DUR } from "$lib/motion.js";
+
   let { messages = [], onSend = () => {} } = $props();
 
   let draft = $state("");
   let listEl;
   let pinned = true; // stay stuck to the bottom while at the bottom
+  // Gate transitions until after mount so the backlog doesn't all fly in at once.
+  let ready = $state(false);
+  onMount(() => { requestAnimationFrame(() => (ready = true)); });
 
   function fmtTime(ts) {
     if (!ts) return "";
@@ -65,7 +72,7 @@
       <div class="empty muted">No messages yet — say hello.</div>
     {:else}
       {#each messages as m, i (i)}
-        <div class="msg">
+        <div class="msg" in:fly={{ y: d(8), duration: ready ? d(DUR.base) : 0 }}>
           <span class="from">{m.from}</span>
           <span class="text">{m.text}</span>
           <span class="ts muted">{fmtTime(m.ts)}</span>

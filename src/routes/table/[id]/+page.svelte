@@ -22,6 +22,8 @@
   import BuyInModal from "$lib/poker/components/BuyInModal.svelte";
   import TableChat from "$lib/poker/components/TableChat.svelte";
   import { variantLabel, isBanked as isBankedGame, isShedding } from "$lib/poker/games.js";
+  import { fade, fly, scale } from "svelte/transition";
+  import { d, DUR } from "$lib/motion.js";
 
   let { data } = $props();
   const tableId = data.table.id;
@@ -198,7 +200,7 @@
 </section>
 
 {#if toastMsg}
-  <div class="toast {toastMsg.level}" role="status">{toastMsg.text}</div>
+  <div class="toast {toastMsg.level}" role="status" in:fly={{ y: d(-12), duration: d(DUR.base) }} out:fade={{ duration: d(DUR.fast) }}>{toastMsg.text}</div>
 {/if}
 
 {#if view?.tournament}
@@ -321,8 +323,8 @@
 {/if}
 
 {#if rebuyOpen}
-  <div class="modal-backdrop" onclick={() => (rebuyOpen = false)} role="presentation">
-    <div class="modal card" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Rebuy">
+  <div class="modal-backdrop" onclick={() => (rebuyOpen = false)} role="presentation" transition:fade={{ duration: d(DUR.fast) }}>
+    <div class="modal card" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Rebuy" transition:scale={{ start: 0.96, duration: d(DUR.base) }}>
       <h3>Rebuy</h3>
       <p class="muted small">Top up your stack (max {rebuyMax.toLocaleString()} to reach the table cap).</p>
       <input

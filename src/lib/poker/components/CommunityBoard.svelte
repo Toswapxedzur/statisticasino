@@ -1,5 +1,8 @@
 <script>
   import Card from "./Card.svelte";
+  import Num from "./Num.svelte";
+  import { scale } from "svelte/transition";
+  import { d, DUR } from "$lib/motion.js";
 
   // The community cards and the central pot pill.
   //  board     — string[] of revealed community cards (0..5).
@@ -27,7 +30,7 @@
   <div class="slots">
     {#each slots as c, i}
       {#if c}
-        <Card card={c} size="md" />
+        <span class="deal" in:scale={{ start: 0.6, duration: d(DUR.base), delay: d(i * 45) }}><Card card={c} size="md" /></span>
       {:else}
         <Card size="md" />
       {/if}
@@ -37,10 +40,10 @@
   <div class="pot" class:result={!!result}>
     {#if result}
       <span class="pot-lbl">{result.type === "showdown" ? "Showdown" : "Winner"}</span>
-      <span class="pot-amt">{fmt(wonAmount || potTotal)}</span>
+      <span class="pot-amt"><Num value={wonAmount || potTotal} /></span>
     {:else}
       <span class="pot-lbl">Pot</span>
-      <span class="pot-amt">{fmt(potTotal)}</span>
+      <span class="pot-amt"><Num value={potTotal} /></span>
       {#if street}<span class="street">{street}</span>{/if}
     {/if}
   </div>
@@ -54,6 +57,7 @@
     gap: 12px;
   }
   .slots { display: flex; gap: 6px; }
+  .deal { line-height: 0; display: inline-flex; }
 
   .pot {
     display: inline-flex;

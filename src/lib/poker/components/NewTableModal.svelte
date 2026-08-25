@@ -9,6 +9,8 @@
   // bankroll, up to their whole wallet) or plays while a wealthy bot banks.
 
   import { POKER_VARIANTS, variantLabel, isShedding as isSheddingFn } from "$lib/poker/games.js";
+  import { fade, scale } from "svelte/transition";
+  import { d, DUR } from "$lib/motion.js";
 
   let { walletChips = 0, mode = "poker", onCreate = () => {}, onCancel = () => {} } = $props();
 
@@ -130,9 +132,10 @@
 
 <svelte:window onkeydown={onKey} />
 
-<div class="modal-overlay" role="presentation" onclick={onCancel}>
+<div class="modal-overlay" role="presentation" onclick={onCancel} transition:fade={{ duration: d(DUR.fast) }}>
   <div
     class="card modal"
+    transition:scale={{ start: 0.96, duration: d(DUR.base) }}
     role="dialog"
     aria-modal="true"
     aria-label="New table"

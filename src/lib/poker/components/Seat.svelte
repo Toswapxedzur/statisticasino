@@ -1,5 +1,8 @@
 <script>
   import Card from "./Card.svelte";
+  import Num from "./Num.svelte";
+  import { scale, fade } from "svelte/transition";
+  import { d, DUR } from "$lib/motion.js";
 
   // One seat position on the felt.
   //  seat      — a TableView seat object. May be null/absent for an empty seat.
@@ -65,10 +68,10 @@
   {#if seat && seat.userId != null}
     <!-- committed bet chips in front of the seat -->
     {#if seat.committed > 0}
-      <div class="bet"><span class="chip-dot"></span>{fmt(seat.committed)}</div>
+      <div class="bet" in:scale={{ start: 0.7, duration: d(DUR.base) }} out:fade={{ duration: d(DUR.fast) }}><span class="chip-dot"></span><Num value={seat.committed} /></div>
     {/if}
 
-    <div class="pod" class:toact={seat.isToAct}>
+    <div class="pod" class:toact={seat.isToAct} in:scale={{ start: 0.9, duration: d(DUR.base) }} out:fade={{ duration: d(DUR.fast) }}>
       {#if seat.isToAct && deadline}
         <svg class="ring" class:urgent viewBox="0 0 72 72" aria-hidden="true">
           <circle class="ring-bg" cx="36" cy="36" r={R} />
@@ -100,7 +103,7 @@
           {#if !seat.connected}<span class="dot off" title="disconnected"></span>{/if}
         </div>
         <div class="row2">
-          <span class="stack">{fmt(seat.stack)}</span>
+          <span class="stack"><Num value={seat.stack} /></span>
           {#if seat.isToAct && deadline}<span class="secs" class:urgent>{remainSec}s</span>{/if}
         </div>
         <div class="row3">

@@ -1,6 +1,9 @@
 <script>
   import { poker } from "$lib/poker/client.svelte.js";
   import { tick } from "svelte";
+  import { fly, fade } from "svelte/transition";
+  import { flip } from "svelte/animate";
+  import { d, DUR } from "$lib/motion.js";
 
   let { data } = $props();
   let text = $state("");
@@ -46,7 +49,7 @@
     {:else}
       <ul class="convos">
         {#each data.conversations as c (c.id)}
-          <li>
+          <li in:fly={{ x: d(-8), duration: d(DUR.base) }} out:fade={{ duration: d(DUR.fast) }} animate:flip={{ duration: d(DUR.base) }}>
             <a class="convo" class:active={data.active?.id === c.id} href={`/messages?to=${c.id}`}>
               <span class="dot" class:on={c.online}></span>
               <span class="cname">{c.name}</span>
@@ -67,7 +70,7 @@
       </div>
       <div class="messages" bind:this={scroller}>
         {#each messages as m (m.id)}
-          <div class="msg" class:mine={m.mine}>
+          <div class="msg" class:mine={m.mine} in:fade={{ duration: d(DUR.fast) }}>
             <span class="bubble">{m.text}</span>
             <span class="ts muted">{fmt(m.ts)}</span>
           </div>

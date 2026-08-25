@@ -1,4 +1,6 @@
 <script>
+  import { fade, scale } from "svelte/transition";
+  import { d, DUR } from "$lib/motion.js";
   // Buy-in modal (DESIGN.md §3). Pick an amount via slider between
   // config.minBuyin and min(config.maxBuyin, walletChips), then confirm
   // for the chosen seat.
@@ -41,9 +43,10 @@
 
 <svelte:window onkeydown={onKey} />
 
-<div class="modal-overlay" role="presentation" onclick={onCancel}>
+<div class="modal-overlay" role="presentation" onclick={onCancel} transition:fade={{ duration: d(DUR.fast) }}>
   <div
     class="card modal"
+    transition:scale={{ start: 0.96, duration: d(DUR.base) }}
     role="dialog"
     aria-modal="true"
     aria-label="Buy in"

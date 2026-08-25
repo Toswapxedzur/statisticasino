@@ -19,6 +19,9 @@
   import LobbyChat from "$lib/poker/components/LobbyChat.svelte";
   import { GAME_MODES, variantShort, modeOf } from "$lib/poker/games.js";
   import { slidingIndicator } from "$lib/actions/slider.js";
+  import { fade, fly } from "svelte/transition";
+  import { flip } from "svelte/animate";
+  import { d, DUR } from "$lib/motion.js";
 
   let { data } = $props();
 
@@ -93,7 +96,7 @@
   {#if poker.invites.length}
     <section class="invites">
       {#each poker.invites as inv (inv.inviteId)}
-        <div class="card invite-card">
+        <div class="card invite-card" in:fly={{ y: d(-10), duration: d(DUR.base) }} out:fade={{ duration: d(DUR.fast) }} animate:flip={{ duration: d(DUR.base) }}>
           <div class="invite-text">
             <strong>{inv.fromName}</strong> invited you to
             <strong>{inv.tableName || "a table"}</strong>.
@@ -158,7 +161,7 @@
       {:else}
         <div class="table-grid">
           {#each tablesForMode as t (t.id)}
-            <div class="tcard">
+            <div class="tcard" in:fly={{ y: d(10), duration: d(DUR.base) }} out:fade={{ duration: d(DUR.fast) }} animate:flip={{ duration: d(DUR.base) }}>
               <div class="tcard-top">
                 <div>
                   <div class="variant">{t.name}</div>
@@ -188,7 +191,7 @@
             <div class="empty-state"><p class="muted">No tournaments yet — start a Sit &amp; Go (6-max, 500 entry). Empty seats fill with bots.</p></div>
           {:else}
             {#each tournaments as t (t.id)}
-              <div class="trow">
+              <div class="trow" in:fly={{ y: d(10), duration: d(DUR.base) }} out:fade={{ duration: d(DUR.fast) }} animate:flip={{ duration: d(DUR.base) }}>
                 <div class="tcol tmain"><div class="tname">{t.name}</div><div class="tvar">{variantShort(t.variant)}</div></div>
                 <div class="tcol"><span class="lbl">Entry</span><span class="num">{t.entry.toLocaleString()}</span></div>
                 <div class="tcol"><span class="lbl">Prize</span><span class="prize">{t.prizePool.toLocaleString()}</span></div>
