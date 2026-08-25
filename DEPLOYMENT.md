@@ -717,16 +717,23 @@ already owns 3478 on this box):
   `TURN_SECRET=<same secret>`, `TURN_TTL=3600`. The server hands the browser only a
   short-lived HMAC credential derived from the secret (see src/lib/server/voice.js).
 
-**Aliyun Security Group (MUST be opened in the console — no local firewall gates
-it, and there's no aliyun CLI on the box):**
+**Firewall — the HK box is an Aliyun SWAS instance** (Simple Application Server,
+InstanceId `c91a2e4803b74799aa1a0ad774194e77`), so inbound is gated by the **SWAS
+firewall**, not an ECS security group (ECS DescribeInstances in cn-hongkong is
+empty). These two UDP rules were opened (2026-08-25) via the aliyun CLI + the
+`claude-automation` RAM key — **already live**:
 
-| Protocol | Port range | Source |
+| Protocol | Port | Source |
 |---|---|---|
-| UDP | 3479/3479       | 0.0.0.0/0 |
-| UDP | 49152/49200     | 0.0.0.0/0 |
+| UDP | 3479          | 0.0.0.0/0 |
+| UDP | 49152/49200   | 0.0.0.0/0 |
 
-Until those are open, TURN can't relay for external users (voice still works P2P for
-most). Verify from off-box with a STUN binding request to `47.243.163.51:3479`.
+Manage with `aliyun swas-open {ListFirewallRules,CreateFirewallRule,DeleteFirewallRule}
+--profile claude --RegionId cn-hongkong --InstanceId c91a2e4803b74799aa1a0ad774194e77
+--force` (the CLI's swas-open metadata is stale → `--force`; single port = `3479`,
+range = `49152/49200`). Verified end-to-end: external STUN responds and a
+`turnutils_uclient` TURN allocate/relay with the app's ephemeral cred showed 0
+packet loss.
 
 Later hardening: a `turns:` (TLS) listener on 443 needs a cert (certbot) + a
 DNS-only (grey-cloud) record for a TURN subdomain, since TURN is UDP and can't go
