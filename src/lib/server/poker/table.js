@@ -321,7 +321,10 @@ export class LiveTable {
       toActSeat,
       actionDeadline,
       seats,
-      result: this.result ?? null
+      result: this.result ?? null,
+      // Tournament HUD (blind level, prize pool, players left, next level) — null
+      // for cash tables.
+      tournament: this.isTournament && this.tournament ? this.tournament.view() : null
     };
   }
 
@@ -711,26 +714,31 @@ export class LiveTable {
     this.resultPotTotal = potTotal;
 
     // 3. Persist the completed hand (never let a DB error break gameplay).
-    try {
-      await this.store.persistHand({
-        tableId: this.id,
-        handNo: this.handNo,
-        buttonSeat: this.buttonSeat,
-        board: [...hand.board],
-        potTotal,
-        startedAt: this._handStartedAt,
-        endedAt: this.now(),
-        stateJson: JSON.stringify(hand),
-        seats: persistSeats
-      });
-    } catch {
-      /* swallow persistence errors */
+    // Tournament tables aren't in poker_table (ephemeral, T-chip), so persisting a
+    // hand would FK-fail — skip it (their hands aren't part of cash history).
+    if (!this.isTournament) {
+      try {
+        await this.store.persistHand({
+          tableId: this.id,
+          handNo: this.handNo,
+          buttonSeat: this.buttonSeat,
+          board: [...hand.board],
+          potTotal,
+          startedAt: this._handStartedAt,
+          endedAt: this.now(),
+          stateJson: JSON.stringify(hand),
+          seats: persistSeats
+        });
+      } catch {
+        /* swallow persistence errors */
+      }
     }
 
     // Retention: award any hand-based achievements for the human seats. Fire-and-
     // forget (NOT awaited) so it never adds latency to the op-lock or breaks the
-    // hand; the hub handles its own errors.
-    this.hub?.onHandComplete?.(this, { seats: persistSeats, potTotal });
+    // hand; the hub handles its own errors. Skipped for tournaments (T-chip pots
+    // would inflate chip-milestone badges).
+    if (!this.isTournament) this.hub?.onHandComplete?.(this, { seats: persistSeats, potTotal });
 
     // 4. Clear hand-scoped seat fields.
     for (const s of this.seats.values()) {

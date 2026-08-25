@@ -31,6 +31,10 @@ export const C2S = {
   CHAT: "chat",                // { tableId, text }
   WAITLIST_JOIN: "waitlist.join",   // { tableId, buyin } — queue for a full table
   WAITLIST_LEAVE: "waitlist.leave", // { tableId }
+  TOURNEY_CREATE: "tourney.create",     // { name?, variant?, entry, startingStack?, maxSeats?, fillBots? }
+  TOURNEY_REGISTER: "tourney.register", // { tourneyId }
+  TOURNEY_UNREGISTER: "tourney.unregister", // { tourneyId }
+  TOURNEY_START: "tourney.start",       // { tourneyId } — creator starts (fills empties with bots)
   DM_SEND: "dm.send",          // { toUserId, text } — private message to a friend
   DM_READ: "dm.read",          // { withUserId } — mark a conversation read
   VOICE_JOIN: "voice.join",    // { tableId } — join a table's voice mesh

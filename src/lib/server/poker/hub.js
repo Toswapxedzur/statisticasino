@@ -22,6 +22,7 @@ import { areFriends } from "../friends.js";
 import { sendMessage, markRead } from "../dm.js";
 import { iceConfig } from "../voice.js";
 import { LiveTable } from "./table.js";
+import { Tournament } from "./tournament.js";
 import { GameTable } from "./runtime.js";
 import { getGame, isBankedGame } from "./games/registry.js";
 import { VARIANT_KEYS } from "./engine/variants.js";
@@ -38,6 +39,7 @@ export class PokerHub {
     this.invites = new Map();       // inviteId -> {fromUserId,toUserId,tableId,expiresAt}
     this.waitlists = new Map();     // tableId -> [{ userId, name, buyin }] FIFO queue
     this.voiceRooms = new Map();    // tableId -> Map<userId, name> in the voice mesh
+    this.tournaments = new Map();   // tourneyId -> Tournament (each owns a tourney-mode table)
     this.userLocks = new Map();     // userId -> in-flight seat-op promise chain
     this._lobbyGen = 0;             // coalesces overlapping lobby snapshots
     this.shuttingDown = false;      // set during a graceful drain (rejects ops)
@@ -149,7 +151,9 @@ export class PokerHub {
   // else "lobby".
   async lobbySnapshot() {
     const tables = [];
-    for (const t of this.tables.values()) tables.push(this.lobbyTableRow(t));
+    // Tournament-mode tables aren't joinable ring games — they surface in the
+    // Tournaments section instead, so keep them out of the ring-game list.
+    for (const t of this.tables.values()) if (!t.isTournament) tables.push(this.lobbyTableRow(t));
     tables.sort((a, b) => (a.smallBlind - b.smallBlind) || a.name.localeCompare(b.name));
 
     const byUser = new Map();
@@ -193,7 +197,7 @@ export class PokerHub {
       lb = (await leaderboard(LEADERBOARD_SIZE)).map((r) => ({ name: r.name, chips: Number(r.chips) }));
     } catch { /* leaderboard optional */ }
 
-    return { tables, players, leaderboard: lb };
+    return { tables, players, leaderboard: lb, tournaments: this.tournamentRows() };
   }
 
   async pushLobby() {
@@ -710,6 +714,19 @@ export class PokerHub {
           this.relaySignal(conn, msg);
           break;
 
+        case C2S.TOURNEY_CREATE:
+          await this.createTournament(conn, msg);
+          break;
+        case C2S.TOURNEY_REGISTER:
+          await this.registerTournament(conn, msg.tourneyId);
+          break;
+        case C2S.TOURNEY_UNREGISTER:
+          await this.unregisterTournament(conn, msg.tourneyId);
+          break;
+        case C2S.TOURNEY_START:
+          await this.startTournament(conn, msg.tourneyId);
+          break;
+
         case C2S.PONG:
           conn.alive = true;
           break;
@@ -954,6 +971,99 @@ export class PokerHub {
     if (!room || !room.has(conn.user.id) || !room.has(msg.toUserId)) return;
     const frame = encode(S2C.RTC_SIGNAL, { tableId: msg.tableId, fromUserId: conn.user.id, signal: msg.signal });
     for (const c of this.connsForUser(msg.toUserId)) c.send(frame);
+  }
+
+  // ------------------------------------------------------- tournaments (Sit-N-Go)
+
+  tournamentRows() {
+    return [...this.tournaments.values()].map((t) => t.view());
+  }
+
+  // Create a Sit-N-Go: a tournament-mode LiveTable (chips are T-chips, no escrow)
+  // plus a Tournament controller. The creator is auto-registered.
+  async createTournament(conn, cfg) {
+    if (!conn.user) return this._err(conn, "Sign in first.", "AUTH");
+    const name = (cfg.name && String(cfg.name).trim().slice(0, 40)) || `${conn.user.displayName || conn.user.email}'s SNG`;
+    const variant = VARIANT_KEYS.includes(cfg.variant) ? cfg.variant : "holdem";
+    const entry = Math.max(0, Math.floor(Number(cfg.entry) || 0));
+    const startingStack = Math.max(100, Math.floor(Number(cfg.startingStack) || 1500));
+    const maxSeats = Math.min(9, Math.max(2, Math.floor(Number(cfg.maxSeats) || 6)));
+    if (entry > 500_000) return this._err(conn, "Entry fee is too high.");
+    if (entry > 0 && (await getBalance(conn.user.id)) < entry) {
+      return this._err(conn, "Not enough chips for the entry.", "INSUFFICIENT_CHIPS");
+    }
+    const tid = "tny-" + randomBytes(8).toString("hex");
+    const table = new LiveTable(
+      { id: tid, name, variant, max_seats: maxSeats, small_blind: 0, big_blind: 0, min_buyin: 1, max_buyin: startingStack, tournament: true },
+      this
+    );
+    table.createdBy = conn.user.id;
+    table.creatorName = conn.user.displayName || conn.user.email;
+    this.tables.set(tid, table);
+    const t = new Tournament({ id: tid, name, variant, entry, startingStack, maxSeats, table, createdBy: conn.user.id });
+    this.tournaments.set(tid, t);
+    const r = await t.register(conn); // auto-register the creator
+    if (r.error) { this.tournaments.delete(tid); this.tables.delete(tid); return this._err(conn, r.error); }
+    conn.send(encode(S2C.TOAST, { level: "success", text: `Tournament "${name}" created — waiting for players.` }));
+    await this.pushLobby();
+  }
+
+  async registerTournament(conn, tid) {
+    const t = this.tournaments.get(tid);
+    if (!t) return this._err(conn, "That tournament is no longer open.");
+    const r = await t.register(conn);
+    if (r.error) return this._err(conn, r.error);
+    await this.pushLobby();
+  }
+
+  async unregisterTournament(conn, tid) {
+    const t = this.tournaments.get(tid);
+    if (!t || !conn.user) return;
+    await t.unregister(conn.user.id);
+    // If the creator unregisters an empty tournament, tear it down.
+    if (t.status === "registering" && t.entrants.size === 0) {
+      this.tournaments.delete(tid);
+      this.botManager.forgetTable(tid);
+      this.tables.delete(tid);
+    }
+    await this.pushLobby();
+  }
+
+  async startTournament(conn, tid) {
+    const t = this.tournaments.get(tid);
+    if (!t) return this._err(conn, "That tournament is no longer open.");
+    if (t.createdBy !== conn.user.id) return this._err(conn, "Only the creator can start it.");
+    if (t.status !== "registering") return this._err(conn, "Already started.");
+    if (t.entrants.size < 1) return this._err(conn, "No one is registered yet.");
+    const fill = Math.max(0, t.maxSeats - t.entrants.size);
+    const bots = fill > 0 ? await this.botManager.makeBots(t.table, fill, "reg") : [];
+    const r = await t.start({ bots });
+    if (r.error) return this._err(conn, r.error);
+    // Pull every registrant to the table.
+    for (const [uid] of t.entrants) for (const c of this.connsForUser(uid)) c.send(encode(S2C.TABLE_CREATED, { tableId: tid }));
+    await this.pushLobby();
+  }
+
+  // Tournament finished (called from Tournament._finish): toast placements, then
+  // schedule teardown of the (now empty) table so players see the final result.
+  async onTournamentComplete(t) {
+    for (const [uid] of t.entrants) {
+      const place = t.places.get(uid);
+      for (const c of this.connsForUser(uid)) {
+        c.send(encode(S2C.TOAST, { level: place === 1 ? "success" : "info", text: `Tournament over — you finished #${place ?? "?"} of ${t.entrants.size}.` }));
+      }
+    }
+    await this.pushLobby();
+    const tid = t.id;
+    const timer = setTimeout(() => {
+      this.botManager.forgetTable(tid);
+      const table = this.tables.get(tid);
+      if (table) { try { table._closed = true; table.clearActionTimer?.(); } catch { /* noop */ } }
+      this.tables.delete(tid);
+      this.tournaments.delete(tid);
+      this.pushLobby();
+    }, 20_000);
+    timer.unref?.();
   }
 
   relayLobbyChat(conn, text) {

@@ -53,6 +53,7 @@ export class Tournament {
     this.entry = Number(opts.entry) || 0;
     this.startingStack = Number(opts.startingStack) || DEFAULT_STARTING_STACK;
     this.maxSeats = Number(opts.maxSeats) || 6;
+    this.createdBy = opts.createdBy || null;
     this.table = opts.table;               // a tournament-mode LiveTable
     this.wallet = opts.wallet || realWallet;
     this.store = opts.store || null;
@@ -111,7 +112,8 @@ export class Tournament {
   // set the opening blinds, and deal the first hand. `bots` are BotConn-like conns.
   async start({ bots = [] } = {}) {
     if (this.status !== "registering") return { error: "Already started." };
-    if (this.entrants.size < 2) return { error: "Need at least 2 players." };
+    if (this.entrants.size < 1) return { error: "Need at least one registered player." };
+    if (this.entrants.size + bots.length < 2) return { error: "Need at least 2 players (register more or let bots fill)." };
 
     const table = this.table;
     const level = this.levels[0];
@@ -193,6 +195,8 @@ export class Tournament {
 
     // Tear the table down (no escrow to settle in tournament mode).
     try { table.clearActionTimer?.(); } catch { /* noop */ }
+    // Let the hub broadcast the result + schedule cleanup.
+    try { await table.hub?.onTournamentComplete?.(this); } catch { /* best effort */ }
   }
 
   // Standings snapshot for the client HUD.
@@ -203,6 +207,8 @@ export class Tournament {
       entry: this.entry, prizePool: this.prizePool, maxSeats: this.maxSeats,
       startingStack: this.startingStack,
       registered: this.entrants.size, remaining: remaining.length,
+      entrantIds: [...this.entrants.keys()],
+      createdBy: this.createdBy,
       level: this.level + 1, blinds: this.levels[this.level],
       nextLevelInHands: this.handsPerLevel - (this.handsPlayed % this.handsPerLevel),
       players: remaining,

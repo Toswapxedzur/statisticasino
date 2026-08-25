@@ -74,6 +74,15 @@
   }
 
   const isBanked = $derived(gameMode !== "poker");
+
+  // Tournaments (Sit-N-Go). Shown only in poker mode.
+  const tournaments = $derived(poker.lobby.tournaments || []);
+  const myId = $derived(poker.me?.id ?? null);
+  const isRegistered = (t) => !!myId && (t.entrantIds || []).includes(myId);
+  function newTournament() {
+    if (!signedIn) return;
+    poker.createTournament({ variant: "holdem", entry: 500, startingStack: 1500, maxSeats: 6 });
+  }
 </script>
 
 <svelte:head><title>{SITE_NAME} — Lobby</title></svelte:head>
@@ -192,6 +201,49 @@
         {/if}
       </section>
 
+      {#if !isBanked}
+        <section class="card">
+          <div class="card-head">
+            <h3>Tournaments</h3>
+            <button class="btn btn-secondary btn-sm" onclick={newTournament} disabled={!signedIn}>New Sit &amp; Go</button>
+          </div>
+          {#if tournaments.length === 0}
+            <div class="empty-state"><p class="muted">No tournaments yet — start a Sit &amp; Go (6-max, 500 entry). Empty seats fill with bots.</p></div>
+          {:else}
+            <div class="table-wrap">
+              <table class="lobby">
+                <thead><tr><th>Tournament</th><th class="num">Entry</th><th class="num">Prize pool</th><th class="num">Players</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                  {#each tournaments as t (t.id)}
+                    <tr>
+                      <td class="name"><span class="tname">{t.name}</span><span class="variant">{variantShort(t.variant)}</span></td>
+                      <td class="num">{t.entry.toLocaleString()}</td>
+                      <td class="num">{t.prizePool.toLocaleString()}</td>
+                      <td class="num">{t.registered} / {t.maxSeats}{#if t.status !== "registering"} · {t.remaining} left{/if}</td>
+                      <td><span class="badge {t.status === 'running' ? 'playing' : t.status === 'complete' ? 'waiting' : 'waiting'}">{t.status}</span></td>
+                      <td class="num actions-cell">
+                        {#if t.status === "registering"}
+                          {#if isRegistered(t)}
+                            {#if t.createdBy === myId}
+                              <button class="btn btn-sm" onclick={() => poker.startTournament(t.id)} disabled={t.registered < 1}>Start</button>
+                            {/if}
+                            <button class="btn btn-sm btn-secondary" onclick={() => poker.unregisterTournament(t.id)}>Leave</button>
+                          {:else}
+                            <button class="btn btn-sm" onclick={() => poker.registerTournament(t.id)} disabled={!signedIn}>Register</button>
+                          {/if}
+                        {:else}
+                          <button class="btn btn-sm" onclick={() => goto("/table/" + t.id)}>{isRegistered(t) ? "Resume" : "Watch"}</button>
+                        {/if}
+                      </td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+          {/if}
+        </section>
+      {/if}
+
       <!-- BOTTOM: lobby chat spans the main column -->
       <LobbyChat messages={poker.lobbyChat} onSend={(t) => poker.sendLobbyChat(t)} />
     </div>
@@ -305,6 +357,7 @@
   .badge.playing { color: var(--ok); background: rgba(74, 222, 128, 0.12); border: 1px solid rgba(74, 222, 128, 0.35); }
 
   .btn-sm { padding: 5px 12px; font-size: 12px; }
+  .actions-cell { display: flex; gap: 6px; justify-content: flex-end; }
 
   /* Panes stack on narrow screens. */
   @media (max-width: 860px) {

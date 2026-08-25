@@ -221,6 +221,35 @@ export class BotManager {
     return botConn;
   }
 
+  // Provision up to `count` bot connections for a TOURNAMENT (identity + BotConn +
+  // watcher + tracking for reap/forget), WITHOUT seating or funding — the caller
+  // (Tournament.start) seats them with T-chips via the tournament-mode table.sit.
+  // Returns the BotConns actually created (fewer if the roster is exhausted).
+  async makeBots(table, count, tierKey = "reg") {
+    if (table._closed || count <= 0) return [];
+    this._sweep();
+    const tier = TIERS[tierKey] || TIERS.reg;
+    const bots = [];
+    for (let i = 0; i < count; i += 1) {
+      const persona = this._pickPersona();
+      if (!persona) break; // roster exhausted
+      const identity = await this._ensureIdentity(persona);
+      const botConn = new BotConn({
+        user: { id: identity.id, displayName: identity.displayName },
+        tier, table,
+        rng: this.rng === Math.random ? Math.random : this.rng,
+        ...(this.schedule ? { schedule: this.schedule } : {})
+      });
+      table.addWatcher(botConn);
+      this._busy.set(identity.id, { botConn, table }); // tracked so forgetTable cleans up
+      let set = this._byTable.get(table.id);
+      if (!set) { set = new Set(); this._byTable.set(table.id, set); }
+      set.add(botConn);
+      bots.push(botConn);
+    }
+    return bots;
+  }
+
   // A staked bot has gone idle between hands: rebuy or quit, by a combined score.
   // Quit (cash remaining back to the inviter) when EITHER the stake bankroll is
   // spent (STAKE_MAX_REBUYS reached) OR the bot is getting crushed (net loss past

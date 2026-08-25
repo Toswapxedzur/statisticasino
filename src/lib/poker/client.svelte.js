@@ -14,7 +14,7 @@ class PokerClient {
   connected = $state(false);
   me = $state(null);            // {id, name, isAdmin} | null
   // PlayOK-style lobby snapshot (tables/players/leaderboard).
-  lobby = $state({ tables: [], players: [], leaderboard: [] });
+  lobby = $state({ tables: [], players: [], leaderboard: [], tournaments: [] });
   lobbyChat = $state([]);       // [{from,text,ts}] shared lobby chat
   invites = $state([]);         // [{inviteId, fromName, fromUserId, tableId, tableName}] incoming
   pendingNav = $state(null);    // tableId to navigate to (create/quickplay/invite-accept)
@@ -98,7 +98,8 @@ class PokerClient {
         this.lobby = {
           tables: msg.tables || [],
           players: msg.players || [],
-          leaderboard: msg.leaderboard || []
+          leaderboard: msg.leaderboard || [],
+          tournaments: msg.tournaments || []
         };
         break;
       case S2C.LOBBY_CHAT:
@@ -199,6 +200,10 @@ class PokerClient {
   unsubLobby() { this._wantLobby = false; this._raw(encode(C2S.LOBBY_UNSUB)); }
 
   createTable(cfg) { this.connect(); this._raw(encode(C2S.TABLE_CREATE, cfg)); }
+  createTournament(cfg) { this.connect(); this._raw(encode(C2S.TOURNEY_CREATE, cfg)); }
+  registerTournament(tourneyId) { this.connect(); this._raw(encode(C2S.TOURNEY_REGISTER, { tourneyId })); }
+  unregisterTournament(tourneyId) { this._raw(encode(C2S.TOURNEY_UNREGISTER, { tourneyId })); }
+  startTournament(tourneyId) { this._raw(encode(C2S.TOURNEY_START, { tourneyId })); }
   quickPlay(buyin) { this.connect(); this._raw(encode(C2S.QUICK_PLAY, buyin != null ? { buyin } : {})); }
   sendLobbyChat(text) { this._raw(encode(C2S.LOBBY_CHAT, { text })); }
   invitePlayer(toUserId) { this._raw(encode(C2S.INVITE, { toUserId })); }

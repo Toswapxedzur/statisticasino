@@ -197,6 +197,21 @@
   <div class="toast {toastMsg.level}" role="status">{toastMsg.text}</div>
 {/if}
 
+{#if view?.tournament}
+  {@const tny = view.tournament}
+  <section class="tny-hud">
+    <span class="tny-badge">{tny.status === "complete" ? "🏆 Finished" : tny.status === "running" ? "Level " + tny.level : "Registering"}</span>
+    {#if tny.blinds}<span>Blinds <b>{tny.blinds.sb}/{tny.blinds.bb}</b></span>{/if}
+    <span>Prize pool <b>{tny.prizePool.toLocaleString()}</b></span>
+    <span>{tny.remaining} left / {tny.registered}</span>
+    {#if tny.status === "running"}<span class="muted">next level in {tny.nextLevelInHands}</span>{/if}
+    {#if me && tny.places?.length}
+      {@const myPlace = tny.places.find((p) => p.userId === me.id)}
+      {#if myPlace}<span class="tny-place">You finished #{myPlace.place}</span>{/if}
+    {/if}
+  </section>
+{/if}
+
 {#if view}
   {#if shedGame}
     <ShedTable {view} {me} onSit={openBuyIn} />
@@ -326,6 +341,12 @@
 {/if}
 
 <style>
+  .tny-hud { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 10px 0;
+    padding: 8px 14px; border-radius: 10px; font-size: 13px;
+    background: rgba(58,109,240,0.12); border: 1px solid rgba(58,109,240,0.35); }
+  .tny-hud b { font-variant-numeric: tabular-nums; }
+  .tny-badge { font-weight: 700; padding: 2px 9px; border-radius: 999px; background: var(--hero, #3a6df0); color: #fff; }
+  .tny-place { font-weight: 700; color: #33d17a; }
   .table-top { display: flex; align-items: baseline; gap: 12px; margin: 16px 0; flex-wrap: wrap; }
   .table-top h2 { margin: 0; }
   .back { text-decoration: none; color: var(--muted, #9aa); font-size: 13px; }
