@@ -695,3 +695,44 @@ causes:
 | DNS / TLS | Cloudflare zone `sinostatistica.net` |
 | Public site | <http://www.sinostatistica.net/> (HTTP), HTTPS pending §6 |
 | Chrome extension repo | `casinoMalwareExtension/` (sibling dir) |
+
+## Voice chat + coturn (added 2026-08-25)
+
+The live box is now **Ubuntu 24.04** at `/opt/riverside` (systemd unit
+`riverside.service`, run as `admin`), public IP `47.243.163.51`. Table voice is a
+WebRTC audio mesh; signaling rides the existing WebSocket, media is P2P with a
+self-hosted **coturn** TURN relay for the ~10–20% of peers that can't connect
+directly.
+
+**coturn** (installed via `apt install coturn`; port **3479** because Netbird
+already owns 3478 on this box):
+
+- `/etc/turnserver.conf`: `use-auth-secret` + `static-auth-secret=<32-byte hex>`,
+  `listening-port=3479`, `external-ip=47.243.163.51/172.19.52.134` (Aliyun ECS is
+  1:1 NAT'd — advertise the PUBLIC ip), `min-port=49152 max-port=49200`,
+  `no-tls no-dtls` (plain UDP for v1), and `denied-peer-ip` ranges covering all
+  RFC1918 / loopback / 169.254 (SSRF hardening — TURN must never relay into the
+  VPC/RDS/metadata). Enable with `TURNSERVER_ENABLED=1` in `/etc/default/coturn`.
+- App `/opt/riverside/.env`: `TURN_URL=turn:47.243.163.51:3479?transport=udp`,
+  `TURN_SECRET=<same secret>`, `TURN_TTL=3600`. The server hands the browser only a
+  short-lived HMAC credential derived from the secret (see src/lib/server/voice.js).
+
+**Aliyun Security Group (MUST be opened in the console — no local firewall gates
+it, and there's no aliyun CLI on the box):**
+
+| Protocol | Port range | Source |
+|---|---|---|
+| UDP | 3479/3479       | 0.0.0.0/0 |
+| UDP | 49152/49200     | 0.0.0.0/0 |
+
+Until those are open, TURN can't relay for external users (voice still works P2P for
+most). Verify from off-box with a STUN binding request to `47.243.163.51:3479`.
+
+Later hardening: a `turns:` (TLS) listener on 443 needs a cert (certbot) + a
+DNS-only (grey-cloud) record for a TURN subdomain, since TURN is UDP and can't go
+through Cloudflare's HTTP proxy.
+
+**Known issue (pre-existing):** `riverside.service` exits ~every 8h when the MySQL
+advisory-lock ("instance lease") connection idle-times-out (RDS wait_timeout), and
+systemd restarts it — dropping live tables/connections. Fix: a periodic keepalive
+`SELECT 1` on the lease connection in bank.js#acquireInstanceLease.
