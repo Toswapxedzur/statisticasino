@@ -159,6 +159,21 @@ test("integration: a real tournament-mode table plays to completion, T-chips + p
   assert.equal(t.places.size, 3, "all three placed");
 });
 
+test("aborting an in-flight tournament refunds every entry, conserved + idempotent", async () => {
+  const wallet = makeWallet({ a: 1000, b: 1000 });
+  const total0 = wallet.total();
+  const t = new Tournament({ id: "t4", name: "SNG", entry: 100, maxSeats: 6, table: makeTable(), wallet });
+  await t.register(conn("a")); await t.register(conn("b"));
+  assert.equal(t.prizePool, 200);
+  await t.abortRefund();
+  assert.equal(t.status, "complete");
+  assert.equal(wallet.bal.get("a"), 1000);
+  assert.equal(wallet.bal.get("b"), 1000);
+  assert.equal(wallet.total(), total0, "refund conserves chips");
+  await t.abortRefund(); // idempotent — no double refund
+  assert.equal(wallet.total(), total0);
+});
+
 test("blinds escalate as hands accumulate", async () => {
   const table = makeTable();
   const t = new Tournament({ id: "t3", name: "SNG", entry: 0, startingStack: 500, maxSeats: 4, table, wallet: makeWallet({}), handsPerLevel: 2 });

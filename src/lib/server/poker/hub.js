@@ -285,6 +285,13 @@ export class PokerHub {
   // signal handlers. (A hard crash still relies on boot escrow reconciliation.)
   async shutdown() {
     this.shuttingDown = true;
+    // Refund every in-flight tournament's entries BEFORE tearing down tables, so a
+    // deploy/restart mid-event never eats entrants' chips (tournaments are in-memory
+    // and would otherwise vanish with their pool). Money-conserving.
+    for (const t of [...this.tournaments.values()]) {
+      try { await t.abortRefund(); } catch { /* best effort */ }
+    }
+    this.tournaments.clear();
     for (const table of [...this.tables.values()]) {
       this.botManager.forgetTable(table.id); // stop bot timers; cashOutAll refunds bot seats
       try { await table.cashOutAll(); } catch { /* best effort */ }

@@ -199,6 +199,20 @@ export class Tournament {
     try { await table.hub?.onTournamentComplete?.(this); } catch { /* best effort */ }
   }
 
+  // Abort an in-flight tournament (server shutdown) and REFUND every entrant their
+  // entry — so a deploy/restart mid-event never eats anyone's chips. Conserved:
+  // each entrant gets exactly what they paid back. No-op once complete.
+  async abortRefund() {
+    if (this.status === "complete") return;
+    this.status = "complete";
+    if (this.entry > 0) {
+      for (const [uid] of this.entrants) {
+        try { await this.wallet.credit(uid, this.entry, REASON.TOURNEY_ENTRY, this.id); } catch { /* best effort */ }
+      }
+    }
+    this.prizePool = 0;
+  }
+
   // Standings snapshot for the client HUD.
   view() {
     const remaining = this.table ? [...this.table.seats.values()].map((s) => ({ seat: s.seat, name: s.name, stack: s.stack, userId: s.userId })) : [];
