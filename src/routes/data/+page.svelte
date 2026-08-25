@@ -3,6 +3,8 @@
   import { invalidateAll } from "$app/navigation";
   import HandReplay from "./HandReplay.svelte";
   import TristateCheckbox from "./TristateCheckbox.svelte";
+  import { slide } from "svelte/transition";
+  import { d, DUR } from "$lib/motion.js";
 
   let { data } = $props();
 
@@ -426,7 +428,7 @@
         </div>
 
         {#if expandedPlayer[p.id]}
-          <ul class="t-list">
+          <ul class="t-list" transition:slide={{ duration: d(DUR.base) }}>
             {#each p.tables as t (t.tableId)}
               {@const tKeys = tableHandKeys(t)}
               {@const tState = tristateState(tKeys)}
@@ -454,7 +456,7 @@
                 </div>
 
                 {#if isTableOpen(p.id, t.tableId)}
-                  <ol class="h-list">
+                  <ol class="h-list" transition:slide={{ duration: d(DUR.base) }}>
                     {#each t.hands.slice().reverse() as h, i (h.handKey)}
                       <li class="h-item">
                         <div class="h-item-row">
@@ -488,7 +490,7 @@
                           </button>
                         </div>
                         {#if openHand[h.handKey]}
-                          <div class="h-replay">
+                          <div class="h-replay" transition:slide={{ duration: d(DUR.base) }}>
                             <HandReplay handKey={h.handKey} />
                           </div>
                         {/if}
