@@ -1,5 +1,5 @@
 <script>
-  import { scale } from "svelte/transition";
+  import { scale, fly } from "svelte/transition";
   import { d, DUR } from "$lib/motion.js";
 
   // Pai Gow set UI: tap two of your seven cards to form the 2-card FRONT hand (the
@@ -20,7 +20,7 @@
   }
 </script>
 
-<section class="pgbar">
+<section class="pgbar" transition:fly={{ y: d(14), duration: d(DUR.base) }}>
   <div class="lbl">Tap 2 cards for your <strong>front</strong> hand — the other five are your back hand</div>
   <div class="cards">
     {#each cards as c, i (c + '-' + i)}

@@ -369,6 +369,21 @@ input:focus, textarea:focus, select:focus {
 /* ------- misc ------- */
 .list-empty { margin-top: 60px; text-align: center; color: var(--muted); }
 
+/* Smooth theme swap: while <html> carries .theming (added briefly by the toggle),
+   every element eases its colors so nothing snaps. Transient, so there are no
+   permanent global transitions to slow interaction or animate on first paint. */
+html.theming,
+html.theming *,
+html.theming *::before,
+html.theming *::after {
+  transition: background-color var(--dur-slow) var(--ease),
+              color var(--dur-slow) var(--ease),
+              box-shadow var(--dur-slow) var(--ease),
+              border-color var(--dur-slow) var(--ease),
+              fill var(--dur-slow) var(--ease),
+              stroke var(--dur-slow) var(--ease) !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }

@@ -205,7 +205,7 @@
 
 {#if view?.tournament}
   {@const tny = view.tournament}
-  <section class="tny-hud">
+  <section class="tny-hud" transition:fly={{ y: d(-10), duration: d(DUR.base) }}>
     <span class="tny-badge">{tny.status === "complete" ? "🏆 Finished" : tny.status === "running" ? "Level " + tny.level : "Registering"}</span>
     {#if tny.blinds}<span>Blinds <b>{tny.blinds.sb}/{tny.blinds.bb}</b></span>{/if}
     <span>Prize pool <b>{tny.prizePool.toLocaleString()}</b></span>
@@ -269,7 +269,7 @@
   {/if}
 
   {#if isSeated}
-    <section class="seat-controls">
+    <section class="seat-controls" transition:fly={{ y: d(10), duration: d(DUR.base) }}>
       <button class="btn" onclick={stand}>Stand</button>
       <button class="btn" onclick={toggleSitOut}>
         {mySeat.sittingOut ? "Sit back in" : "Sit out"}
@@ -278,7 +278,7 @@
     </section>
 
     {#if hasOpenSeat}
-      <section class="bot-controls">
+      <section class="bot-controls" transition:fly={{ y: d(10), duration: d(DUR.base) }}>
         <span class="muted small">Add a bot:</span>
         <select bind:value={botTier} aria-label="Bot difficulty">
           {#each botTiers as [k, label]}<option value={k}>{label}</option>{/each}
@@ -290,7 +290,7 @@
       </section>
     {/if}
   {:else if me && !hasOpenSeat}
-    <section class="seat-controls">
+    <section class="seat-controls" transition:fly={{ y: d(10), duration: d(DUR.base) }}>
       {#if onWaitlist}
         <span class="muted small">You're on the waitlist — we'll seat you the moment a spot opens.</span>
         <button class="btn btn-secondary" onclick={leaveWaitlist}>Leave waitlist</button>

@@ -1,5 +1,5 @@
 <script>
-  import { scale } from "svelte/transition";
+  import { scale, fly } from "svelte/transition";
   import { d, DUR } from "$lib/motion.js";
 
   // Your hand for shedding games. Two modes, driven by the turn:
@@ -32,7 +32,7 @@
   }
 </script>
 
-<section class="shedbar">
+<section class="shedbar" transition:fly={{ y: d(14), duration: d(DUR.base) }}>
   <div class="lbl">
     {#if !myTurn}Your hand
     {:else if combo}Select cards to play{#if mustInclude} · must include {mustInclude[0]}<span class:red={isRed(mustInclude[1])}>{SUIT[mustInclude[1]]}</span>{/if}

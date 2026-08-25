@@ -1,5 +1,8 @@
 <script>
   import { voice } from "$lib/poker/voice.svelte.js";
+  import { fly, fade, scale } from "svelte/transition";
+  import { flip } from "svelte/animate";
+  import { d, DUR } from "$lib/motion.js";
   let { tableId } = $props();
   function toggle() { if (voice.active) voice.leave(); else voice.join(tableId); }
   const label = (s) => (s === "connected" ? "" : s === "connecting" ? " · connecting…" : " · " + s);
@@ -10,11 +13,12 @@
     {voice.active ? "Leave voice" : "🎤 Join voice"}
   </button>
   {#if voice.active}
-    <button class="btn btn-small btn-secondary" onclick={() => voice.toggleMute()}>
+    <button class="btn btn-small btn-secondary" transition:fly={{ x: d(-8), duration: d(DUR.base) }} onclick={() => voice.toggleMute()}>
       {voice.muted ? "🔇 Unmute" : "🎙️ Mute"}
     </button>
     {#each Object.entries(voice.peers) as [id, p] (id)}
-      <span class="peer" class:on={p.state === "connected"} title={p.state}>
+      <span class="peer" class:on={p.state === "connected"} title={p.state}
+        in:scale={{ start: 0.8, duration: d(DUR.base) }} out:fade={{ duration: d(DUR.fast) }} animate:flip={{ duration: d(DUR.base) }}>
         <span class="pdot"></span>{p.name}<span class="muted small">{label(p.state)}</span>
       </span>
     {/each}

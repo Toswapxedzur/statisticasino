@@ -1,5 +1,5 @@
 <script>
-  import { scale } from "svelte/transition";
+  import { scale, fly } from "svelte/transition";
   import { d, DUR } from "$lib/motion.js";
 
   // Hold-and-draw action bar for Video Poker. The TABLE_TURN carries the player's
@@ -21,7 +21,7 @@
   function draw() { onAct({ type: "draw", holds: [...held] }); }
 </script>
 
-<section class="vpbar">
+<section class="vpbar" transition:fly={{ y: d(14), duration: d(DUR.base) }}>
   <div class="cards">
     {#each cards as c, i (c + '-' + i)}
       <button class="vcard" class:held={held[i]} onclick={() => toggle(i)}>

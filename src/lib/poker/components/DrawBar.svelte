@@ -1,5 +1,5 @@
 <script>
-  import { scale } from "svelte/transition";
+  import { scale, fly } from "svelte/transition";
   import { d, DUR } from "$lib/motion.js";
 
   // Five-Card Draw action bar: tap cards to DISCARD, then Draw (or Stand pat).
@@ -15,7 +15,7 @@
   const toggle = (i) => (discard = discard.includes(i) ? discard.filter((x) => x !== i) : [...discard, i]);
 </script>
 
-<section class="drawbar">
+<section class="drawbar" transition:fly={{ y: d(14), duration: d(DUR.base) }}>
   <div class="lbl">Tap cards to discard, then Draw — or stand pat</div>
   <div class="cards">
     {#each cards as c, i (c + '-' + i)}

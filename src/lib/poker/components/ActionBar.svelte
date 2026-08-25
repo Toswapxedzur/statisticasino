@@ -16,6 +16,9 @@
   //   onAct    — callback: onAct({ type, amount? }). `amount` is the TOTAL
   //              street target commitment for bet/raise (engine semantics).
 
+  import { fly } from "svelte/transition";
+  import { d, DUR } from "$lib/motion.js";
+
   let { turn, config, potTotal, myStack, onAct } = $props();
 
   // ---- legal-action lookups -------------------------------------------
@@ -110,7 +113,7 @@
 </script>
 
 {#if turn && actions.length}
-  <div class="actionbar card">
+  <div class="actionbar card" transition:fly={{ y: d(14), duration: d(DUR.base) }}>
     <!-- subtle countdown -->
     <div class="timer" class:urgent aria-live="off">
       <div class="timer-bar"><span style="width:{barPct}%"></span></div>

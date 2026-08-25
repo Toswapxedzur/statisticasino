@@ -1,4 +1,6 @@
 <script>
+  import { fly } from "svelte/transition";
+  import { d, DUR } from "$lib/motion.js";
   // Bet-selection UI for baccarat/roulette/sic-bo. The TABLE_TURN carries
   // betOptions + minBet + maxTotal. The player picks a chip denomination, clicks
   // outcomes to stake chips on them, then places all bets at once as one action:
@@ -29,7 +31,7 @@
   }
 </script>
 
-<section class="betbar">
+<section class="betbar" transition:fly={{ y: d(14), duration: d(DUR.base) }}>
   <div class="chiprow">
     <span class="lbl">Chip</span>
     {#each chips as c}<button class="chip" class:on={chip === c} onclick={() => (chip = c)}>{c.toLocaleString()}</button>{/each}

@@ -47,9 +47,17 @@
     return () => window.removeEventListener("chips", onChips);
   });
 
+  let _themeTimer = null;
   function toggleTheme() {
+    const root = document.documentElement;
+    // Ease every element's colors through the swap (unless reduced motion).
+    if (!reducedMotion()) {
+      root.classList.add("theming");
+      clearTimeout(_themeTimer);
+      _themeTimer = setTimeout(() => root.classList.remove("theming"), 480);
+    }
     theme = theme === "dark" ? "light" : "dark";
-    document.documentElement.setAttribute("data-theme", theme);
+    root.setAttribute("data-theme", theme);
     try { localStorage.setItem("rv-theme", theme); } catch (e) {}
   }
 

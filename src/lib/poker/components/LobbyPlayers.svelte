@@ -11,10 +11,18 @@
   //
   // Read-only: parent supplies the reactive data via props.
 
+  import { onMount } from "svelte";
+  import { fly, fade } from "svelte/transition";
+  import { flip } from "svelte/animate";
+  import { d, DUR } from "$lib/motion.js";
+
   let { players = [], leaderboard = [], me = null, onInvite = () => {} } =
     $props();
 
   const top = $derived((leaderboard ?? []).slice(0, 10));
+  // Gate so the initial online list / leaderboard don't all fly in on load.
+  let ready = $state(false);
+  onMount(() => { requestAnimationFrame(() => (ready = true)); });
 
   function fmt(n) {
     return typeof n === "number" ? n.toLocaleString() : (n ?? "0");
@@ -33,7 +41,7 @@
       {:else}
         {#each players as p (p.id)}
           {@const mine = me && p.id === me.id}
-          <div class="prow" class:me={mine}>
+          <div class="prow" class:me={mine} in:fly={{ y: d(6), duration: ready ? d(DUR.base) : 0 }} out:fade={{ duration: d(DUR.fast) }} animate:flip={{ duration: d(DUR.base) }}>
             <span class="name" title={p.name}>
               {p.name}{#if mine}<span class="you"> (you)</span>{/if}
             </span>
@@ -67,7 +75,7 @@
         <div class="empty muted">No rankings yet.</div>
       {:else}
         {#each top as row, i (i)}
-          <div class="lrow">
+          <div class="lrow" in:fade={{ duration: ready ? d(DUR.fast) : 0 }}>
             <span class="rank">{i + 1}.</span>
             <span class="name" title={row.name}>{row.name}</span>
             <span class="chips">{fmt(row.chips)}</span>

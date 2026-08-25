@@ -1,4 +1,6 @@
 <script>
+  import { fly } from "svelte/transition";
+  import { d, DUR } from "$lib/motion.js";
   // Keno ticket UI: mark up to `maxSpots` numbers on the 1–80 grid, pick a bet,
   // and Play — emits { type: "pick", spots: number[], amount }.
 
@@ -21,7 +23,7 @@
   const nums = Array.from({ length: 80 }, (_, i) => i + 1);
 </script>
 
-<section class="kenobar">
+<section class="kenobar" transition:fly={{ y: d(14), duration: d(DUR.base) }}>
   <div class="top">
     <span class="lbl">Pick up to {maxSpots} · <strong>{picked.length}</strong> chosen</span>
     <span class="chips">Bet
