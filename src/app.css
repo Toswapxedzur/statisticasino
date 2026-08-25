@@ -1,37 +1,135 @@
-/* Global stylesheet.
+/* Global stylesheet — Riverside design system.
  *
- * Palette mirrors casinoMalwareExtension/history.css :root block so the
- * site reads as a sibling of the extension — same navy background,
- * sky-cyan accent, off-white text, light-blue buttons. */
+ * Dark-blue is the signature theme (ground #0f172a, palette from the
+ * blockerGroup project). Light mode (blockerGroup's navy-on-cream) is opt-in
+ * via [data-theme="light"] on <html>. Structure is carried by ELEVATION and
+ * surface contrast, never borders: --border / --border-strong resolve to
+ * transparent so every legacy `border: 1px solid var(--border)` disappears.
+ * Everything animates on one shared easing.
+ */
 
 @import "katex/dist/katex.min.css";
 
 :root {
-  --bg: #0d141d;
-  --surface: #131c28;
-  --surface-hover: #1a2330;
+  /* ---- motion ---- */
+  --ease: cubic-bezier(.22,.61,.36,1);
+  --dur: .26s;
+  --dur-slow: .42s;
+
+  /* ---- radii ---- */
+  --r-panel: 20px;
+  --r-card: 15px;
+  --r-btn: 10px;
+  --r-pill: 999px;
+
+  /* ---- type ---- */
+  --f-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --f-body: "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  /* ======== DARK BLUE (default) ======== */
+  --bg: #0f172a;              /* slate-900 ground */
+  --bg-dot: rgba(148,178,255,0.05);
+  --well: #0b1220;           /* inset, darker than ground */
   --row: transparent;
-  --border: #1f2a3a;
-  --border-strong: #2a3a52;
+  --surface: #182541;        /* raised card (navy lift) */
+  --surface-2: #20305a;      /* higher / hover */
+  --surface-hover: #20305a;
 
-  --text: #f3f6fb;
-  --muted: #8ea3bd;
+  /* borders are intentionally invisible — elevation does the work */
+  --border: transparent;
+  --border-strong: transparent;
 
-  --accent: #6dc6e8;
-  --accent-soft: rgba(109, 198, 232, 0.14);
-  --accent-strong: rgba(109, 198, 232, 0.42);
+  --text: #eef2ff;           /* navy-100 */
+  --fg: #eef2ff;
+  --muted: #9db0d6;
+  --faint: #6c80a8;
 
-  --btn: #a9dcef;
-  --btn-hover: #c2e6f4;
-  --btn-text: #0d141d;
+  --accent: #4d7cff;         /* brightened navy for CTAs / selection */
+  --accent-ink: #6d95ff;
+  --accent-soft: rgba(77,124,255,0.18);
+  --accent-strong: rgba(77,124,255,0.42);
+  --on-accent: #ffffff;
 
-  --danger: #f87171;
-  --ok: #4ade80;
+  /* legacy button aliases now ride the accent */
+  --btn: #4d7cff;
+  --btn-hover: #6d95ff;
+  --btn-text: #ffffff;
 
-  /* Site-only addition: the red used for "perspective owner" highlight
-     on the replay felt. Matches the extension's `hero` color. */
-  --hero: #ef4444;
-  --hero-soft: rgba(239, 68, 68, 0.18);
+  --gold: #fbe08a;           /* chips / money */
+  --gold-ink: #f4c94b;
+  --gold-bg: rgba(250,204,21,0.15);
+  --cyan: #7fe4f2;
+  --pink: #f9a8d4;
+
+  --ok: #34d399;
+  --ok-bg: rgba(52,211,153,0.15);
+  --danger: #fb7185;
+
+  --hero: #ef4444;           /* replay "perspective owner" highlight */
+  --hero-soft: rgba(239,68,68,0.18);
+
+  /* felt is removed — the play area rides the ground; these remain for
+     any residual green usage until swept, resolving to the ground/well. */
+  --felt-top: #182541;
+  --felt-bot: #0b1220;
+  --felt-ink: #eafaf1;
+  --card-face: #f6f9fc;
+  --card-ink: #14202c;
+  --card-red: #dd5064;
+
+  --shadow-card: 0 2px 6px rgba(0,0,0,.34), 0 10px 26px rgba(0,0,0,.30);
+  --shadow-hover: 0 8px 18px rgba(0,0,0,.42), 0 20px 48px rgba(0,0,0,.5);
+  --shadow-panel: 0 22px 54px rgba(0,0,0,.5);
+}
+
+:root[data-theme="light"] {
+  --bg: #e9eef8;
+  --bg-dot: rgba(30,58,138,0.06);
+  --well: #dde5f4;
+  --surface: #ffffff;
+  --surface-2: #f3f7ff;
+  --surface-hover: #f3f7ff;
+
+  --border: transparent;
+  --border-strong: transparent;
+
+  --text: #1f2937;
+  --fg: #1f2937;
+  --muted: #55627b;
+  --faint: #8593ac;
+
+  --accent: #1e3a8a;         /* navy-700 */
+  --accent-ink: #2c4bab;
+  --accent-soft: rgba(30,58,138,0.10);
+  --accent-strong: rgba(30,58,138,0.30);
+  --on-accent: #ffffff;
+
+  --btn: #1e3a8a;
+  --btn-hover: #2c4bab;
+  --btn-text: #ffffff;
+
+  --gold: #a16207;
+  --gold-ink: #ca8a04;
+  --gold-bg: #fef3c7;
+  --cyan: #0e7490;
+  --pink: #be185d;
+
+  --ok: #15803d;
+  --ok-bg: rgba(22,163,74,0.12);
+  --danger: #be123c;
+
+  --hero: #dc2626;
+  --hero-soft: rgba(220,38,38,0.12);
+
+  --felt-top: #ffffff;
+  --felt-bot: #dde5f4;
+  --card-face: #ffffff;
+  --card-ink: #16202c;
+  --card-red: #c1354b;
+
+  --shadow-card: 0 1px 3px rgba(15,23,42,.07), 0 10px 26px rgba(15,23,42,.06);
+  --shadow-hover: 0 12px 30px rgba(15,23,42,.13);
+  --shadow-panel: 0 20px 48px rgba(15,23,42,.10);
 }
 
 * { box-sizing: border-box; }
@@ -39,91 +137,122 @@
 html, body {
   margin: 0;
   padding: 0;
-  background: var(--bg);
+  background:
+    radial-gradient(var(--bg-dot) 1px, transparent 1px) 0 0 / 24px 24px,
+    var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--f-body);
   font-size: 14px;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color var(--dur-slow) var(--ease), color var(--dur-slow) var(--ease);
 }
 
 body { display: flex; flex-direction: column; }
 
-a { color: var(--accent); text-decoration: none; }
+h1, h2, h3, .display { font-family: var(--f-display); font-optical-sizing: auto; letter-spacing: -0.015em; }
+
+a { color: var(--accent-ink); text-decoration: none; transition: color var(--dur) var(--ease), opacity var(--dur) var(--ease); }
 a:hover { text-decoration: underline; }
 
-/* ------- topbar + nav (mirrors extension exactly so the two surfaces
-   read as a single product) ------- */
+::selection { background: var(--accent-soft); }
+
+/* ------- topbar + nav ------- */
 
 .topbar {
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 20;
   display: flex;
   align-items: center;
-  gap: 16px;
-  height: 44px;
-  padding: 0 16px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  gap: 14px;
+  height: 58px;
+  padding: 0 18px;
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  backdrop-filter: blur(10px);
 }
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-weight: 700;
-  letter-spacing: 0.3px;
+  gap: 10px;
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: 18px;
+  letter-spacing: -0.01em;
+  color: var(--text);
 }
 .brand .dot {
-  width: 8px; height: 8px; border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 8px var(--accent);
+  width: 30px; height: 30px; border-radius: 9px;
+  display: grid; place-items: center;
+  background: linear-gradient(150deg, var(--accent), var(--accent-ink));
+  box-shadow: var(--shadow-card);
 }
-.nav-tabs { display: inline-flex; gap: 4px; margin-left: 8px; }
+.nav-tabs { position: relative; display: inline-flex; gap: 2px; margin-left: 8px; }
 .nav-tab {
   appearance: none;
   background: transparent;
   color: var(--muted);
-  border: 1px solid transparent;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 12.5px;
+  border: 0;
+  padding: 7px 12px;
+  border-radius: var(--r-pill);
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   text-decoration: none;
+  transition: color var(--dur) var(--ease), background-color var(--dur) var(--ease);
 }
-.nav-tab[aria-current="page"] {
-  background: var(--accent-soft);
-  color: var(--accent);
-  border-color: var(--accent-strong);
-}
+.nav-tab:hover { color: var(--text); text-decoration: none; }
+.nav-tab[aria-current="page"] { background: var(--accent-soft); color: var(--accent-ink); }
+
 .status-pill {
   margin-left: auto;
   font-size: 12px;
-  color: var(--accent);
+  color: var(--accent-ink);
   background: var(--accent-soft);
-  border: 1px solid var(--accent-strong);
-  padding: 2px 10px;
-  border-radius: 999px;
+  padding: 3px 11px;
+  border-radius: var(--r-pill);
 }
-.status-pill.muted {
-  color: var(--muted);
-  background: transparent;
-  border-color: var(--border);
+.status-pill.muted { color: var(--muted); background: var(--well); }
+
+/* ------- chips pill (money) ------- */
+.chips-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums;
+  padding: 6px 11px; border-radius: var(--r-pill);
+  background: var(--gold-bg); color: var(--gold-ink); text-decoration: none;
+  transition: filter var(--dur) var(--ease);
 }
+.chips-pill:hover { filter: brightness(1.06); text-decoration: none; }
 
 main {
   flex: 1;
   padding: 16px;
 }
 
-/* ------- card primitive: rounded panels for any boxed content ------- */
+/* ------- sliding-selector primitive ------- */
+/* A container marked .slider holds a .sel-ind that animates under the .on item. */
+.slider { position: relative; }
+.sel-ind {
+  position: absolute; top: 0; left: 0; z-index: 0;
+  border-radius: var(--r-pill); background: var(--accent-soft);
+  transition: transform var(--dur-slow) var(--ease), width var(--dur-slow) var(--ease), height var(--dur-slow) var(--ease);
+  will-change: transform, width;
+  pointer-events: none;
+}
+.slider > * { position: relative; z-index: 1; }
+
+/* ------- eyebrow ------- */
+.eyebrow { font-weight: 700; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent-ink); }
+
+/* ------- card primitive ------- */
 
 .card {
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  border: 0;
+  border-radius: var(--r-card);
   padding: 16px;
   margin-bottom: 12px;
+  box-shadow: var(--shadow-card);
 }
 .card-head {
   display: flex;
@@ -131,38 +260,56 @@ main {
   justify-content: space-between;
   margin-bottom: 8px;
 }
-.card-head h3 { margin: 0; font-size: 14.5px; }
+.card-head h3 { margin: 0; font-size: 15px; }
 .muted { color: var(--muted); }
-.row { display: flex; justify-content: space-between; padding: 6px 0; border-top: 1px solid var(--border); }
-.row:first-of-type { border-top: 0; }
+.row { display: flex; justify-content: space-between; padding: 7px 0; }
 
-/* ------- buttons ------- */
+/* ------- buttons (compact — sized tight to content) ------- */
 
 .btn {
   appearance: none;
   background: var(--btn);
   color: var(--btn-text);
-  border: 1px solid var(--btn);
-  padding: 7px 16px;
-  border-radius: 8px;
+  border: 0;
+  padding: 8px 13px;
+  border-radius: var(--r-btn);
+  font-family: var(--f-body);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
-  transition: background 120ms ease, transform 80ms ease;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  box-shadow: var(--shadow-card);
+  transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease), transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease), filter var(--dur) var(--ease);
 }
-.btn:hover { background: var(--btn-hover); }
-.btn:active { transform: translateY(1px); }
-.btn[disabled] { opacity: 0.55; cursor: not-allowed; }
+.btn:hover { background: var(--btn-hover); transform: translateY(-1px); }
+.btn:active { transform: translateY(1px) scale(.99); }
+.btn[disabled] { opacity: 0.5; cursor: not-allowed; box-shadow: none; transform: none; }
 .btn-secondary {
-  background: transparent;
+  background: var(--well);
   color: var(--text);
-  border-color: var(--accent-strong);
+  box-shadow: none;
 }
-.btn-secondary:hover { background: var(--accent-soft); }
-.btn-danger { background: var(--danger); color: white; border-color: var(--danger); }
-.btn-danger:hover { filter: brightness(1.05); }
+.btn-secondary:hover { background: var(--surface-2); }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger:hover { filter: brightness(1.06); }
+.btn-gold { background: var(--gold-ink); color: #241704; }
+.btn-gold:hover { filter: brightness(1.06); }
+.btn-sm { padding: 6px 10px; font-size: 12px; }
+.btn-xs { padding: 5px 9px; font-size: 11.5px; }
 
-/* ------- forms ------- */
+/* ------- tag / badge ------- */
+.tag {
+  display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase; padding: 3px 8px; border-radius: var(--r-pill);
+}
+.tag.ok, .tag.playing { color: var(--ok); background: var(--ok-bg); }
+.tag.accent, .tag.open { color: var(--accent-ink); background: var(--accent-soft); }
+.tag.gold { color: var(--gold-ink); background: var(--gold-bg); }
+
+/* ------- avatar ------- */
+.avatar { border-radius: 50%; display: grid; place-items: center; font-weight: 700; color: #fff; flex: 0 0 auto; }
+
+/* ------- forms (borderless — wells + focus ring) ------- */
 
 label.field {
   display: flex;
@@ -172,35 +319,45 @@ label.field {
   font-size: 12.5px;
   color: var(--muted);
 }
-input[type=email], input[type=password], input[type=text], textarea, input[type=file] {
-  background: var(--bg);
-  border: 1px solid var(--border-strong);
+input[type=email], input[type=password], input[type=text], input[type=number], textarea, input[type=file], select {
+  background: var(--well);
+  border: 0;
   color: var(--text);
-  border-radius: 6px;
-  padding: 6px 10px;
+  border-radius: var(--r-btn);
+  padding: 9px 11px;
   font: inherit;
+  transition: box-shadow var(--dur) var(--ease), background-color var(--dur) var(--ease);
 }
-input:focus, textarea:focus {
-  outline: 2px solid var(--accent);
-  outline-offset: 0;
-  border-color: var(--accent);
-}
-
-.form-error {
-  color: var(--danger);
-  font-size: 12.5px;
-  margin: 6px 0 0;
-}
-.form-success {
-  color: var(--ok);
-  font-size: 12.5px;
-  margin: 6px 0 0;
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  background: var(--surface);
 }
 
-/* ------- generic tables list (data page) ------- */
+.form-error { color: var(--danger); font-size: 12.5px; margin: 6px 0 0; }
+.form-success { color: var(--ok); font-size: 12.5px; margin: 6px 0 0; }
 
-.list-empty {
-  margin-top: 60px;
-  text-align: center;
-  color: var(--muted);
+/* ------- custom range (fully borderless, no native chrome) ------- */
+.rng { -webkit-appearance: none; appearance: none; width: 100%; height: 22px; background: transparent; cursor: pointer; margin: 0; }
+.rng::-webkit-slider-runnable-track { height: 6px; border-radius: 999px;
+  background: linear-gradient(to right, var(--accent) 0 var(--fill,50%), var(--well) var(--fill,50%) 100%); }
+.rng::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; margin-top: -6px;
+  border: 0; border-radius: 50%; background: var(--accent); box-shadow: var(--shadow-card);
+  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease); }
+.rng:hover::-webkit-slider-thumb { transform: scale(1.12); }
+.rng:active::-webkit-slider-thumb { transform: scale(1.18); box-shadow: 0 0 0 6px var(--accent-soft); }
+.rng::-moz-range-track { height: 6px; border-radius: 999px; background: var(--well); border: 0; }
+.rng::-moz-range-progress { height: 6px; border-radius: 999px; background: var(--accent); }
+.rng::-moz-range-thumb { width: 18px; height: 18px; border: 0; border-radius: 50%; background: var(--accent); box-shadow: var(--shadow-card);
+  transition: transform var(--dur) var(--ease); }
+.rng:hover::-moz-range-thumb { transform: scale(1.12); }
+.rng:focus { outline: none; }
+.rng:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 6px var(--accent-soft); }
+.rng:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 6px var(--accent-soft); }
+
+/* ------- misc ------- */
+.list-empty { margin-top: 60px; text-align: center; color: var(--muted); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }

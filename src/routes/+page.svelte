@@ -18,6 +18,7 @@
   import LobbyPlayers from "$lib/poker/components/LobbyPlayers.svelte";
   import LobbyChat from "$lib/poker/components/LobbyChat.svelte";
   import { GAME_MODES, variantShort, modeOf } from "$lib/poker/games.js";
+  import { slidingIndicator } from "$lib/actions/slider.js";
 
   let { data } = $props();
 
@@ -111,16 +112,13 @@
     <div class="main-col">
       <section class="hero">
         <div>
-          <h1>{SITE_NAME}</h1>
-          <p class="muted tagline">{SITE_TAGLINE}. Play-money Texas Hold'em — no real money, just chips and bragging rights.</p>
+          <span class="eyebrow">Play-money · just chips</span>
+          <h1>{SITE_NAME}<span class="conn {poker.connected ? 'on' : 'off'}">{poker.connected ? "live" : "connecting…"}</span></h1>
         </div>
-        <span class="conn {poker.connected ? 'on' : 'off'}">
-          {poker.connected ? "live" : "connecting…"}
-        </span>
       </section>
 
-      <section class="card">
-        <div class="mode-pills" role="tablist" aria-label="Game mode">
+      <div class="modes-wrap">
+        <div class="mode-pager slider" role="tablist" aria-label="Game mode" use:slidingIndicator>
           {#each GAME_MODES as m}
             <button
               type="button"
@@ -132,114 +130,89 @@
             >{m.label}</button>
           {/each}
         </div>
+      </div>
 
-        <div class="card-head">
-          <h3>{isBanked ? modeLabel + " Tables" : "Ring Games — " + modeLabel}</h3>
-          {#if signedIn}
-            <span class="muted small">Chips: {walletChips.toLocaleString()}</span>
-          {/if}
-        </div>
-
+      <div class="row-head">
+        <h3>{isBanked ? modeLabel + " tables" : "Ring games"}</h3>
         <div class="toolbar">
           {#if !isBanked}
-            <button class="btn" onclick={quickPlay} disabled={!signedIn}>Quick Play</button>
+            <button class="btn btn-sm" onclick={quickPlay} disabled={!signedIn}>Quick Play</button>
           {/if}
-          <button class="btn btn-secondary" onclick={openModal} disabled={!signedIn}>
-            {isBanked ? "New " + modeLabel + " Table" : "New Table"}
+          <button class="btn btn-secondary btn-sm" onclick={openModal} disabled={!signedIn}>
+            {isBanked ? "New table" : "New table"}
           </button>
-          {#if !signedIn}
-            <span class="muted small signin-note">
-              <a href="/account/login">Sign in</a> to play — you can watch the lobby freely.
-            </span>
-          {/if}
         </div>
+      </div>
+      {#if !signedIn}
+        <p class="muted small signin-note"><a href="/account/login">Sign in</a> to play — watch the lobby freely.</p>
+      {/if}
 
-        {#if tablesForMode.length === 0}
-          <div class="empty-state">
-            <p class="muted">
-              {isBanked
-                ? "No " + modeLabel + " tables yet — start one and host, or let a bot bank it."
-                : "No tables yet — hit Quick Play or start one."}
-            </p>
-          </div>
-        {:else}
-          <div class="table-wrap">
-            <table class="lobby">
-              <thead>
-                <tr>
-                  <th>Table</th>
-                  <th class="num">{isBanked ? "Min bet" : "Stakes"}</th>
-                  <th class="num">Players</th>
-                  <th>Status</th>
-                  <th>Host</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {#each tablesForMode as t (t.id)}
-                  <tr>
-                    <td class="name">
-                      <span class="tname">{t.name}</span>
-                      <span class="variant">{variantShort(t.variant)}</span>
-                    </td>
-                    <td class="num">{isBanked ? t.smallBlind : t.smallBlind + "/" + t.bigBlind}</td>
-                    <td class="num players" class:full={t.seated >= t.maxSeats}>
-                      {t.seated} / {t.maxSeats}
-                    </td>
-                    <td>
-                      <span class="badge {t.status === 'playing' ? 'playing' : 'waiting'}">{t.status}</span>
-                    </td>
-                    <td class="host muted">{t.creatorName}</td>
-                    <td class="num">
-                      <button class="btn btn-sm" onclick={() => goto("/table/" + t.id)}>Open</button>
-                    </td>
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
-          </div>
-        {/if}
-      </section>
+      {#if tablesForMode.length === 0}
+        <div class="empty-state">
+          <p class="muted">
+            {isBanked
+              ? "No " + modeLabel + " tables yet — start one and host, or let a bot bank it."
+              : "No tables yet — hit Quick Play or start one."}
+          </p>
+        </div>
+      {:else}
+        <div class="table-grid">
+          {#each tablesForMode as t (t.id)}
+            <div class="tcard">
+              <div class="tcard-top">
+                <div>
+                  <div class="variant">{t.name}</div>
+                  <div class="stakes">{variantShort(t.variant)} · {isBanked ? "min " + t.smallBlind : t.smallBlind + "/" + t.bigBlind}</div>
+                </div>
+                <span class="tag {t.status === 'playing' ? 'playing' : 'open'}">{t.status}</span>
+              </div>
+              <div class="pips" aria-label="{t.seated} of {t.maxSeats} seated">
+                {#each Array(t.maxSeats) as _, i}<span class="pip" class:on={i < t.seated}></span>{/each}
+                <span class="seats-lbl">{t.seated}/{t.maxSeats}</span>
+              </div>
+              <button class="btn btn-block" onclick={() => goto("/table/" + t.id)}>
+                {t.seated >= t.maxSeats ? "Watch" : "Join ▸"}
+              </button>
+            </div>
+          {/each}
+        </div>
+      {/if}
 
       {#if !isBanked}
-        <section class="card">
-          <div class="card-head">
-            <h3>Tournaments</h3>
-            <button class="btn btn-secondary btn-sm" onclick={newTournament} disabled={!signedIn}>New Sit &amp; Go</button>
+        <section class="tny">
+          <div class="row-head">
+            <h3>Sit &amp; Go</h3>
+            <button class="btn btn-gold btn-sm" onclick={newTournament} disabled={!signedIn}>＋ New</button>
           </div>
           {#if tournaments.length === 0}
             <div class="empty-state"><p class="muted">No tournaments yet — start a Sit &amp; Go (6-max, 500 entry). Empty seats fill with bots.</p></div>
           {:else}
-            <div class="table-wrap">
-              <table class="lobby">
-                <thead><tr><th>Tournament</th><th class="num">Entry</th><th class="num">Prize pool</th><th class="num">Players</th><th>Status</th><th></th></tr></thead>
-                <tbody>
-                  {#each tournaments as t (t.id)}
-                    <tr>
-                      <td class="name"><span class="tname">{t.name}</span><span class="variant">{variantShort(t.variant)}</span></td>
-                      <td class="num">{t.entry.toLocaleString()}</td>
-                      <td class="num">{t.prizePool.toLocaleString()}</td>
-                      <td class="num">{t.registered} / {t.maxSeats}{#if t.status !== "registering"} · {t.remaining} left{/if}</td>
-                      <td><span class="badge {t.status === 'running' ? 'playing' : t.status === 'complete' ? 'waiting' : 'waiting'}">{t.status}</span></td>
-                      <td class="num actions-cell">
-                        {#if t.status === "registering"}
-                          {#if isRegistered(t)}
-                            {#if t.createdBy === myId}
-                              <button class="btn btn-sm" onclick={() => poker.startTournament(t.id)} disabled={t.registered < 1}>Start</button>
-                            {/if}
-                            <button class="btn btn-sm btn-secondary" onclick={() => poker.unregisterTournament(t.id)}>Leave</button>
-                          {:else}
-                            <button class="btn btn-sm" onclick={() => poker.registerTournament(t.id)} disabled={!signedIn}>Register</button>
-                          {/if}
-                        {:else}
-                          <button class="btn btn-sm" onclick={() => goto("/table/" + t.id)}>{isRegistered(t) ? "Resume" : "Watch"}</button>
-                        {/if}
-                      </td>
-                    </tr>
-                  {/each}
-                </tbody>
-              </table>
-            </div>
+            {#each tournaments as t (t.id)}
+              <div class="trow">
+                <div class="tcol tmain"><div class="tname">{t.name}</div><div class="tvar">{variantShort(t.variant)}</div></div>
+                <div class="tcol"><span class="lbl">Entry</span><span class="num">{t.entry.toLocaleString()}</span></div>
+                <div class="tcol"><span class="lbl">Prize</span><span class="prize">{t.prizePool.toLocaleString()}</span></div>
+                <div class="tcol hide-m">
+                  <span class="tag {t.status === 'running' ? 'playing' : 'open'}">
+                    {t.status}{#if t.status !== "registering"} · {t.remaining} left{:else} · {t.registered}/{t.maxSeats}{/if}
+                  </span>
+                </div>
+                <div class="tcol tact">
+                  {#if t.status === "registering"}
+                    {#if isRegistered(t)}
+                      {#if t.createdBy === myId}
+                        <button class="btn btn-xs" onclick={() => poker.startTournament(t.id)} disabled={t.registered < 1}>Start</button>
+                      {/if}
+                      <button class="btn btn-xs btn-secondary" onclick={() => poker.unregisterTournament(t.id)}>Leave</button>
+                    {:else}
+                      <button class="btn btn-xs btn-gold" onclick={() => poker.registerTournament(t.id)} disabled={!signedIn}>Register</button>
+                    {/if}
+                  {:else}
+                    <button class="btn btn-xs" onclick={() => goto("/table/" + t.id)}>{isRegistered(t) ? "Resume" : "Watch"}</button>
+                  {/if}
+                </div>
+              </div>
+            {/each}
           {/if}
         </section>
       {/if}
@@ -275,8 +248,7 @@
   .invites { display: flex; flex-direction: column; gap: 8px; }
   .invite-card {
     display: flex; align-items: center; justify-content: space-between;
-    gap: 12px; margin-bottom: 0; border-color: var(--accent-strong);
-    background: var(--accent-soft);
+    gap: 12px; margin-bottom: 0; background: var(--accent-soft);
   }
   .invite-text { font-size: 13px; }
   .invite-actions { display: flex; gap: 6px; flex: 0 0 auto; }
@@ -284,84 +256,77 @@
   .panes {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 300px;
-    gap: 12px;
+    gap: 16px;
     align-items: start;
   }
-  .main-col { min-width: 0; display: flex; flex-direction: column; }
+  .main-col { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
   .side-col { min-width: 0; }
 
-  .hero {
-    display: flex; align-items: flex-start; justify-content: space-between;
-    gap: 16px; margin: 4px 0 10px;
-  }
-  .hero h1 { margin: 0 0 4px; font-size: 30px; letter-spacing: 0.3px; }
-  .tagline { margin: 0; }
+  .hero { margin: 6px 0 16px; }
+  .hero h1 { margin: 6px 0 0; font-size: clamp(28px, 3.4vw, 38px); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   .conn {
-    font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px;
-    text-transform: uppercase; letter-spacing: 0.5px; flex: 0 0 auto;
+    font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: var(--r-pill);
+    text-transform: uppercase; letter-spacing: 0.5px;
+    font-family: var(--f-body);
   }
-  .conn.on { color: var(--ok); background: rgba(74, 222, 128, 0.12); }
-  .conn.off { color: #e0a030; background: rgba(224, 160, 48, 0.12); }
+  .conn.on { color: var(--ok); background: var(--ok-bg); }
+  .conn.off { color: var(--gold-ink); background: var(--gold-bg); }
 
   .small { font-size: 12.5px; }
+  .signin-note { margin: 0 0 12px; }
 
-  /* Game-mode pills (Poker / Blackjack) — the lobby's top-level game switch. */
-  .mode-pills { display: flex; gap: 8px; margin-bottom: 12px; }
+  /* game-mode pager — a sliding selector box, horizontally scrollable */
+  .modes-wrap { overflow-x: auto; margin-bottom: 20px; padding: 4px 0 6px; scrollbar-width: none; }
+  .modes-wrap::-webkit-scrollbar { display: none; }
+  .mode-pager { display: inline-flex; gap: 4px; }
+  .mode-pager .sel-ind { background: var(--accent); box-shadow: var(--shadow-card); }
   .mode-pill {
-    appearance: none; cursor: pointer;
-    border: 1px solid var(--border); background: transparent; color: var(--text);
-    border-radius: 999px; padding: 6px 16px; font-size: 13px; font-weight: 600;
-    transition: border-color 0.12s, background 0.12s, color 0.12s;
+    flex: 0 0 auto; cursor: pointer; border: 0; background: transparent; color: var(--muted);
+    border-radius: var(--r-pill); padding: 8px 15px; font-weight: 600; font-size: 13px; white-space: nowrap;
+    transition: color var(--dur) var(--ease);
   }
-  .mode-pill:hover { border-color: var(--accent); }
-  .mode-pill.on {
-    border-color: var(--accent);
-    background: color-mix(in srgb, var(--accent) 18%, transparent);
-    color: var(--accent);
-  }
+  .mode-pill:hover { color: var(--text); }
+  .mode-pill.on { color: var(--on-accent); }
 
-  .toolbar {
-    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-    margin-bottom: 12px;
-  }
-  .signin-note { margin-left: 2px; }
+  .row-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 6px 0 14px; }
+  .row-head h3 { font-size: 19px; margin: 0; }
+  .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
-  .empty-state {
-    text-align: center; padding: 40px 16px;
-    border: 1px dashed var(--border-strong); border-radius: 10px;
-  }
+  .empty-state { text-align: center; padding: 34px 16px; background: var(--well); border-radius: var(--r-card); }
   .empty-state p { margin: 0; }
 
-  .table-wrap { overflow-x: auto; }
-  table.lobby { width: 100%; border-collapse: collapse; font-size: 14px; }
-  table.lobby th, table.lobby td { padding: 10px 12px; text-align: left; }
-  table.lobby th.num, table.lobby td.num { text-align: right; }
-  table.lobby thead th {
-    font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.5px;
-    color: var(--muted); border-bottom: 1px solid var(--border);
-  }
-  table.lobby tbody tr { border-bottom: 1px solid var(--border); }
-  table.lobby tbody tr:hover { background: var(--surface-hover); }
-  td.name .tname { font-weight: 700; display: block; }
-  .variant { display: block; font-size: 11px; color: var(--muted); }
-  .players.full { color: #e0a030; }
-  .num { font-variant-numeric: tabular-nums; }
-  .host { font-size: 12.5px; }
+  .table-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(258px, 1fr)); gap: 14px; }
+  .tcard { border-radius: var(--r-card); background: var(--surface); padding: 16px; box-shadow: var(--shadow-card);
+    transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease); }
+  .tcard:hover { transform: translateY(-3px); box-shadow: var(--shadow-hover); }
+  .tcard-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .tcard .variant { font-weight: 700; font-size: 15px; }
+  .tcard .stakes { color: var(--muted); font-size: 12px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .pips { display: flex; align-items: center; gap: 5px; margin: 15px 0; }
+  .pip { width: 9px; height: 9px; border-radius: 50%; background: var(--well); box-shadow: inset 0 0 0 1px rgba(128,128,128,.18); }
+  .pip.on { background: var(--accent); box-shadow: none; }
+  .seats-lbl { color: var(--muted); font-size: 12px; margin-left: 6px; font-variant-numeric: tabular-nums; }
+  .btn-block { width: 100%; }
 
-  .badge {
-    display: inline-block; font-size: 11px; font-weight: 700;
-    padding: 2px 9px; border-radius: 999px; text-transform: capitalize;
-    letter-spacing: 0.3px;
-  }
-  .badge.waiting { color: var(--muted); background: var(--surface-hover); border: 1px solid var(--border); }
-  .badge.playing { color: var(--ok); background: rgba(74, 222, 128, 0.12); border: 1px solid rgba(74, 222, 128, 0.35); }
+  /* tournaments — borderless spaced row-cards */
+  .tny { margin-top: 22px; }
+  .trow { display: grid; grid-template-columns: 1.6fr .7fr .8fr 1fr auto; align-items: center; gap: 12px;
+    background: var(--surface); border-radius: var(--r-card); padding: 12px 16px; box-shadow: var(--shadow-card); margin-bottom: 8px;
+    transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease); }
+  .trow:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+  .trow .tname { font-weight: 700; font-size: 14px; }
+  .trow .tvar { color: var(--muted); font-size: 11.5px; }
+  .trow .lbl { color: var(--faint); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 2px; }
+  .trow .num { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 14px; }
+  .trow .prize { color: var(--gold-ink); font-variant-numeric: tabular-nums; font-weight: 800; font-size: 14px; }
+  .trow .tact { display: flex; gap: 6px; justify-content: flex-end; }
 
-  .btn-sm { padding: 5px 12px; font-size: 12px; }
-  .actions-cell { display: flex; gap: 6px; justify-content: flex-end; }
-
-  /* Panes stack on narrow screens. */
   @media (max-width: 860px) {
     .panes { grid-template-columns: 1fr; }
     .side-col { order: 2; }
+  }
+  @media (max-width: 560px) {
+    .trow { grid-template-columns: 1fr auto; row-gap: 8px; }
+    .trow .hide-m { display: none; }
   }
 </style>

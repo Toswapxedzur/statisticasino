@@ -75,6 +75,10 @@
 
   const raiseVerb = $derived(raiseAction?.type === "bet" ? "Bet" : "Raise to");
   const atMax = $derived(raiseAction ? raiseTarget >= raiseAction.max : false);
+  // Filled fraction of the custom range track (0..100), for the accent paint.
+  const fillPct = $derived(
+    raiseAction ? ((raiseTarget - raiseAction.min) / Math.max(1, raiseAction.max - raiseAction.min)) * 100 : 0
+  );
 
   // ---- countdown to deadline ------------------------------------------
 
@@ -151,8 +155,9 @@
 
           <div class="slider-row">
             <input
-              class="slider"
+              class="rng"
               type="range"
+              style="--fill:{fillPct}%"
               min={raiseAction.min}
               max={raiseAction.max}
               step={step}
@@ -198,9 +203,9 @@
   }
   .timer-bar {
     flex: 1;
-    height: 3px;
+    height: 4px;
     border-radius: 999px;
-    background: var(--border);
+    background: var(--well);
     overflow: hidden;
   }
   .timer-bar span {
@@ -230,7 +235,7 @@
     flex-wrap: wrap;
     gap: 8px;
   }
-  .primary .btn { flex: 1 1 auto; min-width: 96px; }
+  .primary .btn { flex: 1 1 auto; min-width: 84px; }
   .amt { font-variant-numeric: tabular-nums; opacity: 0.85; }
 
   /* ---- raise control ---- */
@@ -248,49 +253,42 @@
   }
   .chip {
     appearance: none;
-    background: transparent;
+    background: var(--well);
     color: var(--text);
-    border: 1px solid var(--border-strong);
-    border-radius: 999px;
-    padding: 4px 12px;
+    border: 0;
+    border-radius: var(--r-pill);
+    padding: 5px 13px;
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
-    transition: background 120ms ease, border-color 120ms ease;
+    transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease);
   }
-  .chip:hover { background: var(--accent-soft); border-color: var(--accent-strong); }
+  .chip:hover { background: var(--accent-soft); color: var(--accent-ink); }
   .chip.active {
     background: var(--accent-soft);
-    border-color: var(--accent-strong);
-    color: var(--accent);
+    color: var(--accent-ink);
   }
 
   .slider-row {
     display: flex;
     align-items: center;
-    gap: 10px;
-  }
-  .slider {
-    flex: 1;
-    accent-color: var(--accent);
-    height: 4px;
-    cursor: pointer;
+    gap: 12px;
   }
   .num {
-    width: 96px;
-    background: var(--bg);
-    border: 1px solid var(--border-strong);
+    width: 92px;
+    background: var(--well);
+    border: 0;
     color: var(--text);
-    border-radius: 6px;
-    padding: 6px 8px;
+    border-radius: var(--r-btn);
+    padding: 7px 9px;
     font: inherit;
     font-variant-numeric: tabular-nums;
     text-align: right;
+    transition: box-shadow var(--dur) var(--ease);
   }
   .num:focus {
-    outline: 2px solid var(--accent);
-    outline-offset: 0;
-    border-color: var(--accent);
+    outline: none;
+    box-shadow: 0 0 0 3px var(--accent-soft);
   }
 
   .raise-meta {

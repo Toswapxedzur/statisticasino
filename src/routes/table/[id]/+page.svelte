@@ -124,6 +124,10 @@
   let rebuyOpen = $state(false);
   let rebuyAmount = $state(0);
   let rebuyMax = $derived(mySeat ? Math.max(0, config.maxBuyin - mySeat.stack) : 0);
+  let rebuyFill = $derived.by(() => {
+    const lo = Math.min(config?.bigBlind ?? 1, rebuyMax);
+    return rebuyMax > lo ? ((rebuyAmount - lo) / (rebuyMax - lo)) * 100 : 0;
+  });
   function openRebuy() {
     rebuyAmount = Math.min(rebuyMax, Math.max(config.minBuyin, config.bigBlind * 20));
     rebuyOpen = true;
@@ -322,8 +326,9 @@
       <h3>Rebuy</h3>
       <p class="muted small">Top up your stack (max {rebuyMax.toLocaleString()} to reach the table cap).</p>
       <input
-        class="range"
+        class="rng"
         type="range"
+        style="--fill:{rebuyFill}%"
         min={Math.min(config.bigBlind, rebuyMax)}
         max={rebuyMax}
         step={config.bigBlind || 1}
@@ -342,11 +347,11 @@
 
 <style>
   .tny-hud { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 10px 0;
-    padding: 8px 14px; border-radius: 10px; font-size: 13px;
-    background: rgba(58,109,240,0.12); border: 1px solid rgba(58,109,240,0.35); }
+    padding: 9px 15px; border-radius: var(--r-pill); font-size: 13px;
+    background: var(--accent-soft); }
   .tny-hud b { font-variant-numeric: tabular-nums; }
-  .tny-badge { font-weight: 700; padding: 2px 9px; border-radius: 999px; background: var(--hero, #3a6df0); color: #fff; }
-  .tny-place { font-weight: 700; color: #33d17a; }
+  .tny-badge { font-weight: 700; padding: 2px 10px; border-radius: var(--r-pill); background: var(--accent); color: var(--on-accent); }
+  .tny-place { font-weight: 700; color: var(--ok); }
   .table-top { display: flex; align-items: baseline; gap: 12px; margin: 16px 0; flex-wrap: wrap; }
   .table-top h2 { margin: 0; }
   .back { text-decoration: none; color: var(--muted, #9aa); font-size: 13px; }
@@ -355,11 +360,11 @@
   .signin a { color: var(--hero, #6cf); }
 
   .toast {
-    max-width: 520px; margin: 0 auto 12px; padding: 10px 14px; border-radius: 10px;
-    text-align: center; font-size: 14px; border: 1px solid var(--border, #333);
-    background: #1c1c22; color: var(--text, #eee);
+    max-width: 520px; margin: 0 auto 12px; padding: 11px 15px; border-radius: var(--r-card);
+    text-align: center; font-size: 14px; box-shadow: var(--shadow-card);
+    background: var(--surface); color: var(--text);
   }
-  .toast.error { border-color: #e0555f; color: #ffb3b8; background: #2a1618; }
+  .toast.error { color: var(--danger); box-shadow: 0 0 0 2px var(--danger), var(--shadow-card); }
 
   .seat-controls {
     display: flex; gap: 10px; justify-content: center; margin: 14px 0 6px; flex-wrap: wrap;
@@ -368,21 +373,17 @@
     display: flex; gap: 8px; align-items: center; justify-content: center; margin: 6px 0 10px; flex-wrap: wrap;
   }
   .bot-controls select {
-    padding: 6px 10px; border-radius: 8px;
-    border: 1px solid var(--border, #333); background: #0e0e12; color: var(--text, #eee);
+    padding: 7px 10px; border-radius: var(--r-btn);
+    border: 0; background: var(--well); color: var(--text);
   }
   .bot-controls .small { font-size: 12.5px; }
 
-  .felt-shell { display: flex; justify-content: center; padding: 10px 0 30px; }
+  .felt-shell { display: flex; justify-content: center; padding: 18px 0 30px; }
   .felt {
-    width: min(900px, 96vw); aspect-ratio: 16 / 9;
-    border-radius: 180px / 120px;
-    background: radial-gradient(ellipse at center, #2e7d55 0%, #1f6043 70%, #17402f 100%);
-    border: 14px solid #5b3a24;
-    box-shadow: inset 0 0 60px rgba(0,0,0,0.4), 0 20px 40px rgba(0,0,0,0.35);
+    width: min(820px, 96vw); aspect-ratio: 16 / 9;
     display: flex; align-items: center; justify-content: center;
   }
-  .felt-center { text-align: center; color: #dfeee6; }
+  .felt-center { text-align: center; color: var(--muted); }
   .small { font-size: 12px; opacity: 0.8; }
 
   .modal-backdrop {
@@ -393,10 +394,10 @@
   .modal h3 { margin: 0; }
   .modal .range { width: 100%; }
   .modal .num {
-    width: 100%; padding: 8px 10px; border-radius: 8px;
-    border: 1px solid var(--border, #333); background: #0e0e12; color: var(--text, #eee);
+    width: 100%; padding: 9px 11px; border-radius: var(--r-btn);
+    border: 0; background: var(--well); color: var(--text);
   }
   .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; }
-  .btn.primary { background: var(--hero, #2e7d55); color: #fff; }
-  .btn.ghost { background: transparent; }
+  .btn.primary { background: var(--accent); color: var(--on-accent); }
+  .btn.ghost { background: var(--well); box-shadow: none; }
 </style>

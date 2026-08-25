@@ -59,26 +59,26 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 5px 14px;
-    background: rgba(0, 0, 0, 0.42);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 999px;
-    box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.4);
-    color: #eaf3ee;
+    padding: 6px 15px;
+    background: var(--surface);
+    border-radius: var(--r-pill);
+    box-shadow: var(--shadow-card);
+    color: var(--text);
     font-variant-numeric: tabular-nums;
+    transition: box-shadow var(--dur) var(--ease);
   }
   .pot-lbl {
     font-size: 10px; font-weight: 700; letter-spacing: 0.8px;
-    text-transform: uppercase; color: #b9cabb;
+    text-transform: uppercase; color: var(--muted);
   }
-  .pot-amt { font-size: 16px; font-weight: 800; }
+  .pot-amt { font-size: 16px; font-weight: 800; color: var(--gold-ink); }
   .street {
-    font-size: 10px; text-transform: capitalize; color: #9fb3a4;
-    padding-left: 6px; border-left: 1px solid rgba(255,255,255,0.15);
+    font-size: 10px; text-transform: capitalize; color: var(--muted);
+    padding-left: 8px;
   }
   .pot.result {
-    border-color: rgba(74, 222, 128, 0.55);
-    box-shadow: 0 0 16px rgba(74, 222, 128, 0.35);
+    box-shadow: 0 0 0 2px var(--ok), var(--shadow-card);
   }
-  .pot.result .pot-lbl { color: var(--ok, #4ade80); }
+  .pot.result .pot-lbl { color: var(--ok); }
+  .pot.result .pot-amt { color: var(--ok); }
 </style>

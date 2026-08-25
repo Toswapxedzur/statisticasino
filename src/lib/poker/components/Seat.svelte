@@ -178,20 +178,20 @@
   .plate {
     position: relative;
     z-index: 1;
-    min-width: 118px;
+    min-width: 112px;
     max-width: 132px;
-    padding: 6px 10px;
-    background: var(--surface, #131c28);
-    border: 1px solid var(--border, #1f2a3a);
-    border-radius: 10px;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+    padding: 7px 11px;
+    background: var(--surface);
+    border: 0;
+    border-radius: 12px;
+    box-shadow: var(--shadow-card);
     text-align: center;
+    transition: box-shadow var(--dur) var(--ease);
   }
   .toact .plate {
-    border-color: var(--accent, #6dc6e8);
-    box-shadow: 0 0 0 1px var(--accent-strong, rgba(109,198,232,0.42)), 0 3px 12px rgba(0,0,0,0.5);
+    box-shadow: 0 0 0 2px var(--accent), 0 0 20px color-mix(in srgb, var(--accent) 45%, transparent);
   }
-  .mine .plate { border-color: var(--border-strong, #2a3a52); background: #16212f; }
+  .mine .plate { box-shadow: 0 0 0 2px var(--accent-soft), var(--shadow-card); background: var(--surface-2); }
 
   .row1 { display: flex; align-items: center; justify-content: center; gap: 5px; }
   .name {
@@ -215,7 +215,7 @@
     display: flex; align-items: baseline; justify-content: center; gap: 6px;
     margin-top: 2px;
   }
-  .stack { font-size: 13px; font-weight: 700; color: var(--accent, #6dc6e8); font-variant-numeric: tabular-nums; }
+  .stack { font-size: 13px; font-weight: 700; color: var(--gold, #f4c94b); font-variant-numeric: tabular-nums; }
   .secs { font-size: 11px; color: var(--muted, #8ea3bd); font-variant-numeric: tabular-nums; }
   .secs.urgent { color: var(--danger, #f87171); font-weight: 700; }
 
@@ -232,8 +232,7 @@
   .seat.folded .pod { opacity: 0.42; filter: grayscale(0.4); }
   .seat.sitting-out .plate { opacity: 0.7; }
   .seat.winner .plate {
-    border-color: var(--ok, #4ade80);
-    box-shadow: 0 0 0 2px rgba(74,222,128,0.55), 0 0 18px rgba(74,222,128,0.4);
+    box-shadow: 0 0 0 2px rgba(74,222,128,0.65), 0 0 18px rgba(74,222,128,0.4);
     animation: winpulse 1.1s ease-in-out 2;
   }
   @keyframes winpulse {
@@ -244,13 +243,22 @@
   /* empty seat */
   .empty {
     display: flex; align-items: center; justify-content: center;
-    min-width: 104px; height: 58px;
-    border: 1px dashed var(--border-strong, #2a3a52);
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.02);
+    min-width: 104px; height: 56px;
+    border-radius: 12px;
+    background: var(--well);
+    box-shadow: inset 0 0 0 1px rgba(128,128,128,0.10);
   }
   .sit-btn { font-size: 12px; padding: 6px 12px; }
   .empty-lbl { font-size: 12px; color: var(--muted, #8ea3bd); }
   .empty-lbl.link { text-decoration: none; }
   .empty-lbl.link:hover { color: var(--text, #f3f6fb); }
+
+  /* mobile: shrink the pod so 6–9 seats don't collide on a small table */
+  @media (max-width: 640px) {
+    .seat { width: 96px; }
+    .plate { min-width: 0; max-width: 100px; padding: 5px 7px; }
+    .name { max-width: 62px; font-size: 12px; }
+    .ring { width: 74px; height: 74px; }
+    .empty { min-width: 78px; height: 46px; }
+  }
 </style>

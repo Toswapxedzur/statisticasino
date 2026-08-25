@@ -106,15 +106,17 @@
 </div>
 
 <style>
-  .felt-shell { display: flex; justify-content: center; padding: 10px 0 30px; }
+  .felt-shell { display: flex; justify-content: center; padding: 18px 0 34px; }
+  /* No green felt — the play area rides the app ground; seats + board float on
+     it, held apart by their own elevation. */
   .felt {
-    width: min(900px, 96vw);
+    width: min(820px, 96vw);
     aspect-ratio: 16 / 9;
-    border-radius: 180px / 120px;
-    background: radial-gradient(ellipse at center, #2e7d55 0%, #1f6043 70%, #17402f 100%);
-    border: 14px solid #5b3a24;
-    box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.4), 0 20px 40px rgba(0, 0, 0, 0.35);
     position: relative;
+  }
+
+  @media (max-width: 640px) {
+    .felt { aspect-ratio: 4 / 5; width: 96vw; }
   }
 
   .center {
