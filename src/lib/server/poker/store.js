@@ -108,14 +108,15 @@ export async function searchUsers(q, limit = 20, excludeId = null) {
 // rows (so they buy in through escrow like anyone) but live under a reserved
 // `.invalid` email domain — exclude them so they don't crowd the human board.
 export async function leaderboard(limit = 10) {
-  return query(
-    `SELECT COALESCE(NULLIF(display_name, ''), email) AS name, chips
+  const rows = await query(
+    `SELECT id, COALESCE(NULLIF(display_name, ''), email) AS name, chips, avatar_media_id
        FROM user
       WHERE email NOT LIKE '%@bot.riverside.invalid'
       ORDER BY chips DESC, name ASC
       LIMIT ?`,
     [limit]
   );
+  return rows.map((r) => ({ id: r.id, name: r.name, chips: r.chips, avatarMediaId: r.avatar_media_id || null }));
 }
 
 // Insert a starter set of Hold'em tables the first time the room boots

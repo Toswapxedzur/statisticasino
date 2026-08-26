@@ -86,9 +86,7 @@
   }
 
   // --- helpers ---
-  const AV = ["#c0674f", "#4f7bc0", "#59a06a", "#8a5fb0", "#b0824f", "#4fa3b0", "#c05f8a", "#6a8f3a"];
-  function color(id) { let h = 0; for (const c of String(id || "")) h = (h * 31 + c.charCodeAt(0)) >>> 0; return AV[h % AV.length]; }
-  function initial(name) { return String(name || "?").trim().charAt(0).toUpperCase() || "?"; }
+  import { initials as initial, avColor as color } from "$lib/initials.js";
   function fmtTime(ts) {
     if (!ts) return "";
     const d0 = new Date(ts), now = new Date();
@@ -281,7 +279,7 @@
             <div class="sys-msg" in:fade={{ duration: d(DUR.base) }}>{m.body}</div>
           {:else}
             <div class="msg" class:mine={m.mine} in:fly={{ y: d(6), duration: d(DUR.base) }}>
-              {#if header.kind === "group" && !m.mine}<span class="msg-who" style="color:{color(m.senderId)}">{m.senderName}</span>{/if}
+              {#if header.kind === "group" && !m.mine}<a class="msg-who" href="/u/{m.senderId}" style="color:{color(m.senderId)}">{m.senderName}</a>{/if}
               <span class="bubble-row">
                 {#if m.deletedAt}
                   <span class="bubble deleted">message deleted</span>
@@ -407,7 +405,8 @@
   .thread { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
   .msg { max-width: 72%; align-self: flex-start; display: flex; flex-direction: column; gap: 2px; }
   .msg.mine { align-self: flex-end; align-items: flex-end; }
-  .msg-who { font-size: 11px; font-weight: 700; padding-left: 4px; }
+  .msg-who { font-size: 11px; font-weight: 700; padding-left: 4px; text-decoration: none; }
+  .msg-who:hover { text-decoration: underline; }
   .bubble { background: var(--well); padding: 9px 13px; border-radius: 15px; border-bottom-left-radius: 5px; font-size: 14px; line-height: 1.35; white-space: pre-wrap; word-break: break-word; }
   .msg.mine .bubble { background: var(--accent); color: var(--on-accent); border-radius: 15px; border-bottom-right-radius: 5px; }
   .msg-time { font-size: 10.5px; color: var(--faint); padding: 0 4px; }

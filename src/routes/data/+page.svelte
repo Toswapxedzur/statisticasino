@@ -4,6 +4,7 @@
   import HandReplay from "./HandReplay.svelte";
   import TristateCheckbox from "./TristateCheckbox.svelte";
   import Checkbox from "$lib/components/Checkbox.svelte";
+  import HistoryFeed from "$lib/poker/components/HistoryFeed.svelte";
   import { slide } from "svelte/transition";
   import { d, DUR } from "$lib/motion.js";
 
@@ -11,6 +12,7 @@
 
   // Map<handKey, boolean> — whether the inline replay is currently open.
   let openHand = $state({});
+  let showHistory = $state(true);
   // Map<playerId, boolean> — whether a player branch is expanded.
   let expandedPlayer = $state({});
   // Map<"<playerId>::<tableId>", boolean> — table expansion under a player.
@@ -325,6 +327,21 @@
   <link rel="stylesheet" href="/replay-engine/replay-felt.css" />
 </svelte:head>
 
+{#if data.user && data.activity && data.activity.length}
+  <section class="my-history">
+    <button class="mh-head" onclick={() => (showHistory = !showHistory)} aria-expanded={showHistory}>
+      <span class="mh-caret" class:open={showHistory}></span>
+      <h3>Your Riverside history</h3>
+      <span class="muted mh-count">{data.activity.length} recent</span>
+    </button>
+    {#if showHistory}
+      <div class="mh-body" transition:slide={{ duration: d(DUR.base) }}>
+        <HistoryFeed events={data.activity} />
+      </div>
+    {/if}
+  </section>
+{/if}
+
 {#if data.players.length > 0}
   <div class="action-bar">
     <span class="action-bar-count">
@@ -505,6 +522,12 @@
 {/if}
 
 <style>
+  .my-history { margin-bottom: 20px; }
+  .mh-head { display: flex; align-items: center; gap: 10px; background: transparent; border: 0; cursor: pointer; padding: 6px 0 10px; width: 100%; color: var(--text); }
+  .mh-head h3 { margin: 0; font-size: 18px; }
+  .mh-count { font-size: 12px; margin-left: auto; }
+  .mh-caret { width: 8px; height: 8px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(-45deg); transition: transform var(--dur) var(--ease); flex: 0 0 auto; }
+  .mh-caret.open { transform: rotate(45deg); }
   .p-list, .t-list, .h-list { list-style: none; margin: 0; padding: 0; }
 
   /* Player branch ---------------------------------------------------- */
@@ -557,7 +580,6 @@
 
   /* Tri-state checkbox ------------------------------------------- */
   .tree-select { display: flex; align-items: center; justify-content: center; cursor: pointer; }
-  .tree-select input[type="checkbox"] { accent-color: var(--hero); cursor: pointer; }
 
   /* Action bar (always visible while data exists) ---------------- */
   .action-bar {

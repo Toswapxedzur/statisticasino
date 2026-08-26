@@ -1,8 +1,7 @@
 <script>
   import { goto } from "$app/navigation";
-  import { fly } from "svelte/transition";
-  import { d, DUR } from "$lib/motion.js";
   import { slidingIndicator } from "$lib/actions/slider.js";
+  import HistoryFeed from "$lib/poker/components/HistoryFeed.svelte";
   let { data } = $props();
 
   const FILTERS = [
@@ -39,21 +38,7 @@
   {#if data.events.length === 0}
     <div class="empty card"><p class="muted">Nothing here yet — play some hands, claim your daily reward, or add a friend.</p></div>
   {:else}
-    <div class="feed">
-      {#each data.events as e, i (e.type + e.ts + (e.ref || "") + i)}
-        <div class="ev card" in:fly={{ y: d(8), duration: d(DUR.base), delay: d(Math.min(i, 12) * 22) }}>
-          <span class="ev-icon">{e.icon}</span>
-          <span class="ev-main">
-            <span class="ev-label">{e.label}</span>
-            {#if e.sub}<span class="ev-sub">{e.sub}</span>{/if}
-          </span>
-          {#if e.type === "money"}
-            <span class="ev-amt" class:pos={e.amount >= 0} class:neg={e.amount < 0}>{e.amount >= 0 ? "+" : ""}{fmt(e.amount)}</span>
-          {/if}
-          <span class="ev-time">{when(e.ts)}</span>
-        </div>
-      {/each}
-    </div>
+    <HistoryFeed events={data.events} />
   {/if}
 </div>
 

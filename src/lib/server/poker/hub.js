@@ -191,13 +191,15 @@ export class PokerHub {
     const ids = [...byUser.keys()];
     let chips = new Map();
     try { chips = await chipsForUsers(ids); } catch { /* keep zeros */ }
+    let avatars = new Map();
+    try { avatars = await this._usersInfo(ids); } catch { /* names/avatars optional */ }
     const players = ids
-      .map((id) => ({ ...byUser.get(id), chips: chips.get(id) ?? 0 }))
+      .map((id) => ({ ...byUser.get(id), chips: chips.get(id) ?? 0, avatarMediaId: avatars.get(id)?.avatarMediaId ?? null }))
       .sort((a, b) => a.name.localeCompare(b.name));
 
     let lb = [];
     try {
-      lb = (await leaderboard(LEADERBOARD_SIZE)).map((r) => ({ name: r.name, chips: Number(r.chips) }));
+      lb = (await leaderboard(LEADERBOARD_SIZE)).map((r) => ({ id: r.id, name: r.name, chips: Number(r.chips), avatarMediaId: r.avatarMediaId }));
     } catch { /* leaderboard optional */ }
 
     return { tables, players, leaderboard: lb, tournaments: this.tournamentRows() };

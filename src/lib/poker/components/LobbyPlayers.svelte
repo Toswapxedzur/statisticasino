@@ -15,6 +15,7 @@
   import { fly, fade } from "svelte/transition";
   import { flip } from "svelte/animate";
   import { d, DUR } from "$lib/motion.js";
+  import Avatar from "$lib/poker/components/Avatar.svelte";
 
   let { players = [], leaderboard = [], me = null, onInvite = () => {} } =
     $props();
@@ -42,6 +43,7 @@
         {#each players as p (p.id)}
           {@const mine = me && p.id === me.id}
           <div class="prow" class:me={mine} in:fly={{ y: d(6), duration: ready ? d(DUR.base) : 0 }} out:fade={{ duration: d(DUR.fast) }} animate:flip={{ duration: d(DUR.base) }}>
+            <Avatar id={p.id} name={p.name} mediaId={p.avatarMediaId} size={26} href={mine ? null : `/u/${p.id}`} />
             {#if mine}
               <span class="name" title={p.name}>{p.name}<span class="you"> (you)</span></span>
             {:else}
@@ -79,7 +81,8 @@
         {#each top as row, i (i)}
           <div class="lrow" in:fade={{ duration: ready ? d(DUR.fast) : 0 }}>
             <span class="rank">{i + 1}.</span>
-            <span class="name" title={row.name}>{row.name}</span>
+            <Avatar id={row.id} name={row.name} mediaId={row.avatarMediaId} size={24} href={row.id ? `/u/${row.id}` : null} />
+            {#if row.id}<a class="name name-link" href="/u/{row.id}" title="View profile">{row.name}</a>{:else}<span class="name" title={row.name}>{row.name}</span>{/if}
             <span class="chips">{fmt(row.chips)}</span>
           </div>
         {/each}
@@ -127,7 +130,7 @@
 
   .lrow {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 8px;
     padding: 6px 8px;
     background: var(--well);

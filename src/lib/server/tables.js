@@ -187,6 +187,7 @@ export async function loadHand(handKey) {
     },
     uploads: uploads.map((u) => ({
       id: u.id,
+      uploaderId: u.user_id || null,
       uploader: u.uploader_email
         ? (u.uploader_display || u.uploader_email)
         : null,

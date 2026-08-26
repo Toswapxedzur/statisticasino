@@ -21,10 +21,13 @@
 import { fail } from "@sveltejs/kit";
 import { execute, tx } from "$lib/server/db.js";
 import { listPlayers } from "$lib/server/tables.js";
+import { recentActivity } from "$lib/server/activity.js";
 
 export async function load({ locals }) {
   const players = await listPlayers();
-  return { players, user: locals.user };
+  // The signed-in user's own Riverside history, shown as a section on this page.
+  const activity = locals.user ? await recentActivity(locals.user.id, { limit: 60 }) : [];
+  return { players, user: locals.user, activity };
 }
 
 function requireAdmin(locals) {

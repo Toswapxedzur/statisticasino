@@ -741,7 +741,7 @@
       {#each payload.uploads as u}
         <li>
           Seat {u.seatId ?? "?"}
-          {#if u.uploader} — <strong>{u.uploader}</strong>{:else} — anonymous{/if}
+          {#if u.uploader} — {#if u.uploaderId}<a href="/u/{u.uploaderId}"><strong>{u.uploader}</strong></a>{:else}<strong>{u.uploader}</strong>{/if}{:else} — anonymous{/if}
           {#if u.isCanonical} <span class="badge">canonical</span>{/if}
         </li>
       {/each}
