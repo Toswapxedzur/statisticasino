@@ -26,6 +26,13 @@
   const header = $derived(openId ? poker.convHeaders[openId] : null);
   const messages = $derived(openId ? (poker.convMessages[openId] || []) : []);
   const me = $derived(poker.me);
+  const typer = $derived(openId && poker.typing[openId] ? poker.typing[openId].name : null);
+  const lastOwnSeq = $derived(messages.filter((m) => m.mine).reduce((mx, m) => Math.max(mx, m.seq || 0), 0));
+  const seen = $derived.by(() => {
+    if (!header || header.kind !== "dm" || !header.other || lastOwnSeq <= 0) return false;
+    const rs = poker.readSeq[openId];
+    return rs && rs[header.other.id] != null && rs[header.other.id] >= lastOwnSeq;
+  });
 
   onMount(() => {
     poker.loadConvs();
@@ -262,14 +269,23 @@
           {:else}
             <div class="msg" class:mine={m.mine} in:fly={{ y: d(6), duration: d(DUR.base) }}>
               {#if header.kind === "group" && !m.mine}<span class="msg-who" style="color:{color(m.senderId)}">{m.senderName}</span>{/if}
-              <span class="bubble">{m.body}</span>
+              <span class="bubble-row">
+                {#if m.deletedAt}
+                  <span class="bubble deleted">message deleted</span>
+                {:else}
+                  <span class="bubble">{m.body}</span>
+                  {#if m.mine}<button class="del-btn" onclick={() => poker.deleteMsg(openId, m.id)} aria-label="Delete message">✕</button>{/if}
+                {/if}
+              </span>
               <span class="msg-time">{fmtTime(m.createdAt)}</span>
             </div>
           {/if}
         {/each}
+        {#if seen}<div class="seen-ind">Seen</div>{/if}
+        {#if typer}<div class="typing-ind">{typer} is typing…</div>{/if}
       </div>
       <div class="composer">
-        <textarea class="composer-input" bind:value={draft} onkeydown={onKey} rows="1" placeholder="Message…"></textarea>
+        <textarea class="composer-input" bind:value={draft} onkeydown={onKey} oninput={() => openId && poker.sendTyping(openId)} rows="1" placeholder="Message…"></textarea>
         <button class="btn send-btn" onclick={send} disabled={!draft.trim()}>Send</button>
       </div>
     {:else}
@@ -375,6 +391,15 @@
   .bubble { background: var(--well); padding: 9px 13px; border-radius: 15px; border-bottom-left-radius: 5px; font-size: 14px; line-height: 1.35; white-space: pre-wrap; word-break: break-word; }
   .msg.mine .bubble { background: var(--accent); color: var(--on-accent); border-radius: 15px; border-bottom-right-radius: 5px; }
   .msg-time { font-size: 10.5px; color: var(--faint); padding: 0 4px; }
+  .bubble-row { display: inline-flex; align-items: center; gap: 6px; }
+  .msg.mine .bubble-row { flex-direction: row-reverse; }
+  .del-btn { opacity: 0; border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px;
+    transition: opacity var(--dur) var(--ease), color var(--dur) var(--ease); }
+  .msg:hover .del-btn { opacity: 1; }
+  .del-btn:hover { color: var(--danger); }
+  .bubble.deleted { font-style: italic; color: var(--muted); background: transparent; box-shadow: inset 0 0 0 1px var(--well); }
+  .seen-ind { align-self: flex-end; font-size: 10.5px; color: var(--faint); padding-right: 4px; }
+  .typing-ind { align-self: flex-start; font-size: 12px; color: var(--muted); font-style: italic; padding-left: 4px; }
   .composer { display: flex; gap: 10px; padding: 12px 16px; box-shadow: 0 -1px 0 var(--well); align-items: flex-end; }
   .composer-input { flex: 1; resize: none; max-height: 120px; font: inherit; }
   .send-btn { flex: 0 0 auto; }

@@ -146,6 +146,21 @@ export async function getMessages(convId, limit = 100, db = realDb) {
     .reverse();
 }
 
+// Soft-delete a message (only its own sender may). Returns true if it deleted.
+export async function deleteMessage(convId, messageId, userId, db = realDb) {
+  const res = await db.execute(
+    "UPDATE chat_message SET deleted_at = ?, body = NULL, media_id = NULL WHERE id = ? AND conv_id = ? AND sender_id = ? AND deleted_at IS NULL",
+    [Date.now(), messageId, convId, userId]
+  );
+  return (res.affectedRows ?? 0) > 0;
+}
+
+// The highest seq a member has read (for read receipts).
+export async function readState(convId, db = realDb) {
+  const rows = await db.query("SELECT user_id, last_read_seq FROM conversation_member WHERE conv_id = ?", [convId]);
+  return rows.map((r) => ({ userId: r.user_id, seq: Number(r.last_read_seq) }));
+}
+
 // Mark everything up to `uptoSeq` (or the newest) read for one member.
 export async function markRead(convId, userId, uptoSeq = null, db = realDb) {
   let seq = uptoSeq;

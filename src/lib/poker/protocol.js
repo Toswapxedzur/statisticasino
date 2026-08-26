@@ -45,6 +45,8 @@ export const C2S = {
   GROUP_CREATE: "group.create",// { title, memberIds:[] }
   GROUP_UPDATE: "group.update",// { convId, title? } — rename / manage (owner/admin)
   GROUP_MEMBERS: "group.members", // { convId, add:[], remove:[] }
+  MSG_DELETE: "msg.delete",    // { convId, messageId } — delete own message
+  TYPING: "typing",            // { convId } — I'm typing (ephemeral)
   VOICE_JOIN: "voice.join",    // { tableId } — join a table's voice mesh
   VOICE_LEAVE: "voice.leave",  // { tableId }
   RTC_SIGNAL: "rtc.signal",    // { tableId, toUserId, signal } — WebRTC offer/answer/ice relay
@@ -72,6 +74,8 @@ export const S2C = {
   MSG: "msg",                  // { convId, message:{id,seq,senderId,senderName,kind,body,mediaId,replyTo,createdAt} }
   CONV_UPDATE: "conv.update",  // { conversation:ConvSummary } — created / renamed / membership change
   CONV_READ: "conv.read",      // { convId, userId, seq } — a member read up to seq (receipts)
+  MSG_DELETED: "msg.deleted",  // { convId, messageId } — a message was deleted
+  TYPING: "typing",            // { convId, userId, name } — someone is typing
   VOICE_ROSTER: "voice.roster",// { tableId, users:[{userId,name}] } — who's in the table's voice mesh
   ICE_CONFIG: "voice.ice",     // { iceServers } — STUN/TURN config for RTCPeerConnection (ephemeral creds)
   RTC_SIGNAL: "rtc.signal",    // { tableId, fromUserId, signal } — relayed WebRTC signal

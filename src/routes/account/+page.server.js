@@ -1,6 +1,7 @@
 import { fail, redirect } from "@sveltejs/kit";
 import { query, queryOne } from "$lib/server/db.js";
 import { updateProfile } from "$lib/server/profiles.js";
+import { openReports, resolveReport } from "$lib/server/moderation.js";
 import {
   invalidateSession,
   promoteToAdmin,
@@ -49,11 +50,13 @@ export async function load({ locals }) {
   );
 
   let allUsers = null;
+  let reports = null;
   if (locals.user.isAdmin) {
     allUsers = await query(
       `SELECT id, email, display_name, is_admin, created_at, chips
        FROM user ORDER BY created_at DESC`
     );
+    reports = await openReports(50);
   }
 
   return {
@@ -66,6 +69,7 @@ export async function load({ locals }) {
     bestStreak,
     achievements,
     ledger,
+    reports,
     profile: {
       bio: walletRow?.bio || "",
       statusText: walletRow?.status_text || "",
@@ -163,5 +167,13 @@ export const actions = {
       visibility: String(form.get("visibility") || "public"),
     });
     return { profileOk: true };
+  },
+
+  resolveReport: async ({ request, locals }) => {
+    if (!locals.user?.isAdmin) return fail(403, { error: "Admins only." });
+    const fd = await request.formData();
+    const id = String(fd.get("id") || "");
+    if (id) await resolveReport(id);
+    return { reportResolved: true };
   }
 };

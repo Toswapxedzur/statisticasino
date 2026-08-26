@@ -21,6 +21,7 @@ import { unlock, handAchievements } from "../achievements.js";
 import { areFriends } from "../friends.js";
 import { sendMessage, markRead } from "../dm.js";
 import * as convo from "../conversations.js";
+import { isBlocked } from "../moderation.js";
 import { query as dbQuery } from "../db.js";
 import { iceConfig } from "../voice.js";
 import { LiveTable } from "./table.js";
@@ -734,6 +735,12 @@ export class PokerHub {
         case C2S.GROUP_MEMBERS:
           await this.groupMembers(conn, msg);
           break;
+        case C2S.MSG_DELETE:
+          await this.msgDelete(conn, msg);
+          break;
+        case C2S.TYPING:
+          await this.typing(conn, msg);
+          break;
 
         case C2S.VOICE_JOIN:
           await this.voiceJoin(conn, msg.tableId);
@@ -1024,6 +1031,7 @@ export class PokerHub {
     let createdWith = null;
     if (!convId && msg.toUserId) {
       if (msg.toUserId === conn.user.id) return;
+      if (await isBlocked(conn.user.id, msg.toUserId)) return this._err(conn, "You can't message this player.");
       if (!(await areFriends(conn.user.id, msg.toUserId))) return this._err(conn, "You can only message friends.");
       convId = await convo.getOrCreateDm(conn.user.id, msg.toUserId);
       createdWith = msg.toUserId;
@@ -1048,7 +1056,28 @@ export class PokerHub {
 
   async msgRead(conn, msg) {
     if (!conn.user || !msg.convId) return;
-    try { await convo.markRead(msg.convId, conn.user.id); } catch { /* best effort */ }
+    try {
+      await convo.markRead(msg.convId, conn.user.id);
+      const rows = await convo.readState(msg.convId);
+      const mine = rows.find((r) => r.userId === conn.user.id);
+      const frame = encode(S2C.CONV_READ, { convId: msg.convId, userId: conn.user.id, seq: mine?.seq ?? 0 });
+      for (const uid of await convo.memberIds(msg.convId)) if (uid !== conn.user.id) for (const c of this.connsForUser(uid)) c.send(frame);
+    } catch { /* best effort */ }
+  }
+
+  async msgDelete(conn, msg) {
+    if (!conn.user || !msg.convId || !msg.messageId) return;
+    const ok = await convo.deleteMessage(msg.convId, msg.messageId, conn.user.id);
+    if (!ok) return;
+    const frame = encode(S2C.MSG_DELETED, { convId: msg.convId, messageId: msg.messageId });
+    for (const uid of await convo.memberIds(msg.convId)) for (const c of this.connsForUser(uid)) c.send(frame);
+  }
+
+  async typing(conn, msg) {
+    if (!conn.user || !msg.convId) return;
+    if (!(await convo.isMember(msg.convId, conn.user.id))) return;
+    const frame = encode(S2C.TYPING, { convId: msg.convId, userId: conn.user.id, name: conn.user.displayName || conn.user.email });
+    for (const uid of await convo.memberIds(msg.convId)) if (uid !== conn.user.id) for (const c of this.connsForUser(uid)) c.send(frame);
   }
 
   async groupCreate(conn, msg) {

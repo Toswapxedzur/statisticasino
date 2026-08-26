@@ -564,6 +564,31 @@ CREATE TABLE IF NOT EXISTS media (
   CONSTRAINT fk_media_uploader FOREIGN KEY (uploader_id) REFERENCES user(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- v21 (2026-08-26, "Social safety"): blocking + reporting. A block is directed
+-- (blocker -> blocked) but enforced BOTH ways (no DMs / friend requests either
+-- direction). Reports land in a queue for admin review.
+CREATE TABLE IF NOT EXISTS user_block (
+  blocker_id  VARCHAR(64) NOT NULL,
+  blocked_id  VARCHAR(64) NOT NULL,
+  created_at  BIGINT NOT NULL,
+  PRIMARY KEY (blocker_id, blocked_id),
+  KEY idx_block_blocked (blocked_id),
+  CONSTRAINT fk_block_blocker FOREIGN KEY (blocker_id) REFERENCES user(id) ON DELETE CASCADE,
+  CONSTRAINT fk_block_blocked FOREIGN KEY (blocked_id) REFERENCES user(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS report (
+  id           VARCHAR(64) NOT NULL PRIMARY KEY,
+  reporter_id  VARCHAR(64),
+  target_id    VARCHAR(64),
+  reason       VARCHAR(500),
+  created_at   BIGINT NOT NULL,
+  status       VARCHAR(16) NOT NULL DEFAULT 'open',   -- open | reviewed
+  KEY idx_report_status (status, created_at),
+  CONSTRAINT fk_report_reporter FOREIGN KEY (reporter_id) REFERENCES user(id) ON DELETE SET NULL,
+  CONSTRAINT fk_report_target FOREIGN KEY (target_id) REFERENCES user(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS meta (
   meta_key   VARCHAR(64)  NOT NULL PRIMARY KEY,
   meta_value VARCHAR(255) NOT NULL

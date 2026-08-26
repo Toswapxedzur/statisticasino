@@ -4,12 +4,15 @@ import { error, fail } from "@sveltejs/kit";
 import { getProfile } from "$lib/server/profiles.js";
 import { requestFriend, respondFriend, removeFriend, areFriends } from "$lib/server/friends.js";
 import { getTransferable, transfer } from "$lib/server/transfers.js";
+import { block, unblock, hasBlocked, report } from "$lib/server/moderation.js";
 import { hub } from "$lib/server/poker/hub.js";
 
 export async function load({ params, locals }) {
   const viewerId = locals.user?.id || null;
   const profile = await getProfile(params.id, viewerId);
   if (!profile) throw error(404, "No such player.");
+  const blocked = viewerId ? await hasBlocked(viewerId, params.id) : false;
+  profile.blocked = blocked;
   const online = (hub.connsForUser?.(params.id) || []).length > 0;
   const table = hub.seatOfUser?.(params.id) || null;
   // The transferable cap is the VIEWER's earned pool — surfaced only in the send
@@ -56,5 +59,22 @@ export const actions = {
     }
     try { hub.notifyTransfer?.(locals.user.id, params.id, res.amount, res.fromBalance, res.toBalance); } catch { /* best effort */ }
     return { transferOk: `Sent ${res.amount.toLocaleString()} chips.`, newBalance: res.fromBalance };
+  },
+
+  block: async ({ params, locals }) => {
+    if (!locals.user) return fail(401, { error: "Sign in first." });
+    await block(locals.user.id, params.id);
+    return { ok: "blocked" };
+  },
+  unblock: async ({ params, locals }) => {
+    if (!locals.user) return fail(401, { error: "Sign in first." });
+    await unblock(locals.user.id, params.id);
+    return { ok: "unblocked" };
+  },
+  report: async ({ params, locals, request }) => {
+    if (!locals.user) return fail(401, { error: "Sign in first." });
+    const fd = await request.formData();
+    await report(locals.user.id, params.id, String(fd.get("reason") || ""));
+    return { ok: "reported" };
   },
 };

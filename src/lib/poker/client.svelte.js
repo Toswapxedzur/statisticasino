@@ -34,6 +34,9 @@ class PokerClient {
   convMessages = $state({});    // convId -> [ {id,seq,senderId,senderName,kind,body,mediaId,replyTo,createdAt,mine} ]
   convHeaders = $state({});     // convId -> summary header
   openConvId = $state(null);    // convId currently open in the UI (suppresses its badge)
+  typing = $state({});          // convId -> { name, ts } (someone typing; auto-clears)
+  readSeq = $state({});         // convId -> { userId: lastReadSeq } (read receipts)
+  _typingTimers = {};
 
   _wantLobby = false;
   _watching = new Set();
@@ -209,6 +212,23 @@ class PokerClient {
         if (this.openConvId === cid && !isMine) this._raw(encode(C2S.MSG_READ, { convId: cid }));
         break;
       }
+      case S2C.MSG_DELETED: {
+        const list = this.convMessages[msg.convId];
+        if (list) this.convMessages = { ...this.convMessages, [msg.convId]: list.map((m) => m.id === msg.messageId ? { ...m, deletedAt: Date.now(), body: null } : m) };
+        break;
+      }
+      case S2C.TYPING: {
+        const cid = msg.convId;
+        this.typing = { ...this.typing, [cid]: { name: msg.name, ts: Date.now() } };
+        clearTimeout(this._typingTimers[cid]);
+        this._typingTimers[cid] = setTimeout(() => { const t = { ...this.typing }; delete t[cid]; this.typing = t; }, 4000);
+        break;
+      }
+      case S2C.CONV_READ: {
+        const cid = msg.convId;
+        this.readSeq = { ...this.readSeq, [cid]: { ...(this.readSeq[cid] || {}), [msg.userId]: msg.seq } };
+        break;
+      }
       case S2C.VOICE_ROSTER:
         this._voice?.roster?.(msg);
         break;
@@ -323,6 +343,15 @@ class PokerClient {
   addToGroup(convId, memberIds = []) { this.connect(); this._raw(encode(C2S.GROUP_MEMBERS, { convId, add: memberIds })); }
   removeFromGroup(convId, userId) { this.connect(); this._raw(encode(C2S.GROUP_MEMBERS, { convId, remove: [userId] })); }
   leaveGroup(convId) { this.connect(); this._raw(encode(C2S.GROUP_MEMBERS, { convId, remove: [this.me?.id] })); this.closeConv(); }
+  deleteMsg(convId, messageId) { this.connect(); this._raw(encode(C2S.MSG_DELETE, { convId, messageId })); }
+  _lastTyping = 0;
+  sendTyping(convId) {
+    const now = Date.now();
+    if (now - this._lastTyping < 2500) return; // throttle
+    this._lastTyping = now;
+    this.connect();
+    this._raw(encode(C2S.TYPING, { convId }));
+  }
   // Total unread across all conversations — drives the nav "Social" badge.
   get socialUnread() { return this.conversations.reduce((a, c) => a + (c.unread || 0), 0); }
 

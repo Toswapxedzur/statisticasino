@@ -1,4 +1,5 @@
 <script>
+  import { enhance } from "$app/forms";
   let { data, form } = $props();
   function fmt(ts) {
     if (!ts) return "";
@@ -173,6 +174,28 @@
   </p>
 </section>
 
+{#if data.user.isAdmin && data.reports}
+  <section class="card">
+    <div class="card-head"><h3>Reports ({data.reports.length})</h3></div>
+    {#if data.reports.length === 0}
+      <p class="muted small">No open reports.</p>
+    {:else}
+      {#each data.reports as r (r.id)}
+        <div class="report-row">
+          <div class="report-main">
+            <span><a href="/u/{r.reporter_id}">{r.reporter_name || r.reporter_email || "someone"}</a> reported <a href="/u/{r.target_id}"><b>{r.target_name || r.target_email || "a user"}</b></a></span>
+            {#if r.reason}<span class="muted small">{r.reason}</span>{/if}
+          </div>
+          <form method="POST" action="?/resolveReport" use:enhance>
+            <input type="hidden" name="id" value={r.id} />
+            <button class="btn btn-sm btn-secondary" type="submit">Resolve</button>
+          </form>
+        </div>
+      {/each}
+    {/if}
+  </section>
+{/if}
+
 {#if data.user.isAdmin && data.allUsers}
   <section class="card">
     <div class="card-head"><h3>Admin \u2014 grant / adjust chips</h3></div>
@@ -227,6 +250,8 @@
 {/if}
 
 <style>
+  .report-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 0; }
+  .report-main { display: flex; flex-direction: column; gap: 2px; font-size: 13.5px; }
   .wallet .balance-row {
     display: flex; align-items: center; justify-content: space-between;
     gap: 16px; flex-wrap: wrap;
