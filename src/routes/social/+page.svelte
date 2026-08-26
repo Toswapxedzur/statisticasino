@@ -53,6 +53,9 @@
   let groupOpen = $state(false);
   let groupTitle = $state("");
   let groupPick = $state(new Set());
+  let groupPanel = $state(false);
+  let renameVal = $state("");
+  $effect(() => { openId; groupPanel = false; }); // close the panel when switching chats
   function togglePick(id) { const s = new Set(groupPick); s.has(id) ? s.delete(id) : s.add(id); groupPick = s; }
   function makeGroup() {
     if (!groupTitle.trim() || groupPick.size === 0) return;
@@ -213,14 +216,47 @@
           {#if header.kind === "dm" && header.other}<a class="th-name-link" href="/u/{header.other.id}">{header.title}</a>{:else}{header.title}{/if}
           <span class="th-sub">{header.kind === "group" ? header.members.length + " members" : (friends.find((f) => f.id === header.other?.id)?.online ? "online" : "")}</span>
         </span>
+        {#if header.kind === "group"}<button class="gear" onclick={() => (groupPanel = !groupPanel)} aria-label="Group settings">⚙</button>{/if}
       </div>
+      {#if groupPanel && header.kind === "group"}
+        <div class="group-panel" transition:slide={{ duration: d(DUR.base) }}>
+          <div class="gp-rename">
+            <input class="search-input" bind:value={renameVal} placeholder={header.title} maxlength="128" />
+            <button class="btn btn-sm" onclick={() => { if (renameVal.trim()) { poker.renameGroup(openId, renameVal.trim()); renameVal = ''; } }}>Rename</button>
+          </div>
+          <div class="gp-members">
+            {#each header.members as mem (mem.id)}
+              <div class="gp-mem">
+                <a class="avatar frow-av" href="/u/{mem.id}" style="background:{color(mem.id)}">{initial(mem.name)}</a>
+                <span class="frow-name">{mem.name}{#if mem.id === me?.id} (you){/if}</span>
+                {#if mem.id !== me?.id}<button class="btn btn-xs btn-secondary" onclick={() => poker.removeFromGroup(openId, mem.id)}>Remove</button>{/if}
+              </div>
+            {/each}
+          </div>
+          {#if friends.filter((f) => !header.members.some((m) => m.id === f.id)).length > 0}
+            <p class="muted small" style="margin:8px 0 4px">Add friends</p>
+            {#each friends.filter((f) => !header.members.some((m) => m.id === f.id)) as f (f.id)}
+              <div class="gp-mem">
+                <span class="avatar frow-av" style="background:{color(f.id)}">{initial(f.name)}</span>
+                <span class="frow-name">{f.name}</span>
+                <button class="btn btn-xs" onclick={() => poker.addToGroup(openId, [f.id])}>Add</button>
+              </div>
+            {/each}
+          {/if}
+          <button class="btn btn-sm btn-secondary gp-leave" onclick={() => { poker.leaveGroup(openId); groupPanel = false; mobileThread = false; }}>Leave group</button>
+        </div>
+      {/if}
       <div class="thread" bind:this={threadEl}>
         {#each messages as m (m.id)}
-          <div class="msg" class:mine={m.mine} in:fly={{ y: d(6), duration: d(DUR.base) }}>
-            {#if header.kind === "group" && !m.mine}<span class="msg-who" style="color:{color(m.senderId)}">{m.senderName}</span>{/if}
-            <span class="bubble">{m.body}</span>
-            <span class="msg-time">{fmtTime(m.createdAt)}</span>
-          </div>
+          {#if m.kind === "system"}
+            <div class="sys-msg" in:fade={{ duration: d(DUR.base) }}>{m.body}</div>
+          {:else}
+            <div class="msg" class:mine={m.mine} in:fly={{ y: d(6), duration: d(DUR.base) }}>
+              {#if header.kind === "group" && !m.mine}<span class="msg-who" style="color:{color(m.senderId)}">{m.senderName}</span>{/if}
+              <span class="bubble">{m.body}</span>
+              <span class="msg-time">{fmtTime(m.createdAt)}</span>
+            </div>
+          {/if}
         {/each}
       </div>
       <div class="composer">
@@ -312,6 +348,16 @@
   .back-btn { display: none; border: 0; background: var(--well); color: var(--text); width: 30px; height: 30px; border-radius: 999px; font-size: 18px; cursor: pointer; }
   .th-title { font-weight: 700; font-size: 15px; display: flex; flex-direction: column; }
   .th-sub { font-weight: 500; font-size: 11.5px; color: var(--muted); }
+  .gear { margin-left: auto; border: 0; background: var(--well); color: var(--muted); width: 32px; height: 32px; border-radius: 999px; cursor: pointer; font-size: 15px;
+    transition: color var(--dur) var(--ease), background-color var(--dur) var(--ease); }
+  .gear:hover { color: var(--text); background: var(--surface-2); }
+  .group-panel { padding: 12px 16px; background: var(--surface-2); display: flex; flex-direction: column; gap: 8px; }
+  .gp-rename { display: flex; gap: 8px; }
+  .gp-members { display: flex; flex-direction: column; gap: 4px; }
+  .gp-mem { display: flex; align-items: center; gap: 9px; padding: 3px 0; }
+  .gp-mem .frow-name { flex: 1; }
+  .gp-leave { align-self: flex-start; margin-top: 6px; color: var(--danger); }
+  .sys-msg { align-self: center; font-size: 11.5px; color: var(--muted); background: var(--well); padding: 4px 12px; border-radius: 999px; margin: 4px 0; max-width: 80%; text-align: center; }
   .thread { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
   .msg { max-width: 72%; align-self: flex-start; display: flex; flex-direction: column; gap: 2px; }
   .msg.mine { align-self: flex-end; align-items: flex-end; }

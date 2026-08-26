@@ -728,6 +728,12 @@ export class PokerHub {
         case C2S.GROUP_CREATE:
           await this.groupCreate(conn, msg);
           break;
+        case C2S.GROUP_UPDATE:
+          await this.groupUpdate(conn, msg);
+          break;
+        case C2S.GROUP_MEMBERS:
+          await this.groupMembers(conn, msg);
+          break;
 
         case C2S.VOICE_JOIN:
           this.voiceJoin(conn, msg.tableId);
@@ -1052,8 +1058,57 @@ export class PokerHub {
     const allowed = [];
     for (const uid of wanted) if (await areFriends(conn.user.id, uid)) allowed.push(uid);
     const convId = await convo.createGroup(conn.user.id, title, allowed);
+    const sys = await convo.postMessage(convId, null, { kind: "system", body: `${conn.user.displayName || conn.user.email} created the group` });
+    if (sys) await this._broadcastMsg(convId, sys);
     for (const uid of [conn.user.id, ...allowed]) await this.pushConvList(uid);
     return convId;
+  }
+
+  async groupUpdate(conn, msg) {
+    if (!conn.user || !msg.convId) return;
+    const role = await convo.roleOf(msg.convId, conn.user.id);
+    if (role !== "owner" && role !== "admin") return this._err(conn, "Only admins can edit the group.");
+    if (typeof msg.title === "string" && msg.title.trim()) {
+      const t = msg.title.trim().slice(0, 128);
+      await convo.rename(msg.convId, t);
+      const sys = await convo.postMessage(msg.convId, null, { kind: "system", body: `${conn.user.displayName || conn.user.email} renamed the group to "${t}"` });
+      if (sys) await this._broadcastMsg(msg.convId, sys);
+    }
+    for (const uid of await convo.memberIds(msg.convId)) await this.pushConvList(uid);
+  }
+
+  async groupMembers(conn, msg) {
+    if (!conn.user || !msg.convId) return;
+    const conv = await convo.getConversation(msg.convId);
+    if (!conv || conv.kind !== "group") return this._err(conn, "Not a group.");
+    const role = await convo.roleOf(msg.convId, conn.user.id);
+    const add = Array.isArray(msg.add) ? msg.add.filter(Boolean) : [];
+    const remove = Array.isArray(msg.remove) ? msg.remove.filter(Boolean) : [];
+    const affected = new Set(await convo.memberIds(msg.convId));
+
+    if (add.length && role !== "owner" && role !== "admin") return this._err(conn, "Only admins can add members.");
+    const allowedAdd = [];
+    for (const uid of add) if ((await areFriends(conn.user.id, uid)) && !(await convo.isMember(msg.convId, uid))) allowedAdd.push(uid);
+    if (allowedAdd.length) {
+      await convo.addMembers(msg.convId, allowedAdd);
+      const info = await this._usersInfo(allowedAdd);
+      const names = allowedAdd.map((id) => info.get(id)?.name || "Player").join(", ");
+      const sys = await convo.postMessage(msg.convId, null, { kind: "system", body: `${conn.user.displayName || conn.user.email} added ${names}` });
+      if (sys) await this._broadcastMsg(msg.convId, sys);
+      allowedAdd.forEach((id) => affected.add(id));
+    }
+    for (const uid of remove) {
+      const isSelf = uid === conn.user.id;
+      if (!isSelf && role !== "owner" && role !== "admin") continue;
+      if (!(await convo.isMember(msg.convId, uid))) continue;
+      const info = await this._usersInfo([uid]);
+      const name = info.get(uid)?.name || "Player";
+      await convo.removeMember(msg.convId, uid);
+      const sys = await convo.postMessage(msg.convId, null, { kind: "system", body: isSelf ? `${name} left` : `${conn.user.displayName || conn.user.email} removed ${name}` });
+      if (sys) await this._broadcastMsg(msg.convId, sys);
+      affected.add(uid);
+    }
+    for (const uid of affected) await this.pushConvList(uid);
   }
 
   // ------------------------------------------------------- voice (WebRTC mesh)

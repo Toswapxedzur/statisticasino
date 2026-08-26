@@ -319,6 +319,10 @@ class PokerClient {
     this.connect();
     this._raw(encode(C2S.GROUP_CREATE, { title, memberIds }));
   }
+  renameGroup(convId, title) { this.connect(); this._raw(encode(C2S.GROUP_UPDATE, { convId, title })); }
+  addToGroup(convId, memberIds = []) { this.connect(); this._raw(encode(C2S.GROUP_MEMBERS, { convId, add: memberIds })); }
+  removeFromGroup(convId, userId) { this.connect(); this._raw(encode(C2S.GROUP_MEMBERS, { convId, remove: [userId] })); }
+  leaveGroup(convId) { this.connect(); this._raw(encode(C2S.GROUP_MEMBERS, { convId, remove: [this.me?.id] })); this.closeConv(); }
   // Total unread across all conversations — drives the nav "Social" badge.
   get socialUnread() { return this.conversations.reduce((a, c) => a + (c.unread || 0), 0); }
 
