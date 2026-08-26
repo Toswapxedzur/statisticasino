@@ -11,6 +11,8 @@
   import { flip } from "svelte/animate";
   import { d, DUR } from "$lib/motion.js";
   import { slidingIndicator } from "$lib/actions/slider.js";
+  import VoiceBar from "$lib/poker/components/VoiceBar.svelte";
+  import { voice } from "$lib/poker/voice.svelte.js";
 
   let { data, form } = $props();
 
@@ -56,6 +58,8 @@
   let groupPanel = $state(false);
   let renameVal = $state("");
   $effect(() => { openId; groupPanel = false; }); // close the panel when switching chats
+  // Leave any active call when switching conversations or leaving the page.
+  $effect(() => { openId; return () => { if (voice.active) voice.leave(); }; });
   function togglePick(id) { const s = new Set(groupPick); s.has(id) ? s.delete(id) : s.add(id); groupPick = s; }
   function makeGroup() {
     if (!groupTitle.trim() || groupPick.size === 0) return;
@@ -218,6 +222,11 @@
         </span>
         {#if header.kind === "group"}<button class="gear" onclick={() => (groupPanel = !groupPanel)} aria-label="Group settings">⚙</button>{/if}
       </div>
+      {#if me}
+        {#key openId}
+          <div class="voice-strip"><VoiceBar tableId={openId} /></div>
+        {/key}
+      {/if}
       {#if groupPanel && header.kind === "group"}
         <div class="group-panel" transition:slide={{ duration: d(DUR.base) }}>
           <div class="gp-rename">
@@ -351,6 +360,7 @@
   .gear { margin-left: auto; border: 0; background: var(--well); color: var(--muted); width: 32px; height: 32px; border-radius: 999px; cursor: pointer; font-size: 15px;
     transition: color var(--dur) var(--ease), background-color var(--dur) var(--ease); }
   .gear:hover { color: var(--text); background: var(--surface-2); }
+  .voice-strip { padding: 6px 16px 0; }
   .group-panel { padding: 12px 16px; background: var(--surface-2); display: flex; flex-direction: column; gap: 8px; }
   .gp-rename { display: flex; gap: 8px; }
   .gp-members { display: flex; flex-direction: column; gap: 4px; }

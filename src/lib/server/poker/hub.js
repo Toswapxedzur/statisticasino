@@ -736,7 +736,7 @@ export class PokerHub {
           break;
 
         case C2S.VOICE_JOIN:
-          this.voiceJoin(conn, msg.tableId);
+          await this.voiceJoin(conn, msg.tableId);
           break;
         case C2S.VOICE_LEAVE:
           this.voiceLeave(conn, msg.tableId);
@@ -1144,14 +1144,17 @@ export class PokerHub {
   // Join a table's voice mesh. Must be watching the table. The joiner gets the ICE
   // config (fresh ephemeral TURN creds) + the current roster; everyone's roster
   // updates so the WebRTC mesh can wire up (the newcomer is the offerer, client-side).
-  voiceJoin(conn, tableId) {
+  // roomId is either a table id (authorised by watching it) or a conversation id
+  // (authorised by membership) — one voice mesh serves in-game and social calls.
+  async voiceJoin(conn, roomId) {
     if (!conn.user) return this._err(conn, "Sign in to use voice.", "AUTH");
-    if (!conn.watching?.has(tableId)) return this._err(conn, "Join the table first.");
-    let room = this.voiceRooms.get(tableId);
-    if (!room) { room = new Map(); this.voiceRooms.set(tableId, room); }
+    const ok = conn.watching?.has(roomId) || (await convo.isMember(roomId, conn.user.id));
+    if (!ok) return this._err(conn, "Join the table or conversation first.");
+    let room = this.voiceRooms.get(roomId);
+    if (!room) { room = new Map(); this.voiceRooms.set(roomId, room); }
     room.set(conn.user.id, conn.user.displayName || conn.user.email);
     conn.send(encode(S2C.ICE_CONFIG, iceConfig()));
-    this._broadcastVoiceRoster(tableId);
+    this._broadcastVoiceRoster(roomId);
   }
 
   voiceLeave(conn, tableId) {
