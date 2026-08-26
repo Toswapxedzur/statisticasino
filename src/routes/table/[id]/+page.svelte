@@ -22,6 +22,7 @@
   import BuyInModal from "$lib/poker/components/BuyInModal.svelte";
   import TableChat from "$lib/poker/components/TableChat.svelte";
   import { variantLabel, isBanked as isBankedGame, isShedding } from "$lib/poker/games.js";
+  import Select from "$lib/components/Select.svelte";
   import { fade, fly, scale } from "svelte/transition";
   import { d, DUR } from "$lib/motion.js";
 
@@ -280,9 +281,7 @@
     {#if hasOpenSeat}
       <section class="bot-controls" transition:fly={{ y: d(10), duration: d(DUR.base) }}>
         <span class="muted small">Add a bot:</span>
-        <select bind:value={botTier} aria-label="Bot difficulty">
-          {#each botTiers as [k, label]}<option value={k}>{label}</option>{/each}
-        </select>
+        <Select bind:value={botTier} options={botTiers.map(([value, label]) => ({ value, label }))} ariaLabel="Bot difficulty" />
         <button class="btn btn-secondary" onclick={addBot} disabled={!canAffordBot}>Add bot</button>
         <span class="muted small" title="You stake the bot: its buy-in comes from your chips and returns to you when it leaves.">
           stake {botStake.toLocaleString()}{#if !canAffordBot} · not enough chips{/if}

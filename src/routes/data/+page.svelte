@@ -3,6 +3,7 @@
   import { invalidateAll } from "$app/navigation";
   import HandReplay from "./HandReplay.svelte";
   import TristateCheckbox from "./TristateCheckbox.svelte";
+  import Checkbox from "$lib/components/Checkbox.svelte";
   import { slide } from "svelte/transition";
   import { d, DUR } from "$lib/motion.js";
 
@@ -460,13 +461,9 @@
                     {#each t.hands.slice().reverse() as h, i (h.handKey)}
                       <li class="h-item">
                         <div class="h-item-row">
-                          <label class="tree-select" title="Select round for bulk action">
-                            <input
-                              type="checkbox"
-                              checked={selected.has(h.handKey)}
-                              onchange={() => toggleHandSelect(h.handKey)}
-                            />
-                          </label>
+                          <span class="tree-select" title="Select round for bulk action">
+                            <Checkbox checked={selected.has(h.handKey)} onChange={() => toggleHandSelect(h.handKey)} />
+                          </span>
                           <button class="h-row" onclick={() => toggleHand(h.handKey)}
                                   aria-expanded={openHand[h.handKey] ? "true" : "false"}>
                             <span class="h-caret">{openHand[h.handKey] ? "▾" : "▸"}</span>

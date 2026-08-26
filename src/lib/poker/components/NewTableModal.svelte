@@ -11,6 +11,7 @@
   import { POKER_VARIANTS, variantLabel, isShedding as isSheddingFn } from "$lib/poker/games.js";
   import { fade, scale } from "svelte/transition";
   import { d, DUR } from "$lib/motion.js";
+  import Checkbox from "$lib/components/Checkbox.svelte";
 
   let { walletChips = 0, mode = "poker", onCreate = () => {}, onCancel = () => {} } = $props();
 
@@ -168,8 +169,8 @@
     {/if}
 
     {#if showFlopOpts}
-      <label class="toggle"><input type="checkbox" bind:checked={straddle} /><span>Straddle table (UTG posts a live 2×BB blind)</span></label>
-      <label class="toggle"><input type="checkbox" bind:checked={runItTwice} /><span>Run it twice (deal the board twice on all-ins)</span></label>
+      <div class="toggle-row"><Checkbox bind:checked={straddle} label="Straddle table (UTG posts a live 2×BB blind)" /></div>
+      <div class="toggle-row"><Checkbox bind:checked={runItTwice} label="Run it twice (deal the board twice on all-ins)" /></div>
     {/if}
 
     <div class="field">
@@ -216,10 +217,7 @@
       {#if isShedding}
         <p class="hint muted">Everyone antes the minimum; the first to shed all their cards takes the pot.</p>
       {:else}
-        <label class="toggle">
-          <input type="checkbox" bind:checked={beBanker} />
-          <span>I'll be the banker (host the house)</span>
-        </label>
+        <div class="toggle-row"><Checkbox bind:checked={beBanker} label="I'll be the banker (host the house)" /></div>
         <p class="hint muted">
           {beBanker
             ? "You bank the table with your bankroll and win/lose against every player."
@@ -250,8 +248,8 @@
             <button type="button" class="chip" class:on={bjSoft17} onclick={() => (bjSoft17 = true)}>Dealer hits</button>
           </div>
         </div>
-        <label class="toggle"><input type="checkbox" bind:checked={bjSurrender} /><span>Allow late surrender</span></label>
-        <label class="toggle"><input type="checkbox" bind:checked={bjPeek} /><span>Dealer peeks for blackjack (American)</span></label>
+        <div class="toggle-row"><Checkbox bind:checked={bjSurrender} label="Allow late surrender" /></div>
+        <div class="toggle-row"><Checkbox bind:checked={bjPeek} label="Dealer peeks for blackjack (American)" /></div>
       {/if}
     {/if}
 
@@ -336,6 +334,7 @@
     font-size: 13px; color: var(--text); margin-bottom: 6px; cursor: pointer;
   }
   .toggle input { width: 16px; height: 16px; accent-color: var(--accent); }
+  .toggle-row { margin: 8px 0; }
   .hint { font-size: 12px; margin: 0 0 14px; line-height: 1.4; }
 
   .amount { text-align: center; font-size: 30px; font-weight: 700; color: var(--accent); letter-spacing: 0.5px; margin: 8px 0 4px; }

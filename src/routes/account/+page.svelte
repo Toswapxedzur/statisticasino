@@ -1,8 +1,13 @@
 <script>
   import { enhance } from "$app/forms";
   import Avatar from "$lib/poker/components/Avatar.svelte";
+  import Select from "$lib/components/Select.svelte";
   import { uploadMedia } from "$lib/media.js";
   let { data, form } = $props();
+
+  let visibility = $state(data.profile?.visibility || "public");
+  let adjustUserId = $state("");
+  let promoteUserId = $state("");
 
   let avatarId = $state(data.profile?.avatarMediaId ?? null);
   let uploadingAvatar = $state(false);
@@ -160,11 +165,8 @@
     </label>
     <label class="field">
       <span>Who can see my profile</span>
-      <select name="visibility">
-        <option value="public" selected={data.profile?.visibility === "public"}>Everyone</option>
-        <option value="friends" selected={data.profile?.visibility === "friends"}>Friends only</option>
-        <option value="private" selected={data.profile?.visibility === "private"}>Nobody (private)</option>
-      </select>
+      <Select name="visibility" bind:value={visibility} block
+        options={[{ value: "public", label: "Everyone" }, { value: "friends", label: "Friends only" }, { value: "private", label: "Nobody (private)" }]} />
     </label>
     <button class="btn" type="submit">Save profile</button>
     {#if form?.profileOk}<p class="form-success">Profile saved.</p>{/if}
@@ -237,11 +239,8 @@
     <form method="POST" action="?/adjustChips" class="adjust-form">
       <label class="field">
         <span>User</span>
-        <select name="userId" required class="admin-select">
-          {#each data.allUsers as u (u.id)}
-            <option value={u.id}>{u.email}{#if u.display_name} ({u.display_name}){/if} \u2014 {chips(u.chips)} chips</option>
-          {/each}
-        </select>
+        <Select name="userId" bind:value={adjustUserId} block
+          options={data.allUsers.map((u) => ({ value: u.id, label: `${u.email}${u.display_name ? ` (${u.display_name})` : ""} \u2014 ${chips(u.chips)} chips` }))} />
       </label>
       <label class="field">
         <span>Amount (negative to remove)</span>
@@ -258,11 +257,8 @@
     <form method="POST" action="?/promote">
       <label class="field">
         <span>User</span>
-        <select name="userId" required class="admin-select">
-          {#each data.allUsers.filter((u) => !u.is_admin) as u (u.id)}
-            <option value={u.id}>{u.email}{#if u.display_name} ({u.display_name}){/if}</option>
-          {/each}
-        </select>
+        <Select name="userId" bind:value={promoteUserId} block
+          options={data.allUsers.filter((u) => !u.is_admin).map((u) => ({ value: u.id, label: `${u.email}${u.display_name ? ` (${u.display_name})` : ""}` }))} />
       </label>
       <button class="btn" type="submit">Promote to admin</button>
       {#if form?.promoteError}<p class="form-error">{form.promoteError}</p>{/if}

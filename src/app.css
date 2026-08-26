@@ -366,6 +366,41 @@ input:focus, textarea:focus, select:focus {
 .rng:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 6px var(--accent-soft); }
 .rng:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 6px var(--accent-soft); }
 
+/* ------- no native chrome: scrollbars, number spinners, focus, selects ------- */
+
+/* Custom scrollbars everywhere (thin, themed, borderless). */
+* { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muted) 45%, transparent) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted) 40%, transparent);
+  border-radius: 999px; border: 2px solid transparent; background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--muted) 62%, transparent); background-clip: padding-box; }
+::-webkit-scrollbar-corner { background: transparent; }
+
+/* Strip the native number spinner arrows (keep type=number for the mobile keypad). */
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+
+/* One custom focus ring (accent), replacing the browser's default outline. */
+:focus { outline: none; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+
+/* Safety net: any stray native <select> loses its OS chrome (real ones are the
+   custom Select component). */
+select { -webkit-appearance: none; appearance: none; }
+::-webkit-calendar-picker-indicator { display: none; }
+/* Kill the native search input clear/decoration buttons. */
+input::-webkit-search-cancel-button, input::-webkit-search-decoration { -webkit-appearance: none; }
+/* Remove the native <details>/<summary> disclosure triangle. */
+summary { list-style: none; cursor: pointer; }
+summary::-webkit-details-marker { display: none; }
+summary::marker { content: ""; }
+/* Remove native progress/meter chrome if ever used. */
+progress { appearance: none; -webkit-appearance: none; }
+
 /* ------- misc ------- */
 .list-empty { margin-top: 60px; text-align: center; color: var(--muted); }
 

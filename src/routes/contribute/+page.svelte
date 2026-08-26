@@ -1,6 +1,8 @@
 <script>
   let { data, form } = $props();
   let submitting = $state(false);
+  let fileName = $state("");
+  function onFile(e) { fileName = e.target.files?.[0]?.name || ""; }
 
   function fmtSize(bytes) {
     if (bytes == null) return "";
@@ -34,10 +36,14 @@
     enctype="multipart/form-data"
     onsubmit={() => { submitting = true; }}
   >
-    <label class="field">
+    <div class="field">
       <span>Dump file</span>
-      <input name="dump" type="file" accept=".casinodump,.json,.gz,application/octet-stream" required />
-    </label>
+      <label class="file-pick">
+        <input name="dump" type="file" accept=".casinodump,.json,.gz,application/octet-stream" hidden onchange={onFile} />
+        <span class="btn btn-secondary file-btn">Choose file</span>
+        <span class="file-name" class:empty={!fileName}>{fileName || "No file selected"}</span>
+      </label>
+    </div>
     <button class="btn" type="submit" disabled={submitting}>
       {submitting ? "Uploading…" : "Upload"}
     </button>
@@ -223,6 +229,10 @@
 </section>
 
 <style>
+  .file-pick { display: inline-flex; align-items: center; gap: 12px; cursor: pointer; margin-top: 4px; }
+  .file-btn { flex: 0 0 auto; }
+  .file-name { font-size: 13px; color: var(--text); }
+  .file-name.empty { color: var(--muted); }
   .contribute-card { margin-top: 24px; }
 
   .steps {
