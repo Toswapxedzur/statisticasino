@@ -108,7 +108,10 @@
 <section class="card">
   <div class="card-head">
     <h3>Social profile</h3>
-    <a class="btn btn-secondary btn-sm" href="/u/{data.user.id}">View my profile</a>
+    <span style="display:flex;gap:8px">
+      <a class="btn btn-secondary btn-sm" href="/history">History</a>
+      <a class="btn btn-secondary btn-sm" href="/u/{data.user.id}">View my profile</a>
+    </span>
   </div>
   <form method="POST" action="?/updateProfile">
     <label class="field">
