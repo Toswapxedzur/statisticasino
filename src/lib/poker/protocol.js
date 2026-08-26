@@ -35,8 +35,16 @@ export const C2S = {
   TOURNEY_REGISTER: "tourney.register", // { tourneyId }
   TOURNEY_UNREGISTER: "tourney.unregister", // { tourneyId }
   TOURNEY_START: "tourney.start",       // { tourneyId } — creator starts (fills empties with bots)
-  DM_SEND: "dm.send",          // { toUserId, text } — private message to a friend
-  DM_READ: "dm.read",          // { withUserId } — mark a conversation read
+  DM_SEND: "dm.send",          // { toUserId, text } — private message to a friend (legacy)
+  DM_READ: "dm.read",          // { withUserId } — mark a conversation read (legacy)
+  // v17 "Social" — unified conversations (DM + group)
+  CONV_LIST: "conv.list",      // {} — request my conversation list
+  CONV_OPEN: "conv.open",      // { convId } | { withUserId } — open (DM: create if needed), load messages
+  MSG_SEND: "msg.send",        // { convId? , toUserId?, text, mediaId?, replyTo? }
+  MSG_READ: "msg.read",        // { convId } — mark a conversation read
+  GROUP_CREATE: "group.create",// { title, memberIds:[] }
+  GROUP_UPDATE: "group.update",// { convId, title? } — rename / manage (owner/admin)
+  GROUP_MEMBERS: "group.members", // { convId, add:[], remove:[] }
   VOICE_JOIN: "voice.join",    // { tableId } — join a table's voice mesh
   VOICE_LEAVE: "voice.leave",  // { tableId }
   RTC_SIGNAL: "rtc.signal",    // { tableId, toUserId, signal } — WebRTC offer/answer/ice relay
@@ -58,6 +66,12 @@ export const S2C = {
   CHAT: "chat",                // { tableId, from, text, ts }
   TOAST: "toast",              // { level, text }
   DM: "dm",                    // { id, fromUserId, fromName, toUserId, text, ts } — a private message (echoed to both parties)
+  // v17 "Social" — unified conversations
+  CONV_LIST: "conv.listing",   // { conversations:[ConvSummary] }
+  CONV_MESSAGES: "conv.messages", // { convId, header:{...}, messages:[Msg] }
+  MSG: "msg",                  // { convId, message:{id,seq,senderId,senderName,kind,body,mediaId,replyTo,createdAt} }
+  CONV_UPDATE: "conv.update",  // { conversation:ConvSummary } — created / renamed / membership change
+  CONV_READ: "conv.read",      // { convId, userId, seq } — a member read up to seq (receipts)
   VOICE_ROSTER: "voice.roster",// { tableId, users:[{userId,name}] } — who's in the table's voice mesh
   ICE_CONFIG: "voice.ice",     // { iceServers } — STUN/TURN config for RTCPeerConnection (ephemeral creds)
   RTC_SIGNAL: "rtc.signal",    // { tableId, fromUserId, signal } — relayed WebRTC signal

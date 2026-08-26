@@ -88,6 +88,22 @@ export async function findUserByHandle(handle) {
   return row ? { id: row.id, name: row.display_name || row.email } : null;
 }
 
+// Name search for the Social "find friends" flow. Prefix + substring match on the
+// display name, bots and the caller excluded. Returns [{ id, name }].
+export async function searchUsers(q, limit = 20, excludeId = null) {
+  const s = String(q || "").trim();
+  if (s.length < 2) return [];
+  const like = `%${s.replace(/[%_]/g, "\\$&")}%`;
+  const rows = await query(
+    "SELECT id, display_name, email FROM user "
+    + "WHERE display_name LIKE ? AND email NOT LIKE '%@bot.riverside.invalid' "
+    + (excludeId ? "AND id <> ? " : "")
+    + "ORDER BY CASE WHEN display_name = ? THEN 0 ELSE 1 END, display_name ASC LIMIT ?",
+    excludeId ? [like, excludeId, s, limit] : [like, s, limit]
+  );
+  return rows.map((r) => ({ id: r.id, name: r.display_name || r.email }));
+}
+
 // Top players by wallet chips, for the lobby leaderboard. Bots are real user
 // rows (so they buy in through escrow like anyone) but live under a reserved
 // `.invalid` email domain — exclude them so they don't crowd the human board.

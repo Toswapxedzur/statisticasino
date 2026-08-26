@@ -69,6 +69,7 @@
 // Driven by the `meta.schema_version` row.
 
 import { gunzipSync } from "node:zlib";
+import { randomBytes } from "node:crypto";
 import { query, execute, getPool } from "./db.js";
 import { HARDCODED_ADMIN_EMAIL, HARDCODED_ADMIN_USER_ID } from "./auth.js";
 import {
@@ -145,11 +146,12 @@ export async function ensureMigrated() {
   // v15 (friends) + v16 (friend DMs): the `friendship` and `dm_message` tables are
   // created by schema.sql's CREATE TABLE IF NOT EXISTS (applied above) — no ALTERs,
   // so no migrateToV15/V16 functions are needed.
+  await migrateToV17();
 
   // Stamp the version row (idempotent — schema.sql also INSERT IGNOREs
   // it, but we want to be defensive).
   await execute(
-    "INSERT INTO meta(meta_key, meta_value) VALUES ('schema_version', '16') "
+    "INSERT INTO meta(meta_key, meta_value) VALUES ('schema_version', '17') "
     + "ON DUPLICATE KEY UPDATE meta_value = VALUES(meta_value)"
   );
 
@@ -170,6 +172,63 @@ async function migrateToV14() {
       [col]
     );
     if (cols.length === 0) await execute(ddl);
+  }
+}
+
+// v16 -> v17 upgrade ("Social"): the conversation / conversation_member /
+// chat_message tables are created by schema.sql. This backfills the legacy
+// `dm_message` rows into 1:1 conversations so no chat history is lost. Gated on
+// schema_version < 17 AND idempotent per-pair (skips a pair whose conversation
+// already exists), so it's safe on every boot and on a fresh install.
+async function migrateToV17() {
+  const verRows = await query("SELECT meta_value FROM meta WHERE meta_key = 'schema_version'");
+  const ver = verRows.length ? parseInt(verRows[0].meta_value, 10) : 0;
+  if (ver >= 17) return;
+
+  const pairs = await query("SELECT DISTINCT pair_key FROM dm_message");
+  for (const { pair_key } of pairs) {
+    const parts = String(pair_key).split("|");
+    if (parts.length !== 2 || !parts[0] || !parts[1]) continue;
+    const [a, b] = parts;
+
+    let convId;
+    const existing = await query("SELECT id FROM conversation WHERE dm_key = ? LIMIT 1", [pair_key]);
+    if (existing.length) {
+      convId = existing[0].id;
+      const hasMsgs = await query("SELECT 1 FROM chat_message WHERE conv_id = ? LIMIT 1", [convId]);
+      if (hasMsgs.length) continue; // already fully migrated
+    } else {
+      convId = randomBytes(16).toString("hex");
+      const now = Date.now();
+      await execute(
+        "INSERT INTO conversation (id, kind, dm_key, created_at, last_msg_at) VALUES (?, 'dm', ?, ?, ?)",
+        [convId, pair_key, now, now]
+      );
+      await execute(
+        "INSERT IGNORE INTO conversation_member (conv_id, user_id, role, joined_at) VALUES (?, ?, 'member', ?), (?, ?, 'member', ?)",
+        [convId, a, now, convId, b, now]
+      );
+    }
+
+    const msgs = await query(
+      "SELECT id, from_user_id, body, created_at FROM dm_message WHERE pair_key = ? ORDER BY seq ASC",
+      [pair_key]
+    );
+    for (const m of msgs) {
+      await execute(
+        "INSERT INTO chat_message (id, conv_id, sender_id, kind, body, created_at) VALUES (?, ?, ?, 'text', ?, ?)",
+        [m.id, convId, m.from_user_id, m.body, Number(m.created_at)]
+      );
+    }
+    if (msgs.length) {
+      const lastTs = Number(msgs[msgs.length - 1].created_at);
+      await execute("UPDATE conversation SET last_msg_at = ? WHERE id = ?", [lastTs, convId]);
+      // Mark the whole migrated backlog as read for both members (it's history,
+      // not new unread) by setting last_read_seq to the conversation's max seq.
+      const maxRow = await query("SELECT MAX(seq) AS m FROM chat_message WHERE conv_id = ?", [convId]);
+      const maxSeq = maxRow.length && maxRow[0].m != null ? Number(maxRow[0].m) : 0;
+      await execute("UPDATE conversation_member SET last_read_seq = ? WHERE conv_id = ?", [maxSeq, convId]);
+    }
   }
 }
 

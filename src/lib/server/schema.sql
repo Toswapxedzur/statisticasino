@@ -480,6 +480,55 @@ CREATE TABLE IF NOT EXISTS dm_message (
   CONSTRAINT fk_dm_to FOREIGN KEY (to_user_id) REFERENCES user(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- -----------------------------------------------------------------
+-- v17 (2026-08-26, "Social"): unified conversation model. A conversation is
+-- either a 1:1 DM (kind='dm', two members, `dm_key` = sorted pair) or a group
+-- (kind='group', N members, a title + optional avatar). One code path serves
+-- both. Legacy `dm_message` rows are backfilled into conversations by
+-- migrateToV17. Read state is per-member `last_read_seq` (unread = messages
+-- with a higher seq not sent by me), which generalises cleanly to groups.
+-- -----------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS conversation (
+  id              VARCHAR(64) NOT NULL PRIMARY KEY,
+  kind            VARCHAR(16) NOT NULL,            -- 'dm' | 'group'
+  title           VARCHAR(128),                    -- group name (NULL for dm)
+  avatar_media_id VARCHAR(64),                     -- group avatar (S3 media, phase S3)
+  dm_key          VARCHAR(160),                    -- dm: sorted "a|b"; NULL for group
+  created_by      VARCHAR(64),
+  created_at      BIGINT NOT NULL,
+  last_msg_at     BIGINT,                          -- newest message ts, for chat-list sort
+  UNIQUE KEY uq_conv_dm_key (dm_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS conversation_member (
+  conv_id       VARCHAR(64) NOT NULL,
+  user_id       VARCHAR(64) NOT NULL,
+  role          VARCHAR(16) NOT NULL DEFAULT 'member',  -- 'owner' | 'admin' | 'member'
+  joined_at     BIGINT NOT NULL,
+  last_read_seq BIGINT NOT NULL DEFAULT 0,
+  PRIMARY KEY (conv_id, user_id),
+  KEY idx_cm_user (user_id),
+  CONSTRAINT fk_cm_conv FOREIGN KEY (conv_id) REFERENCES conversation(id) ON DELETE CASCADE,
+  CONSTRAINT fk_cm_user FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS chat_message (
+  id          VARCHAR(64) NOT NULL PRIMARY KEY,
+  seq         BIGINT NOT NULL AUTO_INCREMENT,
+  conv_id     VARCHAR(64) NOT NULL,
+  sender_id   VARCHAR(64),                          -- NULL = system message
+  kind        VARCHAR(16) NOT NULL DEFAULT 'text',  -- 'text'|'image'|'file'|'system'
+  body        VARCHAR(4000),
+  media_id    VARCHAR(64),                          -- attachment (S3 media, phase S3)
+  reply_to    VARCHAR(64),
+  created_at  BIGINT NOT NULL,
+  edited_at   BIGINT,
+  deleted_at  BIGINT,
+  UNIQUE KEY uq_chat_seq (seq),
+  KEY idx_chat_conv (conv_id, seq),
+  CONSTRAINT fk_chat_conv FOREIGN KEY (conv_id) REFERENCES conversation(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS meta (
   meta_key   VARCHAR(64)  NOT NULL PRIMARY KEY,
   meta_value VARCHAR(255) NOT NULL

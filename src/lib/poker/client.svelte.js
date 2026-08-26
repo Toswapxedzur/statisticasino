@@ -22,12 +22,18 @@ class PokerClient {
   privates = $state({});        // tableId -> { seat, holeCards }
   turns = $state({});           // tableId -> legal-action menu when it's MY turn
   chat = $state({});            // tableId -> [{from,text,ts}]
-  dms = $state({});             // otherUserId -> [{id, fromUserId, fromName, text, ts, mine}]
-  dmUnread = $state({});        // otherUserId -> count of unseen incoming messages
+  dms = $state({});             // otherUserId -> [{id, fromUserId, fromName, text, ts, mine}]  (legacy)
+  dmUnread = $state({});        // otherUserId -> count of unseen incoming messages           (legacy)
   toast = $state(null);         // { level, text } transient
   lastError = $state(null);
   // The conversation currently open in the UI (so incoming DMs there don't badge).
   _activeDm = null;
+
+  // v17 "Social" — unified conversations (DM + group).
+  conversations = $state([]);   // [ConvSummary] newest-activity first
+  convMessages = $state({});    // convId -> [ {id,seq,senderId,senderName,kind,body,mediaId,replyTo,createdAt,mine} ]
+  convHeaders = $state({});     // convId -> summary header
+  openConvId = $state(null);    // convId currently open in the UI (suppresses its badge)
 
   _wantLobby = false;
   _watching = new Set();
@@ -93,6 +99,8 @@ class PokerClient {
     switch (msg.t) {
       case S2C.HELLO_OK:
         this.me = msg.user;
+        // Load the conversation list so the Social badge + chat list are ready app-wide.
+        this.loadConvs();
         break;
       case S2C.LOBBY:
         this.lobby = {
@@ -168,6 +176,39 @@ class PokerClient {
         }
         break;
       }
+      case S2C.CONV_LIST:
+        this.conversations = msg.conversations || [];
+        break;
+      case S2C.CONV_MESSAGES: {
+        const mine = (m) => this.me && m.senderId === this.me.id;
+        this.convHeaders = { ...this.convHeaders, [msg.convId]: msg.header };
+        this.convMessages = { ...this.convMessages, [msg.convId]: (msg.messages || []).map((m) => ({ ...m, mine: mine(m) })) };
+        break;
+      }
+      case S2C.MSG: {
+        const m = msg.message;
+        const isMine = this.me && m.senderId === this.me.id;
+        const cid = msg.convId;
+        // Append to the open thread if we have it loaded.
+        if (this.convMessages[cid]) {
+          this.convMessages = { ...this.convMessages, [cid]: [...this.convMessages[cid], { ...m, mine: isMine }].slice(-300) };
+        }
+        // Update the chat list: move conv to top, refresh last + unread.
+        const idx = this.conversations.findIndex((c) => c.id === cid);
+        if (idx >= 0) {
+          const c = this.conversations[idx];
+          const bumped = { ...c, last: { ...m }, lastMsgAt: m.createdAt,
+            unread: (!isMine && this.openConvId !== cid) ? (c.unread || 0) + 1 : (this.openConvId === cid ? 0 : c.unread) };
+          const rest = this.conversations.filter((x) => x.id !== cid);
+          this.conversations = [bumped, ...rest];
+        } else {
+          // Unknown conversation (e.g. a brand-new DM) — refresh the list.
+          this.loadConvs();
+        }
+        // Keep an open thread marked read live.
+        if (this.openConvId === cid && !isMine) this._raw(encode(C2S.MSG_READ, { convId: cid }));
+        break;
+      }
       case S2C.VOICE_ROSTER:
         this._voice?.roster?.(msg);
         break;
@@ -235,6 +276,51 @@ class PokerClient {
   }
   closeDm() { this._activeDm = null; }
   get dmUnreadTotal() { return Object.values(this.dmUnread).reduce((a, b) => a + b, 0); }
+
+  // -------------------------------------------------- conversations (Social)
+
+  loadConvs() { this.connect(); this._raw(encode(C2S.CONV_LIST, {})); }
+
+  // Open an existing conversation (by id) or a DM with a friend (by user id).
+  openConv(convId) {
+    this.openConvId = convId;
+    this.connect();
+    this._raw(encode(C2S.CONV_OPEN, { convId }));
+    // optimistically clear its unread in the list
+    const c = this.conversations.find((x) => x.id === convId);
+    if (c && c.unread) this.conversations = this.conversations.map((x) => x.id === convId ? { ...x, unread: 0 } : x);
+  }
+  openDmWith(userId) {
+    this.openConvId = null; // resolved once CONV_MESSAGES arrives
+    this.connect();
+    this._raw(encode(C2S.CONV_OPEN, { withUserId: userId }));
+  }
+  closeConv() { this.openConvId = null; }
+
+  // Send to an open conversation, or to a friend (creates the DM server-side).
+  sendMsg(convId, text, extra = {}) {
+    const t = String(text || "").trim();
+    if (!t && !extra.mediaId) return;
+    this.connect();
+    this._raw(encode(C2S.MSG_SEND, { convId, text: t, ...extra }));
+  }
+  sendMsgTo(userId, text, extra = {}) {
+    const t = String(text || "").trim();
+    if (!t && !extra.mediaId) return;
+    this.connect();
+    this._raw(encode(C2S.MSG_SEND, { toUserId: userId, text: t, ...extra }));
+  }
+  markConvRead(convId) {
+    this.connect();
+    this._raw(encode(C2S.MSG_READ, { convId }));
+    this.conversations = this.conversations.map((x) => x.id === convId ? { ...x, unread: 0 } : x);
+  }
+  createGroup(title, memberIds = []) {
+    this.connect();
+    this._raw(encode(C2S.GROUP_CREATE, { title, memberIds }));
+  }
+  // Total unread across all conversations — drives the nav "Social" badge.
+  get socialUnread() { return this.conversations.reduce((a, c) => a + (c.unread || 0), 0); }
 
   // -------------------------------------------------- table
 

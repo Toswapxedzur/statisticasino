@@ -20,6 +20,8 @@ import { getBalance } from "../wallet.js";
 import { unlock, handAchievements } from "../achievements.js";
 import { areFriends } from "../friends.js";
 import { sendMessage, markRead } from "../dm.js";
+import * as convo from "../conversations.js";
+import { query as dbQuery } from "../db.js";
 import { iceConfig } from "../voice.js";
 import { LiveTable } from "./table.js";
 import { Tournament } from "./tournament.js";
@@ -711,6 +713,22 @@ export class PokerHub {
           if (conn.user && msg.withUserId) { try { await markRead(conn.user.id, msg.withUserId); } catch { /* best effort */ } }
           break;
 
+        case C2S.CONV_LIST:
+          await this.sendConvList(conn);
+          break;
+        case C2S.CONV_OPEN:
+          await this.convOpen(conn, msg);
+          break;
+        case C2S.MSG_SEND:
+          await this.msgSend(conn, msg);
+          break;
+        case C2S.MSG_READ:
+          await this.msgRead(conn, msg);
+          break;
+        case C2S.GROUP_CREATE:
+          await this.groupCreate(conn, msg);
+          break;
+
         case C2S.VOICE_JOIN:
           this.voiceJoin(conn, msg.tableId);
           break;
@@ -921,6 +939,121 @@ export class PokerHub {
     });
     for (const c of this.connsForUser(conn.user.id)) c.send(out);
     for (const c of this.connsForUser(toUserId)) c.send(out);
+  }
+
+  // ------------------------------------------- unified conversations (DM+group)
+
+  // Resolve id -> { id, name } for a set of users (senders, members).
+  async _usersInfo(ids) {
+    const uniq = [...new Set((ids || []).filter(Boolean))];
+    if (!uniq.length) return new Map();
+    const rows = await dbQuery(
+      `SELECT id, display_name, email FROM user WHERE id IN (${uniq.map(() => "?").join(",")})`,
+      uniq
+    );
+    return new Map(rows.map((r) => [r.id, { id: r.id, name: r.display_name || r.email }]));
+  }
+
+  // Client-facing summary of one conversation, from `forUserId`'s view. For a DM
+  // the title + `other` come from the other member; groups use their own fields.
+  _convSummary(c, forUserId, info) {
+    const memberInfos = c.members.map((id) => info.get(id) || { id, name: "Player" });
+    let title = c.title;
+    let other = null;
+    if (c.kind === "dm") {
+      const otherId = c.members.find((id) => id !== forUserId) || c.members[0];
+      other = info.get(otherId) || { id: otherId, name: "Player" };
+      title = other.name;
+    }
+    let last = c.last;
+    if (last && last.senderId) last = { ...last, senderName: (info.get(last.senderId)?.name) || "Player" };
+    return { id: c.id, kind: c.kind, title, other, members: memberInfos, last, unread: c.unread, lastMsgAt: c.lastMsgAt };
+  }
+
+  async sendConvList(conn) {
+    if (!conn.user) return;
+    const list = await convo.listConversations(conn.user.id);
+    const allIds = new Set();
+    for (const c of list) { for (const m of c.members) allIds.add(m); if (c.last?.senderId) allIds.add(c.last.senderId); }
+    const info = await this._usersInfo([...allIds]);
+    const conversations = list.map((c) => this._convSummary(c, conn.user.id, info));
+    conn.send(encode(S2C.CONV_LIST, { conversations }));
+  }
+
+  async pushConvList(userId) {
+    for (const c of this.connsForUser(userId)) await this.sendConvList(c);
+  }
+
+  async convOpen(conn, msg) {
+    if (!conn.user) return this._err(conn, "Sign in.", "AUTH");
+    let convId = msg.convId;
+    let createdWith = null;
+    if (!convId && msg.withUserId) {
+      if (msg.withUserId === conn.user.id) return;
+      if (!(await areFriends(conn.user.id, msg.withUserId))) return this._err(conn, "You can only message friends.");
+      convId = await convo.getOrCreateDm(conn.user.id, msg.withUserId);
+      createdWith = msg.withUserId;
+    }
+    if (!convId || !(await convo.isMember(convId, conn.user.id))) return this._err(conn, "No such conversation.");
+    const header = await convo.getConversation(convId);
+    const messages = await convo.getMessages(convId, 100);
+    const ids = new Set(header.members.map((m) => m.userId));
+    for (const m of messages) if (m.senderId) ids.add(m.senderId);
+    const info = await this._usersInfo([...ids]);
+    const enriched = messages.map((m) => ({ ...m, senderName: m.senderId ? (info.get(m.senderId)?.name || "Player") : null }));
+    const summary = this._convSummary(
+      { id: header.id, kind: header.kind, title: header.title, members: header.members.map((m) => m.userId), last: null, unread: 0, lastMsgAt: header.lastMsgAt },
+      conn.user.id, info
+    );
+    await convo.markRead(convId, conn.user.id);
+    conn.send(encode(S2C.CONV_MESSAGES, { convId, header: summary, messages: enriched }));
+    // Make sure both sides list a freshly-created DM.
+    await this.sendConvList(conn);
+    if (createdWith) await this.pushConvList(createdWith);
+  }
+
+  async msgSend(conn, msg) {
+    if (!conn.user) return this._err(conn, "Sign in to message.", "AUTH");
+    let convId = msg.convId;
+    let createdWith = null;
+    if (!convId && msg.toUserId) {
+      if (msg.toUserId === conn.user.id) return;
+      if (!(await areFriends(conn.user.id, msg.toUserId))) return this._err(conn, "You can only message friends.");
+      convId = await convo.getOrCreateDm(conn.user.id, msg.toUserId);
+      createdWith = msg.toUserId;
+    }
+    if (!convId || !(await convo.isMember(convId, conn.user.id))) return this._err(conn, "You're not in that conversation.");
+    let row;
+    try { row = await convo.postMessage(convId, conn.user.id, { body: msg.text, mediaId: msg.mediaId, replyTo: msg.replyTo, kind: msg.mediaId ? "image" : "text" }); }
+    catch { return this._err(conn, "Message failed to send."); }
+    if (!row) return;
+    await this._broadcastMsg(convId, row);
+    // A brand-new DM needs to appear in both users' chat lists.
+    if (createdWith) { await this.sendConvList(conn); await this.pushConvList(createdWith); }
+  }
+
+  async _broadcastMsg(convId, row) {
+    const memberList = await convo.memberIds(convId);
+    const info = await this._usersInfo([row.senderId, ...memberList]);
+    const message = { ...row, senderName: row.senderId ? (info.get(row.senderId)?.name || "Player") : null };
+    const frame = encode(S2C.MSG, { convId, message });
+    for (const uid of memberList) for (const c of this.connsForUser(uid)) c.send(frame);
+  }
+
+  async msgRead(conn, msg) {
+    if (!conn.user || !msg.convId) return;
+    try { await convo.markRead(msg.convId, conn.user.id); } catch { /* best effort */ }
+  }
+
+  async groupCreate(conn, msg) {
+    if (!conn.user) return this._err(conn, "Sign in.", "AUTH");
+    const title = String(msg.title || "").trim().slice(0, 128) || "New group";
+    const wanted = Array.isArray(msg.memberIds) ? [...new Set(msg.memberIds.filter((x) => x && x !== conn.user.id))] : [];
+    const allowed = [];
+    for (const uid of wanted) if (await areFriends(conn.user.id, uid)) allowed.push(uid);
+    const convId = await convo.createGroup(conn.user.id, title, allowed);
+    for (const uid of [conn.user.id, ...allowed]) await this.pushConvList(uid);
+    return convId;
   }
 
   // ------------------------------------------------------- voice (WebRTC mesh)

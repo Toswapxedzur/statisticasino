@@ -29,7 +29,7 @@
   // Signed-in users keep a live socket app-wide so private messages (and presence)
   // arrive on any page, and the nav can badge unread DMs.
   $effect(() => { if (data.user) poker.connect(); });
-  const dmUnread = $derived(poker.dmUnreadTotal);
+  const socialUnread = $derived(poker.socialUnread);
 
   // Live chip balance for the topbar pill (SSR seed + live "chips" events).
   let chips = $state(data.chips ?? 0);
@@ -74,8 +74,7 @@
 
   const links = $derived([
     { href: "/", label: "Lobby", show: true },
-    { href: "/friends", label: "Friends", show: !!data.user },
-    { href: "/messages", label: "Messages", show: !!data.user, badge: dmUnread },
+    { href: "/social", label: "Social", show: !!data.user, badge: socialUnread },
     { href: "/data", label: "Data", show: true },
     { href: "/blog", label: "Blog", show: true },
     { href: "/contribute", label: "Contribute", show: true },
