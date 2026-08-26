@@ -3,16 +3,18 @@
 // the friend-management form actions, carried over from the old /friends page).
 import { fail, redirect } from "@sveltejs/kit";
 import { listFriends, requestFriend, respondFriend, removeFriend } from "$lib/server/friends.js";
-import { usersByIds, findUserByHandle, searchUsers } from "$lib/server/poker/store.js";
+import { findUserByHandle, searchUsers } from "$lib/server/poker/store.js";
+import { identities } from "$lib/server/profiles.js";
 import { hub } from "$lib/server/poker/hub.js";
 
 async function decorate(ids) {
-  const names = await usersByIds(ids);
+  const info = await identities(ids);
   return ids.map((id) => {
     const table = hub.seatOfUser?.(id) || null;
     return {
       id,
-      name: names.get(id)?.name || "Unknown",
+      name: info.get(id)?.name || "Unknown",
+      avatarMediaId: info.get(id)?.avatarMediaId || null,
       online: (hub.connsForUser?.(id) || []).length > 0,
       tableId: table?.id || null,
       tableName: table?.config?.name || null,

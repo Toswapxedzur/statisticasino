@@ -13,6 +13,8 @@
   import { slidingIndicator } from "$lib/actions/slider.js";
   import VoiceBar from "$lib/poker/components/VoiceBar.svelte";
   import { voice } from "$lib/poker/voice.svelte.js";
+  import { uploadMedia } from "$lib/media.js";
+  import Avatar from "$lib/poker/components/Avatar.svelte";
 
   let { data, form } = $props();
 
@@ -57,6 +59,15 @@
     draft = "";
   }
   function onKey(e) { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }
+  let sendingImg = $state(false);
+  async function onImageFile(e) {
+    const file = e.target.files?.[0];
+    if (!file || !openId) return;
+    sendingImg = true;
+    try { const id = await uploadMedia(file, "attachment"); poker.sendMsg(openId, "", { mediaId: id }); }
+    catch (err) { poker.toast = { level: "error", text: err?.message || "Upload failed" }; }
+    sendingImg = false; e.target.value = "";
+  }
 
   // --- group creation ---
   let groupOpen = $state(false);
@@ -124,9 +135,11 @@
           {#each convs as c (c.id)}
             <button class="conv" class:active={c.id === openId} onclick={() => openConv(c)}
               in:fly={{ y: d(6), duration: d(DUR.base) }} animate:flip={{ duration: d(DUR.base) }}>
-              <span class="avatar conv-av" style="background:{c.kind === 'group' ? 'var(--accent)' : color(c.other?.id)}">
-                {c.kind === "group" ? "#" : initial(c.title)}
-              </span>
+              {#if c.kind === "group"}
+                <span class="avatar conv-av" style="background:var(--accent)">#</span>
+              {:else}
+                <Avatar id={c.other?.id} name={c.title} mediaId={c.other?.avatarMediaId} size={40} />
+              {/if}
               <span class="conv-main">
                 <span class="conv-top"><span class="conv-title">{c.title}</span><span class="conv-time">{fmtTime(c.lastMsgAt)}</span></span>
                 <span class="conv-sub"><span class="conv-prev">{preview(c)}</span>{#if c.unread > 0}<span class="unread">{c.unread}</span>{/if}</span>
@@ -141,7 +154,7 @@
         {:else}
           {#each friends as f (f.id)}
             <div class="frow" in:fly={{ y: d(6), duration: d(DUR.base) }} animate:flip={{ duration: d(DUR.base) }}>
-              <a class="avatar frow-av" href="/u/{f.id}" style="background:{color(f.id)}" title="View profile">{initial(f.name)}</a>
+              <Avatar id={f.id} name={f.name} mediaId={f.avatarMediaId} size={40} href={`/u/${f.id}`} />
               <a class="frow-main frow-link" href="/u/{f.id}">
                 <span class="frow-name">{f.name}</span>
                 <span class="frow-status {f.online ? 'on' : ''}">{f.online ? (f.tableName ? "at " + f.tableName : "online") : "offline"}</span>
@@ -219,7 +232,7 @@
       <div class="thread-head">
         <button class="back-btn" onclick={() => (mobileThread = false)} aria-label="Back">‹</button>
         {#if header.kind === "dm" && header.other}
-          <a class="avatar th-av" href="/u/{header.other.id}" style="background:{color(header.other.id)}" title="View profile">{initial(header.title)}</a>
+          <Avatar id={header.other.id} name={header.title} mediaId={header.other.avatarMediaId} size={40} href={`/u/${header.other.id}`} />
         {:else}
           <span class="avatar th-av" style="background:var(--accent)">#</span>
         {/if}
@@ -272,6 +285,9 @@
               <span class="bubble-row">
                 {#if m.deletedAt}
                   <span class="bubble deleted">message deleted</span>
+                {:else if m.mediaId}
+                  <a class="img-msg" href="/media/{m.mediaId}" target="_blank" rel="noopener"><img src="/media/{m.mediaId}" alt="photo" loading="lazy" /></a>
+                  {#if m.mine}<button class="del-btn" onclick={() => poker.deleteMsg(openId, m.id)} aria-label="Delete message">✕</button>{/if}
                 {:else}
                   <span class="bubble">{m.body}</span>
                   {#if m.mine}<button class="del-btn" onclick={() => poker.deleteMsg(openId, m.id)} aria-label="Delete message">✕</button>{/if}
@@ -285,6 +301,10 @@
         {#if typer}<div class="typing-ind">{typer} is typing…</div>{/if}
       </div>
       <div class="composer">
+        <label class="img-btn" title="Send a photo">
+          {sendingImg ? "…" : "🖼"}
+          <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" hidden onchange={onImageFile} disabled={sendingImg} />
+        </label>
         <textarea class="composer-input" bind:value={draft} onkeydown={onKey} oninput={() => openId && poker.sendTyping(openId)} rows="1" placeholder="Message…"></textarea>
         <button class="btn send-btn" onclick={send} disabled={!draft.trim()}>Send</button>
       </div>
@@ -402,6 +422,11 @@
   .typing-ind { align-self: flex-start; font-size: 12px; color: var(--muted); font-style: italic; padding-left: 4px; }
   .composer { display: flex; gap: 10px; padding: 12px 16px; box-shadow: 0 -1px 0 var(--well); align-items: flex-end; }
   .composer-input { flex: 1; resize: none; max-height: 120px; font: inherit; }
+  .img-btn { flex: 0 0 auto; width: 38px; height: 38px; display: grid; place-items: center; border-radius: var(--r-btn); background: var(--well); cursor: pointer; font-size: 17px;
+    transition: background-color var(--dur) var(--ease); }
+  .img-btn:hover { background: var(--surface-2); }
+  .img-msg { display: block; line-height: 0; }
+  .img-msg img { max-width: 240px; max-height: 280px; border-radius: 13px; object-fit: cover; box-shadow: var(--shadow-card); }
   .send-btn { flex: 0 0 auto; }
   .thread-empty { flex: 1; display: grid; place-items: center; }
 

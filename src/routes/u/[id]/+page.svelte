@@ -3,6 +3,7 @@
   import { fly } from "svelte/transition";
   import { d, DUR } from "$lib/motion.js";
   import { fade, scale } from "svelte/transition";
+  import Avatar from "$lib/poker/components/Avatar.svelte";
   let { data, form } = $props();
   const p = $derived(data.profile);
   const pres = $derived(data.presence);
@@ -24,7 +25,7 @@
   <a class="back" href="/social">‹ Social</a>
 
   <section class="hero card" in:fly={{ y: d(10), duration: d(DUR.base) }}>
-    <span class="avatar big-av" style="background:{color(p.id)}">{initial(p.name)}</span>
+    <Avatar id={p.id} name={p.name} mediaId={p.avatarMediaId} size={84} />
     <div class="hero-main">
       <h1>{p.name}{#if pres.online}<span class="on-dot" title="Online"></span>{/if}</h1>
       {#if p.statusText}<p class="status">{p.statusText}</p>{/if}

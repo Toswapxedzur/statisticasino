@@ -1,6 +1,30 @@
 <script>
   import { enhance } from "$app/forms";
+  import Avatar from "$lib/poker/components/Avatar.svelte";
+  import { uploadMedia } from "$lib/media.js";
   let { data, form } = $props();
+
+  let avatarId = $state(data.profile?.avatarMediaId ?? null);
+  let uploadingAvatar = $state(false);
+  let avatarErr = $state("");
+  async function onAvatarFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    uploadingAvatar = true; avatarErr = "";
+    try {
+      const id = await uploadMedia(file, "avatar");
+      const fd = new FormData(); fd.set("avatarMediaId", id);
+      await fetch("?/setAvatar", { method: "POST", body: fd });
+      avatarId = id;
+    } catch (err) { avatarErr = err?.message || "Upload failed"; }
+    uploadingAvatar = false;
+    e.target.value = "";
+  }
+  async function removeAvatar() {
+    const fd = new FormData(); fd.set("avatarMediaId", "");
+    await fetch("?/setAvatar", { method: "POST", body: fd });
+    avatarId = null;
+  }
   function fmt(ts) {
     if (!ts) return "";
     return new Date(ts).toLocaleString();
@@ -113,6 +137,17 @@
       <a class="btn btn-secondary btn-sm" href="/history">History</a>
       <a class="btn btn-secondary btn-sm" href="/u/{data.user.id}">View my profile</a>
     </span>
+  </div>
+  <div class="avatar-edit">
+    <Avatar id={data.user.id} name={data.user.displayName || data.user.email} mediaId={avatarId} size={64} />
+    <div class="avatar-controls">
+      <label class="btn btn-secondary btn-sm">
+        {uploadingAvatar ? "Uploading…" : "Change photo"}
+        <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" hidden onchange={onAvatarFile} disabled={uploadingAvatar} />
+      </label>
+      {#if avatarId}<button class="btn btn-secondary btn-sm" type="button" onclick={removeAvatar}>Remove</button>{/if}
+      {#if avatarErr}<span class="form-error">{avatarErr}</span>{/if}
+    </div>
   </div>
   <form method="POST" action="?/updateProfile">
     <label class="field">
@@ -250,6 +285,8 @@
 {/if}
 
 <style>
+  .avatar-edit { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+  .avatar-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .report-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 0; }
   .report-main { display: flex; flex-direction: column; gap: 2px; font-size: 13.5px; }
   .wallet .balance-row {

@@ -961,10 +961,10 @@ export class PokerHub {
     const uniq = [...new Set((ids || []).filter(Boolean))];
     if (!uniq.length) return new Map();
     const rows = await dbQuery(
-      `SELECT id, display_name, email FROM user WHERE id IN (${uniq.map(() => "?").join(",")})`,
+      `SELECT id, display_name, email, avatar_media_id FROM user WHERE id IN (${uniq.map(() => "?").join(",")})`,
       uniq
     );
-    return new Map(rows.map((r) => [r.id, { id: r.id, name: r.display_name || r.email }]));
+    return new Map(rows.map((r) => [r.id, { id: r.id, name: r.display_name || r.email, avatarMediaId: r.avatar_media_id || null }]));
   }
 
   // Client-facing summary of one conversation, from `forUserId`'s view. For a DM

@@ -24,7 +24,7 @@ export async function load({ locals }) {
   if (!locals.user) throw redirect(303, "/account/login");
 
   const walletRow = await queryOne(
-    "SELECT chips, last_daily_bonus_at, daily_streak, best_streak, bio, status_text, profile_visibility FROM user WHERE id = ?",
+    "SELECT chips, last_daily_bonus_at, daily_streak, best_streak, bio, status_text, profile_visibility, avatar_media_id FROM user WHERE id = ?",
     [locals.user.id]
   );
   const chips = walletRow ? Number(walletRow.chips) : 0;
@@ -74,6 +74,7 @@ export async function load({ locals }) {
       bio: walletRow?.bio || "",
       statusText: walletRow?.status_text || "",
       visibility: walletRow?.profile_visibility || "public",
+      avatarMediaId: walletRow?.avatar_media_id || null,
     },
   };
 }
@@ -167,6 +168,14 @@ export const actions = {
       visibility: String(form.get("visibility") || "public"),
     });
     return { profileOk: true };
+  },
+
+  setAvatar: async ({ request, locals }) => {
+    if (!locals.user) return fail(401, { profileError: "Sign in first." });
+    const fd = await request.formData();
+    const mediaId = String(fd.get("avatarMediaId") || "");
+    await updateProfile(locals.user.id, { avatarMediaId: mediaId || null });
+    return { avatarOk: true, avatarMediaId: mediaId || null };
   },
 
   resolveReport: async ({ request, locals }) => {
