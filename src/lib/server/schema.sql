@@ -540,6 +540,30 @@ CREATE TABLE IF NOT EXISTS chat_message (
   CONSTRAINT fk_chat_conv FOREIGN KEY (conv_id) REFERENCES conversation(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- -----------------------------------------------------------------
+-- v19 (2026-08-26, "Social media"): uploaded media — avatars (permanent) and
+-- chat attachments (ephemeral, 3-day TTL). The bytes live in object storage
+-- (Aliyun OSS); this table is the index + lifecycle record. `expires_at` NULL
+-- means permanent (avatars); attachments get now+3d and are swept by the janitor
+-- (media.js cleanupExpired). `storage_key` is the OSS object key.
+-- NOTE: media features are gated on OSS being configured + activated; until then
+-- uploads are disabled at the route layer.
+-- -----------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS media (
+  id           VARCHAR(64) NOT NULL PRIMARY KEY,
+  uploader_id  VARCHAR(64),
+  kind         VARCHAR(16) NOT NULL,             -- 'avatar' | 'attachment'
+  mime         VARCHAR(128),
+  bytes        BIGINT NOT NULL DEFAULT 0,
+  storage_key  VARCHAR(255) NOT NULL,
+  created_at   BIGINT NOT NULL,
+  expires_at   BIGINT,                            -- NULL = permanent
+  ready        TINYINT(1) NOT NULL DEFAULT 0,     -- set once the client confirms upload
+  KEY idx_media_expiry (expires_at),
+  KEY idx_media_uploader (uploader_id, created_at),
+  CONSTRAINT fk_media_uploader FOREIGN KEY (uploader_id) REFERENCES user(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS meta (
   meta_key   VARCHAR(64)  NOT NULL PRIMARY KEY,
   meta_value VARCHAR(255) NOT NULL

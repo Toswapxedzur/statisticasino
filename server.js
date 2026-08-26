@@ -38,6 +38,14 @@ try { await ensureMigrated(); } catch (err) {
   console.error("[riverside] migration error:", err?.message || err);
 }
 
+// Media janitor: sweep expired chat attachments from OSS on a timer. No-op until
+// OSS is configured (env) + activated — see media.js.
+try {
+  const { startMediaJanitor, ossAvailable } = await import("./src/lib/server/media.js");
+  startMediaJanitor();
+  if (ossAvailable()) console.log("[riverside] media (OSS) enabled");
+} catch (err) { console.error("[riverside] media janitor init:", err?.message || err); }
+
 // Become the sole poker instance for this DB before touching escrow. If another
 // live process already holds the lease (a botched rolling deploy, or a dev
 // server on the same DB), we do NOT reconcile — that would refund chips the
