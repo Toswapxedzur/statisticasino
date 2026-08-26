@@ -116,7 +116,18 @@ CREATE TABLE IF NOT EXISTS user (
   -- it does NOT change the daily bonus amount (the bonus stays flat). best_streak
   -- keeps the personal record. On existing DBs migrateToV14 adds these.
   daily_streak INT NOT NULL DEFAULT 0,
-  best_streak  INT NOT NULL DEFAULT 0
+  best_streak  INT NOT NULL DEFAULT 0,
+  -- v18 (Social profiles): public identity + per-user privacy. avatar_media_id
+  -- references a permanent `media` row (phase S3). profile_visibility gates who
+  -- sees the profile detail: public | friends | private.
+  bio                VARCHAR(500),
+  status_text        VARCHAR(140),
+  avatar_media_id    VARCHAR(64),
+  profile_visibility VARCHAR(16) NOT NULL DEFAULT 'public',
+  -- v20 (money transfer): chips that may be SENT to friends — only game-earned
+  -- inflows raise this; free grants never do; receiving chips does not raise it
+  -- (received chips can be played but not re-forwarded). See wallet.js.
+  transferable_chips BIGINT NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS session (

@@ -1,5 +1,6 @@
 import { fail, redirect } from "@sveltejs/kit";
 import { query, queryOne } from "$lib/server/db.js";
+import { updateProfile } from "$lib/server/profiles.js";
 import {
   invalidateSession,
   promoteToAdmin,
@@ -22,7 +23,7 @@ export async function load({ locals }) {
   if (!locals.user) throw redirect(303, "/account/login");
 
   const walletRow = await queryOne(
-    "SELECT chips, last_daily_bonus_at, daily_streak, best_streak FROM user WHERE id = ?",
+    "SELECT chips, last_daily_bonus_at, daily_streak, best_streak, bio, status_text, profile_visibility FROM user WHERE id = ?",
     [locals.user.id]
   );
   const chips = walletRow ? Number(walletRow.chips) : 0;
@@ -64,7 +65,12 @@ export async function load({ locals }) {
     streak,
     bestStreak,
     achievements,
-    ledger
+    ledger,
+    profile: {
+      bio: walletRow?.bio || "",
+      statusText: walletRow?.status_text || "",
+      visibility: walletRow?.profile_visibility || "public",
+    },
   };
 }
 
@@ -144,5 +150,18 @@ export const actions = {
     // — and the page rerender — see the new name without a round trip.
     locals.user.displayName = next;
     return { displayNameOk: true, displayName: next };
+  },
+
+  // Update the signed-in user's social profile: bio, status line, and who can
+  // view the profile (public | friends | private).
+  updateProfile: async ({ request, locals }) => {
+    if (!locals.user) return fail(401, { profileError: "Sign in first." });
+    const form = await request.formData();
+    await updateProfile(locals.user.id, {
+      bio: String(form.get("bio") || ""),
+      statusText: String(form.get("statusText") || ""),
+      visibility: String(form.get("visibility") || "public"),
+    });
+    return { profileOk: true };
   }
 };

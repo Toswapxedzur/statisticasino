@@ -147,11 +147,12 @@ export async function ensureMigrated() {
   // created by schema.sql's CREATE TABLE IF NOT EXISTS (applied above) — no ALTERs,
   // so no migrateToV15/V16 functions are needed.
   await migrateToV17();
+  await migrateToV18();
 
   // Stamp the version row (idempotent — schema.sql also INSERT IGNOREs
   // it, but we want to be defensive).
   await execute(
-    "INSERT INTO meta(meta_key, meta_value) VALUES ('schema_version', '17') "
+    "INSERT INTO meta(meta_key, meta_value) VALUES ('schema_version', '18') "
     + "ON DUPLICATE KEY UPDATE meta_value = VALUES(meta_value)"
   );
 
@@ -229,6 +230,25 @@ async function migrateToV17() {
       const maxSeq = maxRow.length && maxRow[0].m != null ? Number(maxRow[0].m) : 0;
       await execute("UPDATE conversation_member SET last_read_seq = ? WHERE conv_id = ?", [maxSeq, convId]);
     }
+  }
+}
+
+// v17 -> v18 upgrade ("Social profiles"): add public-identity + privacy columns
+// to `user`. Info-schema-gated so re-running / fresh installs are no-ops.
+async function migrateToV18() {
+  for (const [col, ddl] of [
+    ["bio", "ALTER TABLE user ADD COLUMN bio VARCHAR(500) AFTER best_streak"],
+    ["status_text", "ALTER TABLE user ADD COLUMN status_text VARCHAR(140) AFTER bio"],
+    ["avatar_media_id", "ALTER TABLE user ADD COLUMN avatar_media_id VARCHAR(64) AFTER status_text"],
+    ["profile_visibility", "ALTER TABLE user ADD COLUMN profile_visibility VARCHAR(16) NOT NULL DEFAULT 'public' AFTER avatar_media_id"],
+    ["transferable_chips", "ALTER TABLE user ADD COLUMN transferable_chips BIGINT NOT NULL DEFAULT 0 AFTER profile_visibility"],
+  ]) {
+    const cols = await query(
+      "SELECT COLUMN_NAME FROM information_schema.COLUMNS "
+      + "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = ?",
+      [col]
+    );
+    if (cols.length === 0) await execute(ddl);
   }
 }
 

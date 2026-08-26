@@ -106,6 +106,34 @@
 </section>
 
 <section class="card">
+  <div class="card-head">
+    <h3>Social profile</h3>
+    <a class="btn btn-secondary btn-sm" href="/u/{data.user.id}">View my profile</a>
+  </div>
+  <form method="POST" action="?/updateProfile">
+    <label class="field">
+      <span>Status</span>
+      <input name="statusText" type="text" maxlength="140" placeholder="What's your vibe?" value={data.profile?.statusText ?? ""} />
+    </label>
+    <label class="field">
+      <span>About</span>
+      <textarea name="bio" maxlength="500" rows="3" placeholder="A short bio for your profile">{data.profile?.bio ?? ""}</textarea>
+    </label>
+    <label class="field">
+      <span>Who can see my profile</span>
+      <select name="visibility">
+        <option value="public" selected={data.profile?.visibility === "public"}>Everyone</option>
+        <option value="friends" selected={data.profile?.visibility === "friends"}>Friends only</option>
+        <option value="private" selected={data.profile?.visibility === "private"}>Nobody (private)</option>
+      </select>
+    </label>
+    <button class="btn" type="submit">Save profile</button>
+    {#if form?.profileOk}<p class="form-success">Profile saved.</p>{/if}
+    {#if form?.profileError}<p class="form-error">{form.profileError}</p>{/if}
+  </form>
+</section>
+
+<section class="card">
   <div class="card-head"><h3>Your uploads ({data.myUploads.length})</h3></div>
   {#if data.myUploads.length === 0}
     <p class="muted">Nothing yet. Try the <a href="/contribute">Contribute</a> page.</p>

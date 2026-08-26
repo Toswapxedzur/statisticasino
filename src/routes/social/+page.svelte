@@ -127,11 +127,11 @@
         {:else}
           {#each friends as f (f.id)}
             <div class="frow" in:fly={{ y: d(6), duration: d(DUR.base) }} animate:flip={{ duration: d(DUR.base) }}>
-              <span class="avatar frow-av" style="background:{color(f.id)}">{initial(f.name)}</span>
-              <span class="frow-main">
+              <a class="avatar frow-av" href="/u/{f.id}" style="background:{color(f.id)}" title="View profile">{initial(f.name)}</a>
+              <a class="frow-main frow-link" href="/u/{f.id}">
                 <span class="frow-name">{f.name}</span>
                 <span class="frow-status {f.online ? 'on' : ''}">{f.online ? (f.tableName ? "at " + f.tableName : "online") : "offline"}</span>
-              </span>
+              </a>
               <button class="btn btn-xs" onclick={() => openFriendDm(f)}>Message</button>
               <form method="POST" action="?/remove" use:enhance>
                 <input type="hidden" name="userId" value={f.id} />
@@ -204,11 +204,13 @@
     {#if openId && header}
       <div class="thread-head">
         <button class="back-btn" onclick={() => (mobileThread = false)} aria-label="Back">‹</button>
-        <span class="avatar th-av" style="background:{header.kind === 'group' ? 'var(--accent)' : color(header.other?.id)}">
-          {header.kind === "group" ? "#" : initial(header.title)}
-        </span>
+        {#if header.kind === "dm" && header.other}
+          <a class="avatar th-av" href="/u/{header.other.id}" style="background:{color(header.other.id)}" title="View profile">{initial(header.title)}</a>
+        {:else}
+          <span class="avatar th-av" style="background:var(--accent)">#</span>
+        {/if}
         <span class="th-title">
-          {header.title}
+          {#if header.kind === "dm" && header.other}<a class="th-name-link" href="/u/{header.other.id}">{header.title}</a>{:else}{header.title}{/if}
           <span class="th-sub">{header.kind === "group" ? header.members.length + " members" : (friends.find((f) => f.id === header.other?.id)?.online ? "online" : "")}</span>
         </span>
       </div>
@@ -293,6 +295,12 @@
   .frow-name { font-weight: 700; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .frow-status { font-size: 11.5px; color: var(--muted); }
   .frow-status.on { color: var(--ok); }
+  a.frow-av, a.th-av { text-decoration: none; transition: filter var(--dur) var(--ease); }
+  a.frow-av:hover, a.th-av:hover { filter: brightness(1.1); }
+  .frow-link { text-decoration: none; color: inherit; }
+  .frow-link:hover .frow-name { color: var(--accent-ink); }
+  .th-name-link { color: inherit; text-decoration: none; }
+  .th-name-link:hover { color: var(--accent-ink); }
   .frow form { display: inline-flex; }
 
   .search-form { display: flex; gap: 8px; padding: 4px 2px 12px; }

@@ -42,9 +42,11 @@
         {#each players as p (p.id)}
           {@const mine = me && p.id === me.id}
           <div class="prow" class:me={mine} in:fly={{ y: d(6), duration: ready ? d(DUR.base) : 0 }} out:fade={{ duration: d(DUR.fast) }} animate:flip={{ duration: d(DUR.base) }}>
-            <span class="name" title={p.name}>
-              {p.name}{#if mine}<span class="you"> (you)</span>{/if}
-            </span>
+            {#if mine}
+              <span class="name" title={p.name}>{p.name}<span class="you"> (you)</span></span>
+            {:else}
+              <a class="name name-link" href="/u/{p.id}" title="View {p.name}'s profile">{p.name}</a>
+            {/if}
             <span class="loc" class:playing={p.location !== "lobby"}>
               {p.location === "lobby"
                 ? "In lobby"
@@ -143,6 +145,8 @@
     white-space: nowrap;
   }
   .prow.me .name { color: var(--accent); }
+  .name-link { text-decoration: none; transition: color var(--dur, .2s) var(--ease, ease); }
+  .name-link:hover { color: var(--accent-ink); }
   .you { color: var(--muted); font-weight: 400; }
 
   .rank {
