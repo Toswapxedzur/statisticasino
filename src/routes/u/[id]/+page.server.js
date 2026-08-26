@@ -2,7 +2,8 @@
 // profile_visibility; friend actions carried over from the friend graph.
 import { error, fail } from "@sveltejs/kit";
 import { getProfile } from "$lib/server/profiles.js";
-import { requestFriend, respondFriend, removeFriend } from "$lib/server/friends.js";
+import { requestFriend, respondFriend, removeFriend, areFriends } from "$lib/server/friends.js";
+import { getTransferable, transfer } from "$lib/server/transfers.js";
 import { hub } from "$lib/server/poker/hub.js";
 
 export async function load({ params, locals }) {
@@ -11,7 +12,13 @@ export async function load({ params, locals }) {
   if (!profile) throw error(404, "No such player.");
   const online = (hub.connsForUser?.(params.id) || []).length > 0;
   const table = hub.seatOfUser?.(params.id) || null;
-  return { profile, presence: { online, tableId: table?.id || null, tableName: table?.config?.name || null } };
+  // The transferable cap is the VIEWER's earned pool — surfaced only in the send
+  // dialog. Only meaningful between friends.
+  let transferable = 0;
+  if (viewerId && viewerId !== params.id && profile.relationship === "friends") {
+    transferable = await getTransferable(viewerId);
+  }
+  return { profile, transferable, presence: { online, tableId: table?.id || null, tableName: table?.config?.name || null } };
 }
 
 export const actions = {
@@ -29,5 +36,25 @@ export const actions = {
     if (!locals.user) return fail(401, { error: "Sign in first." });
     await respondFriend(locals.user.id, params.id, true);
     return { ok: "accepted" };
+  },
+
+  // Send chips to this friend. Enforces friends-only + the earned-only cap
+  // server-side; notifies both parties live via the hub.
+  transfer: async ({ params, locals, request }) => {
+    if (!locals.user) return fail(401, { transferError: "Sign in first." });
+    const fd = await request.formData();
+    const amount = Math.floor(Number(fd.get("amount")));
+    if (!Number.isFinite(amount) || amount <= 0) return fail(400, { transferError: "Enter an amount." });
+    if (!(await areFriends(locals.user.id, params.id))) return fail(403, { transferError: "You can only send chips to friends." });
+    const res = await transfer(locals.user.id, params.id, amount);
+    if (res.error) {
+      const msg = res.error === "insufficient_transferable"
+        ? `You can only send chips you've won at the tables — up to ${res.transferable.toLocaleString()}.`
+        : res.error === "insufficient_balance" ? "Not enough chips."
+        : "Transfer failed.";
+      return fail(400, { transferError: msg });
+    }
+    try { hub.notifyTransfer?.(locals.user.id, params.id, res.amount, res.fromBalance, res.toBalance); } catch { /* best effort */ }
+    return { transferOk: `Sent ${res.amount.toLocaleString()} chips.`, newBalance: res.fromBalance };
   },
 };

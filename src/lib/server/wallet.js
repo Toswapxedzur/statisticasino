@@ -41,7 +41,12 @@ export const REASON = {
   TOURNEY_ENTRY: "tourney_entry",
   TOURNEY_PRIZE: "tourney_prize",
   // Boot reconciliation of crash-persisted on-table escrow (see bank.js).
-  ESCROW_REFUND: "escrow_refund"
+  ESCROW_REFUND: "escrow_refund",
+  // Friend-to-friend transfer: SEND debits the sender, RECV credits the receiver.
+  // Only game-EARNED chips are transferable (see transfers.js getTransferable);
+  // received chips raise the balance but NOT the transferable pool.
+  TRANSFER_SEND: "transfer_send",
+  TRANSFER_RECV: "transfer_recv"
 };
 
 function newLedgerId() {

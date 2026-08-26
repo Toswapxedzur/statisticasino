@@ -2,9 +2,12 @@
   import { enhance } from "$app/forms";
   import { fly } from "svelte/transition";
   import { d, DUR } from "$lib/motion.js";
+  import { fade, scale } from "svelte/transition";
   let { data, form } = $props();
   const p = $derived(data.profile);
   const pres = $derived(data.presence);
+  let sendOpen = $state(false);
+  let amount = $state("");
 
   const AV = ["#c0674f", "#4f7bc0", "#59a06a", "#8a5fb0", "#b0824f", "#4fa3b0", "#c05f8a", "#6a8f3a"];
   function color(id) { let h = 0; for (const c of String(id || "")) h = (h * 31 + c.charCodeAt(0)) >>> 0; return AV[h % AV.length]; }
@@ -30,6 +33,7 @@
       <div class="actions">
         {#if rel === "friends"}
           <a class="btn" href="/social?to={p.id}">Message</a>
+          <button class="btn btn-gold" onclick={() => (sendOpen = true)}>Send chips</button>
           <form method="POST" action="?/removeFriend" use:enhance><button class="btn btn-secondary" type="submit">Remove</button></form>
         {:else if rel === "incoming"}
           <form method="POST" action="?/acceptFriend" use:enhance><button class="btn" type="submit">Accept request</button></form>
@@ -45,6 +49,8 @@
   </section>
 
   {#if form?.ok}<p class="form-success">{form.ok === "pending" ? "Friend request sent." : form.ok === "accepted" ? "You're now friends!" : "Done."}</p>{/if}
+  {#if form?.transferOk}<p class="form-success">{form.transferOk}</p>{/if}
+  {#if form?.transferError}<p class="form-error">{form.transferError}</p>{/if}
 
   {#if p.restricted}
     <div class="card restricted"><p class="muted">This profile is private.</p></div>
@@ -60,6 +66,22 @@
     </section>
   {/if}
 </div>
+
+{#if sendOpen}
+  <div class="modal-backdrop" role="presentation" onclick={() => (sendOpen = false)} transition:fade={{ duration: d(DUR.fast) }}>
+    <div class="modal card" role="dialog" aria-modal="true" onclick={(e) => e.stopPropagation()} transition:scale={{ start: 0.96, duration: d(DUR.base) }}>
+      <h3>Send chips to {p.name}</h3>
+      <p class="muted small send-note">You can send up to <b class="cap">{data.transferable.toLocaleString()}</b> chips — the chips you've won at the tables. <span class="hint">Free rewards can't be sent.</span></p>
+      <form method="POST" action="?/transfer" use:enhance={() => async ({ update }) => { await update(); sendOpen = false; amount = ""; }}>
+        <input class="amt-input" name="amount" type="number" min="1" max={data.transferable} bind:value={amount} placeholder="Amount" autocomplete="off" />
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" onclick={() => (sendOpen = false)}>Cancel</button>
+          <button class="btn btn-gold" type="submit" disabled={!(+amount > 0) || +amount > data.transferable}>Send {+amount > 0 ? (+amount).toLocaleString() : ""}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+{/if}
 
 <style>
   .wrap { max-width: 760px; margin: 0 auto; }
@@ -83,5 +105,13 @@
   .s-val.gold { color: var(--gold-ink); }
   .s-val.pos { color: var(--ok); } .s-val.neg { color: var(--danger); }
   .s-lbl { font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: grid; place-items: center; z-index: 60; padding: 20px; }
+  .modal { width: min(400px, 94vw); }
+  .modal h3 { margin: 0 0 10px; }
+  .send-note { margin: 0 0 12px; }
+  .cap { color: var(--gold-ink); }
+  .hint { display: block; margin-top: 4px; opacity: 0.8; }
+  .amt-input { width: 100%; font-size: 18px; text-align: center; font-variant-numeric: tabular-nums; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
   @media (max-width: 560px) { .hero { flex-wrap: wrap; } .actions { width: 100%; } }
 </style>

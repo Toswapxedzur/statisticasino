@@ -1111,6 +1111,22 @@ export class PokerHub {
     for (const uid of affected) await this.pushConvList(uid);
   }
 
+  // Live notification of a friend chip transfer (called from the profile action):
+  // push new balances to both parties and drop a note into their DM.
+  async notifyTransfer(fromId, toId, amount, fromBalance, toBalance) {
+    for (const c of this.connsForUser(fromId)) c.send(encode(S2C.CHIPS, { chips: fromBalance }));
+    for (const c of this.connsForUser(toId)) c.send(encode(S2C.CHIPS, { chips: toBalance }));
+    try {
+      const convId = await convo.getOrCreateDm(fromId, toId);
+      const info = await this._usersInfo([fromId]);
+      const fromName = info.get(fromId)?.name || "A friend";
+      const sys = await convo.postMessage(convId, null, { kind: "system", body: `💸 ${fromName} sent ${Number(amount).toLocaleString()} chips` });
+      if (sys) await this._broadcastMsg(convId, sys);
+      await this.pushConvList(fromId);
+      await this.pushConvList(toId);
+    } catch { /* best effort */ }
+  }
+
   // ------------------------------------------------------- voice (WebRTC mesh)
 
   // Everyone currently in a table's voice mesh, as [{ userId, name }].
