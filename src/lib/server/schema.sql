@@ -493,7 +493,7 @@ CREATE TABLE IF NOT EXISTS conversation (
   kind            VARCHAR(16) NOT NULL,            -- 'dm' | 'group'
   title           VARCHAR(128),                    -- group name (NULL for dm)
   avatar_media_id VARCHAR(64),                     -- group avatar (S3 media, phase S3)
-  dm_key          VARCHAR(160),                    -- dm: sorted "a|b"; NULL for group
+  dm_key          VARCHAR(160),                    -- dm: sorted "a|b", NULL for group
   created_by      VARCHAR(64),
   created_at      BIGINT NOT NULL,
   last_msg_at     BIGINT,                          -- newest message ts, for chat-list sort
