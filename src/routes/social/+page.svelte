@@ -101,6 +101,38 @@
     const who = c.kind === "group" && c.last.senderName ? c.last.senderName + ": " : "";
     return who + (c.last.body || "");
   }
+  // --- live friend-finding (trigram search + recommendations) ---
+  let findQ = $state("");
+  let findResults = $state([]);
+  let findMode = $state("recommend");
+  let findLoading = $state(false);
+  let _findTimer = null;
+  async function runFind(q) {
+    findLoading = true;
+    try {
+      const res = await fetch(`/api/friends/find?q=${encodeURIComponent(q)}`);
+      const j = await res.json();
+      findResults = j.results || [];
+      findMode = j.mode;
+    } catch { /* keep prior */ } finally { findLoading = false; }
+  }
+  function onFindInput(e) {
+    findQ = e.target.value;
+    clearTimeout(_findTimer);
+    _findTimer = setTimeout(() => runFind(findQ.trim()), 220);
+  }
+  function openFind() { tab = "search"; if (!findResults.length) runFind(""); }
+  async function addFriend(r) {
+    const res = await fetch("/api/friends", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ userId: r.id, action: "request" }) });
+    const j = await res.json().catch(() => ({}));
+    const s = j.status;
+    findResults = findResults.map((x) => x.id !== r.id ? x : {
+      ...x,
+      relationship: s === "pending" ? "outgoing" : (s === "accepted" || s === "friends") ? "friends" : x.relationship,
+      reqError: s === "blocked" ? "Doesn't accept requests" : s === "blocked_fof" ? "Friends-of-friends only" : null,
+    });
+  }
+
   const incoming = $derived(data.incoming || []);
   const outgoing = $derived(data.outgoing || []);
   const friends = $derived(data.friends || []);
@@ -118,7 +150,7 @@
       <button class="stab" class:on={tab === "requests"} onclick={() => (tab = "requests")}>
         Requests{#if reqCount > 0}<span class="dot-badge">{reqCount}</span>{/if}
       </button>
-      <button class="stab" class:on={tab === "search"} onclick={() => (tab = "search")}>Find</button>
+      <button class="stab" class:on={tab === "search"} onclick={openFind}>Find</button>
     </div>
 
     <div class="pane-body">
@@ -152,7 +184,7 @@
         {:else}
           {#each friends as f (f.id)}
             <div class="frow" in:fly={{ y: d(6), duration: d(DUR.base) }} animate:flip={{ duration: d(DUR.base) }}>
-              <Avatar id={f.id} name={f.name} mediaId={f.avatarMediaId} size={40} href={`/u/${f.id}`} />
+              <Avatar id={f.id} name={f.name} mediaId={f.avatarMediaId} size={40} userId={f.id} />
               <a class="frow-main frow-link" href="/u/{f.id}">
                 <span class="frow-name">{f.name}</span>
                 <span class="frow-status {f.online ? 'on' : ''}">{f.online ? (f.tableName ? "at " + f.tableName : "online") : "offline"}</span>
@@ -198,28 +230,31 @@
         {/if}
 
       {:else if tab === "search"}
-        <form method="POST" action="?/search" use:enhance class="search-form">
-          <input class="search-input" name="q" placeholder="Search players by name…" autocomplete="off" />
-          <button class="btn btn-sm" type="submit">Search</button>
-        </form>
-        {#if form?.searchError}<p class="form-error">{form.searchError}</p>{/if}
-        {#if form?.addOk}<p class="form-success">{form.addOk}</p>{/if}
-        {#if form?.addError}<p class="form-error">{form.addError}</p>{/if}
-        {#if form?.results}
-          {#if form.results.length === 0}<div class="empty small">No players found.</div>{/if}
-          {#each form.results as r (r.id)}
-            <div class="frow" in:fly={{ y: d(6), duration: d(DUR.base) }}>
-              <span class="avatar frow-av" style="background:{color(r.id)}">{initial(r.name)}</span>
-              <span class="frow-main"><span class="frow-name">{r.name}</span></span>
-              <form method="POST" action="?/addById" use:enhance>
-                <input type="hidden" name="userId" value={r.id} />
-                <button class="btn btn-xs" type="submit">Add</button>
-              </form>
-            </div>
-          {/each}
-        {:else}
-          <div class="empty small">Find friends by their display name.</div>
+        <div class="search-form">
+          <input class="search-input" placeholder="Search players by name…" autocomplete="off" bind:value={findQ} oninput={onFindInput} />
+        </div>
+        <div class="find-head"><span class="muted small">{findMode === "search" ? "Results" : "Suggested for you"}</span>{#if findLoading}<span class="muted small">searching…</span>{/if}</div>
+        {#if findResults.length === 0 && !findLoading}
+          <div class="empty small">{findMode === "search" ? "No players found." : "No suggestions yet — play some hands or add a friend."}</div>
         {/if}
+        {#each findResults as r (r.id)}
+          <div class="frow" in:fly={{ y: d(6), duration: d(DUR.base) }} animate:flip={{ duration: d(DUR.base) }}>
+            <Avatar id={r.id} name={r.name} mediaId={r.avatarMediaId} size={38} userId={r.id} />
+            <div class="frow-main">
+              <span class="frow-name">{r.name}</span>
+              {#if r.reason}<span class="frow-status">{r.reason}</span>{:else if r.reqError}<span class="frow-status" style="color:var(--danger)">{r.reqError}</span>{/if}
+            </div>
+            {#if r.relationship === "friends"}
+              <a class="btn btn-xs btn-secondary" href="/social?to={r.id}">Message</a>
+            {:else if r.relationship === "outgoing"}
+              <button class="btn btn-xs btn-secondary" disabled>Requested</button>
+            {:else if r.relationship === "incoming"}
+              <a class="btn btn-xs" href="/u/{r.id}">Respond</a>
+            {:else}
+              <button class="btn btn-xs" onclick={() => addFriend(r)}>＋ Add</button>
+            {/if}
+          </div>
+        {/each}
       {/if}
     </div>
   </aside>
@@ -230,7 +265,7 @@
       <div class="thread-head">
         <button class="back-btn" onclick={() => (mobileThread = false)} aria-label="Back">‹</button>
         {#if header.kind === "dm" && header.other}
-          <Avatar id={header.other.id} name={header.title} mediaId={header.other.avatarMediaId} size={40} href={`/u/${header.other.id}`} />
+          <Avatar id={header.other.id} name={header.title} mediaId={header.other.avatarMediaId} size={40} userId={header.other.id} />
         {:else}
           <span class="avatar th-av" style="background:var(--accent)">#</span>
         {/if}
@@ -382,8 +417,9 @@
   .th-name-link:hover { color: var(--accent-ink); }
   .frow form { display: inline-flex; }
 
-  .search-form { display: flex; gap: 8px; padding: 4px 2px 12px; }
+  .search-form { display: flex; gap: 8px; padding: 4px 2px 10px; }
   .search-input { flex: 1; }
+  .find-head { display: flex; justify-content: space-between; align-items: center; padding: 2px 4px 8px; }
 
   /* thread pane */
   .thread-pane { min-width: 0; }

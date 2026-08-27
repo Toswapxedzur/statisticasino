@@ -28,6 +28,22 @@ export async function requestFriend(fromId, toId, db = realDb) {
     }
     return { status: "exists" }; // our own request is already pending
   }
+  // Enforce the target's friend-request policy (default 'everyone').
+  const pol = await db.query("SELECT friend_req_policy FROM user WHERE id = ?", [toId]);
+  const policy = pol[0]?.friend_req_policy || "everyone";
+  if (policy === "nobody") return { status: "blocked" };
+  if (policy === "fof") {
+    const mutual = await db.query(
+      "SELECT 1 FROM "
+      + "(SELECT CASE WHEN requester_id = ? THEN addressee_id ELSE requester_id END AS fid FROM friendship WHERE status = 'accepted' AND (requester_id = ? OR addressee_id = ?)) a "
+      + "JOIN "
+      + "(SELECT CASE WHEN requester_id = ? THEN addressee_id ELSE requester_id END AS fid FROM friendship WHERE status = 'accepted' AND (requester_id = ? OR addressee_id = ?)) b "
+      + "ON a.fid = b.fid LIMIT 1",
+      [fromId, fromId, fromId, toId, toId, toId]
+    );
+    if (!mutual.length) return { status: "blocked_fof" };
+  }
+
   await db.execute(
     "INSERT INTO friendship (requester_id, addressee_id, status, created_at) VALUES (?, ?, 'pending', ?)",
     [fromId, toId, now]

@@ -71,6 +71,7 @@
 import { gunzipSync } from "node:zlib";
 import { randomBytes } from "node:crypto";
 import { query, execute, getPool } from "./db.js";
+import { syncTrigrams } from "./trigram.js";
 import { HARDCODED_ADMIN_EMAIL, HARDCODED_ADMIN_USER_ID } from "./auth.js";
 import {
   extractStakeFromFrames,
@@ -148,11 +149,12 @@ export async function ensureMigrated() {
   // so no migrateToV15/V16 functions are needed.
   await migrateToV17();
   await migrateToV18();
+  await migrateToV19();
 
   // Stamp the version row (idempotent — schema.sql also INSERT IGNOREs
   // it, but we want to be defensive).
   await execute(
-    "INSERT INTO meta(meta_key, meta_value) VALUES ('schema_version', '18') "
+    "INSERT INTO meta(meta_key, meta_value) VALUES ('schema_version', '19') "
     + "ON DUPLICATE KEY UPDATE meta_value = VALUES(meta_value)"
   );
 
@@ -249,6 +251,32 @@ async function migrateToV18() {
       [col]
     );
     if (cols.length === 0) await execute(ddl);
+  }
+}
+
+// v18 -> v19 ("settings + trigram search"): add friend_req_policy + settings
+// columns (info-schema-gated), then backfill user_trigram once (gated on it being
+// empty). user_trigram itself is created by schema.sql.
+async function migrateToV19() {
+  for (const [col, ddl] of [
+    ["friend_req_policy", "ALTER TABLE user ADD COLUMN friend_req_policy VARCHAR(16) NOT NULL DEFAULT 'everyone' AFTER transferable_chips"],
+    ["settings", "ALTER TABLE user ADD COLUMN settings TEXT AFTER friend_req_policy"],
+  ]) {
+    const cols = await query(
+      "SELECT COLUMN_NAME FROM information_schema.COLUMNS "
+      + "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = ?",
+      [col]
+    );
+    if (cols.length === 0) await execute(ddl);
+  }
+  const cnt = await query("SELECT COUNT(*) AS n FROM user_trigram");
+  if (Number(cnt[0]?.n || 0) === 0) {
+    const users = await query(
+      "SELECT id, COALESCE(NULLIF(display_name, ''), email) AS name FROM user WHERE email NOT LIKE '%@bot.riverside.invalid'"
+    );
+    for (const u of users) {
+      try { await syncTrigrams(u.id, u.name); } catch { /* best effort */ }
+    }
   }
 }
 

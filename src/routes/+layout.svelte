@@ -9,6 +9,7 @@
   import { reducedMotion, d, DUR } from "$lib/motion.js";
   import { fly } from "svelte/transition";
   import Num from "$lib/poker/components/Num.svelte";
+  import ProfilePopover from "$lib/poker/components/ProfilePopover.svelte";
 
   // Smooth slide+fade between main sections via the View Transitions API.
   // Only <main> (view-transition-name: main-content) animates — the topbar and
@@ -75,6 +76,7 @@
   const links = $derived([
     { href: "/", label: "Lobby", show: true },
     { href: "/social", label: "Social", show: !!data.user, badge: socialUnread },
+    { href: "/leaderboards", label: "Ranks", show: true },
     { href: "/data", label: "Data", show: true },
     { href: "/blog", label: "Blog", show: true },
     { href: "/contribute", label: "Contribute", show: true },
@@ -135,6 +137,8 @@
 <main>
   {@render children()}
 </main>
+
+<ProfilePopover />
 
 {#if data.user && poker.myTables.length > 1}
   <div class="table-switcher" aria-label="Your tables">

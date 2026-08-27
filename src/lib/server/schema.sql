@@ -127,7 +127,23 @@ CREATE TABLE IF NOT EXISTS user (
   -- v20 (money transfer): chips that may be SENT to friends — only game-earned
   -- inflows raise this; free grants never do; receiving chips does not raise it
   -- (received chips can be played but not re-forwarded). See wallet.js.
-  transferable_chips BIGINT NOT NULL DEFAULT 0
+  transferable_chips BIGINT NOT NULL DEFAULT 0,
+  -- v19 (settings): who may send this user a friend request
+  -- (everyone | fof [friends-of-friends] | nobody), + a JSON blob for the rest
+  -- of the toggles (read receipts, typing, notifications). Theme lives client-side.
+  friend_req_policy VARCHAR(16) NOT NULL DEFAULT 'everyone',
+  settings TEXT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- v19 (trigram friend search): 3-grams of each user's display name for
+-- typo-tolerant real-time search. Rebuilt on signup / name-change; backfilled by
+-- migrateToV19. Ranking = COUNT of shared grams between the query and a user.
+CREATE TABLE IF NOT EXISTS user_trigram (
+  user_id  VARCHAR(64) NOT NULL,
+  gram     CHAR(3) NOT NULL,
+  PRIMARY KEY (user_id, gram),
+  KEY idx_trigram_gram (gram),
+  CONSTRAINT fk_trigram_user FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS session (

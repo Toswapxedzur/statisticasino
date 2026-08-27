@@ -43,7 +43,7 @@
         {#each players as p (p.id)}
           {@const mine = me && p.id === me.id}
           <div class="prow" class:me={mine} in:fly={{ y: d(6), duration: ready ? d(DUR.base) : 0 }} out:fade={{ duration: d(DUR.fast) }} animate:flip={{ duration: d(DUR.base) }}>
-            <Avatar id={p.id} name={p.name} mediaId={p.avatarMediaId} size={26} href={mine ? null : `/u/${p.id}`} />
+            <Avatar id={p.id} name={p.name} mediaId={p.avatarMediaId} size={26} userId={mine ? null : p.id} />
             {#if mine}
               <span class="name" title={p.name}>{p.name}<span class="you"> (you)</span></span>
             {:else}
@@ -72,6 +72,7 @@
   <section class="section">
     <div class="card-head">
       <h3>Leaderboard</h3>
+      <a class="lb-all" href="/leaderboards">See all →</a>
     </div>
 
     <div class="board">
@@ -81,7 +82,7 @@
         {#each top as row, i (i)}
           <div class="lrow" in:fade={{ duration: ready ? d(DUR.fast) : 0 }}>
             <span class="rank">{i + 1}.</span>
-            <Avatar id={row.id} name={row.name} mediaId={row.avatarMediaId} size={24} href={row.id ? `/u/${row.id}` : null} />
+            <Avatar id={row.id} name={row.name} mediaId={row.avatarMediaId} size={24} userId={row.id} />
             {#if row.id}<a class="name name-link" href="/u/{row.id}" title="View profile">{row.name}</a>{:else}<span class="name" title={row.name}>{row.name}</span>{/if}
             <span class="chips">{fmt(row.chips)}</span>
           </div>
@@ -150,6 +151,8 @@
   .prow.me .name { color: var(--accent); }
   .name-link { text-decoration: none; transition: color var(--dur, .2s) var(--ease, ease); }
   .name-link:hover { color: var(--accent-ink); }
+  .lb-all { font-size: 12px; color: var(--accent-ink); text-decoration: none; }
+  .lb-all:hover { opacity: .75; }
   .you { color: var(--muted); font-weight: 400; }
 
   .rank {

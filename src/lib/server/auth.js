@@ -29,6 +29,7 @@ import { randomBytes, scryptSync, timingSafeEqual, createHash } from "node:crypt
 import { Buffer } from "node:buffer";
 import { encodeBase32LowerCaseNoPadding, encodeHexLowerCase } from "@oslojs/encoding";
 import { query, queryOne, execute } from "./db.js";
+import { syncTrigrams } from "./trigram.js";
 
 // ----------------------------------------------------- hardcoded admin
 
@@ -214,6 +215,7 @@ export async function createUser(email, password, displayName) {
      VALUES (?, ?, ?, ?, 0, ?)`,
     [id, normalized, hashPassword(password), displayName || null, Date.now()]
   );
+  try { await syncTrigrams(id, displayName || normalized); } catch { /* search index is best-effort */ }
   return { id, email: normalized, displayName, isAdmin: false };
 }
 
@@ -231,5 +233,6 @@ export async function updateDisplayName(userId, newName) {
     "UPDATE user SET display_name = ? WHERE id = ?",
     [trimmed, userId]
   );
+  try { await syncTrigrams(userId, trimmed || userId); } catch { /* best effort */ }
   return trimmed;
 }

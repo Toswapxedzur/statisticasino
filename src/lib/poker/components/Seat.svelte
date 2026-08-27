@@ -1,6 +1,7 @@
 <script>
   import Card from "./Card.svelte";
   import Num from "./Num.svelte";
+  import Avatar from "./Avatar.svelte";
   import { scale, fade } from "svelte/transition";
   import { d, DUR } from "$lib/motion.js";
 
@@ -98,6 +99,7 @@
 
       <div class="plate">
         <div class="row1">
+          {#if seat.userId && !isMine}<Avatar id={seat.userId} name={seat.name} userId={seat.userId} size={18} />{/if}
           <span class="name" title={seat.name}>{seat.name}</span>
           {#if badge}<span class="badge b-{badge.toLowerCase()}">{badge}</span>{/if}
           {#if !seat.connected}<span class="dot off" title="disconnected"></span>{/if}
