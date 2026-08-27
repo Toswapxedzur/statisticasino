@@ -1,16 +1,11 @@
 import { redirect, fail } from "@sveltejs/kit";
 import { queryOne, execute } from "$lib/server/db.js";
-
-const DEFAULTS = {
-  readReceipts: true, typing: true, allowGroupAdd: true,
-  notifyFriendReq: true, notifyMessages: true, notifyTransfers: true,
-};
-
-function parseSettings(raw) {
-  let s = { ...DEFAULTS };
-  try { if (raw) s = { ...DEFAULTS, ...JSON.parse(raw) }; } catch { /* defaults */ }
-  return s;
-}
+import {
+  SOCIAL_DEFAULTS,
+  parseSocialSettings,
+  serializeSocialSettings,
+} from "$lib/server/social-settings.js";
+import { hub } from "$lib/server/poker/hub.js";
 
 export async function load({ locals }) {
   if (!locals.user) throw redirect(303, "/account/login");
@@ -21,7 +16,7 @@ export async function load({ locals }) {
   return {
     friendReqPolicy: row?.friend_req_policy || "everyone",
     visibility: row?.profile_visibility || "public",
-    settings: parseSettings(row?.settings),
+    settings: parseSocialSettings(row?.settings),
   };
 }
 
@@ -40,8 +35,11 @@ export const actions = {
     if (!locals.user) return fail(401, { error: "Sign in." });
     const fd = await request.formData();
     const s = {};
-    for (const k of Object.keys(DEFAULTS)) s[k] = fd.get(k) === "true";
-    await execute("UPDATE user SET settings = ? WHERE id = ?", [JSON.stringify(s), locals.user.id]);
+    for (const k of Object.keys(SOCIAL_DEFAULTS)) s[k] = fd.get(k) === "true";
+    await execute("UPDATE user SET settings = ? WHERE id = ?", [serializeSocialSettings(s), locals.user.id]);
+    // The WS hub caches these prefs to gate typing / read receipts — drop the
+    // stale entry so the change takes effect on the live socket immediately.
+    try { hub.invalidateSocialSettings(locals.user.id); } catch { /* hub not attached in some contexts */ }
     return { socialOk: true };
   },
 };

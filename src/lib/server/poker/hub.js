@@ -22,6 +22,7 @@ import { areFriends } from "../friends.js";
 import { sendMessage, markRead } from "../dm.js";
 import * as convo from "../conversations.js";
 import { isBlocked } from "../moderation.js";
+import { getSocialSettings } from "../social-settings.js";
 import { query as dbQuery } from "../db.js";
 import { iceConfig } from "../voice.js";
 import { LiveTable } from "./table.js";
@@ -47,6 +48,25 @@ export class PokerHub {
     this._lobbyGen = 0;             // coalesces overlapping lobby snapshots
     this.shuttingDown = false;      // set during a graceful drain (rejects ops)
     this.botManager = new BotManager(); // owns bot identities + seating
+    this._socialCache = new Map();  // userId -> { val, exp } social-settings cache
+  }
+
+  // Cached read of a user's social prefs (readReceipts / typing / …). Typing
+  // events fire often, so we cache for a few seconds; saving prefs invalidates
+  // the entry instantly via invalidateSocialSettings() (same process).
+  async _socialSettings(userId) {
+    const now = Date.now();
+    const hit = this._socialCache.get(userId);
+    if (hit && hit.exp > now) return hit.val;
+    let val;
+    try { val = await getSocialSettings(userId); }
+    catch { return { readReceipts: true, typing: true }; } // fail open
+    this._socialCache.set(userId, { val, exp: now + 15000 });
+    return val;
+  }
+
+  invalidateSocialSettings(userId) {
+    if (userId) this._socialCache.delete(userId);
   }
 
   // ------------------------------------------------------- helpers
@@ -1059,11 +1079,22 @@ export class PokerHub {
   async msgRead(conn, msg) {
     if (!conn.user || !msg.convId) return;
     try {
+      // Always advance my own read pointer (this is what clears my unread badge).
       await convo.markRead(msg.convId, conn.user.id);
+      // Read receipts are reciprocal: a receipt travels from A to B only when
+      // BOTH have receipts enabled. If I've turned mine off, I neither broadcast
+      // my read position nor (via the same gate on their side) see others'.
+      const mine0 = await this._socialSettings(conn.user.id);
+      if (!mine0.readReceipts) return;
       const rows = await convo.readState(msg.convId);
       const mine = rows.find((r) => r.userId === conn.user.id);
       const frame = encode(S2C.CONV_READ, { convId: msg.convId, userId: conn.user.id, seq: mine?.seq ?? 0 });
-      for (const uid of await convo.memberIds(msg.convId)) if (uid !== conn.user.id) for (const c of this.connsForUser(uid)) c.send(frame);
+      for (const uid of await convo.memberIds(msg.convId)) {
+        if (uid === conn.user.id) continue;
+        const theirs = await this._socialSettings(uid);
+        if (!theirs.readReceipts) continue; // they opted out of seeing receipts
+        for (const c of this.connsForUser(uid)) c.send(frame);
+      }
     } catch { /* best effort */ }
   }
 
@@ -1078,6 +1109,9 @@ export class PokerHub {
   async typing(conn, msg) {
     if (!conn.user || !msg.convId) return;
     if (!(await convo.isMember(msg.convId, conn.user.id))) return;
+    // Respect the sender's "show when I'm typing" preference.
+    const prefs = await this._socialSettings(conn.user.id);
+    if (!prefs.typing) return;
     const frame = encode(S2C.TYPING, { convId: msg.convId, userId: conn.user.id, name: conn.user.displayName || conn.user.email });
     for (const uid of await convo.memberIds(msg.convId)) if (uid !== conn.user.id) for (const c of this.connsForUser(uid)) c.send(frame);
   }
