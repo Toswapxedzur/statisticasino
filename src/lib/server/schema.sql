@@ -483,6 +483,48 @@ CREATE TABLE IF NOT EXISTS quest_progress (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------------
+-- v21 (2026-08-27, "progression"): River Sprint — the daily fast-fold
+-- mass event. sprint_round is one scheduled round; sprint_entry is one
+-- player's participation. `day_key` (UTC 'YYYY-MM-DD') + the UNIQUE index
+-- enforce the one-entry-per-player-per-day rule directly in the schema.
+-- Prize pool = sum(bids) / (1 - faucet_bps/10000): human bids fund the
+-- 70%, the house overlays the rest as the net chip faucet (default 30%).
+-- -----------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS sprint_round (
+  id             VARCHAR(64) NOT NULL PRIMARY KEY,
+  status         VARCHAR(16) NOT NULL DEFAULT 'scheduled', -- scheduled|registering|live|done|canceled
+  scheduled_at   BIGINT NOT NULL,
+  bid            INT NOT NULL,
+  starting_stack INT NOT NULL,
+  duration_ms    BIGINT NOT NULL,
+  faucet_bps     INT NOT NULL DEFAULT 3000,
+  entrants       INT NOT NULL DEFAULT 0,
+  prize_pool     BIGINT NOT NULL DEFAULT 0,
+  started_at     BIGINT DEFAULT NULL,
+  ended_at       BIGINT DEFAULT NULL,
+  created_at     BIGINT NOT NULL,
+  KEY idx_sprint_round_sched (status, scheduled_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- sprint_entry holds HUMAN participants only — bots play the pool for field
+-- size but are economically neutral (they neither bid nor collect), so they
+-- get no rows and the one-per-day UNIQUE never trips on a shared bot identity.
+-- `place` is the human's finishing rank among ALL participants (bots included).
+CREATE TABLE IF NOT EXISTS sprint_entry (
+  round_id     VARCHAR(64) NOT NULL,
+  user_id      VARCHAR(64) NOT NULL,
+  day_key      VARCHAR(10) NOT NULL,
+  bid_paid     INT NOT NULL DEFAULT 0,
+  final_stack  BIGINT DEFAULT NULL,
+  place        INT DEFAULT NULL,
+  prize        BIGINT NOT NULL DEFAULT 0,
+  created_at   BIGINT NOT NULL,
+  PRIMARY KEY (round_id, user_id),
+  UNIQUE KEY uq_sprint_one_per_day (user_id, day_key),
+  KEY idx_sprint_entry_round (round_id, place)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------------------
 -- v15 (2026-08-24, "friends"): the friend graph. One row per relation,
 -- DIRECTED by who sent the request (requester → addressee) but treated
 -- as undirected once `status = 'accepted'`. `pending` is an outstanding
