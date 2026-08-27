@@ -50,6 +50,12 @@ export const C2S = {
   VOICE_JOIN: "voice.join",    // { tableId } — join a table's voice mesh
   VOICE_LEAVE: "voice.leave",  // { tableId }
   RTC_SIGNAL: "rtc.signal",    // { tableId, toUserId, signal } — WebRTC offer/answer/ice relay
+  NOTIF_LIST: "notif.list",    // {} — request my recent notifications + unread count
+  NOTIF_READ: "notif.read",    // { ids:[] } | { all:true } — mark notifications read
+  CALL_INVITE: "call.invite",  // { toUserId } — start a friend voice call (out of game)
+  CALL_ACCEPT: "call.accept",  // { callId }
+  CALL_DECLINE: "call.decline",// { callId }
+  CALL_END: "call.end",        // { callId } — hang up / cancel
   PONG: "pong"
 };
 
@@ -79,6 +85,10 @@ export const S2C = {
   VOICE_ROSTER: "voice.roster",// { tableId, users:[{userId,name}] } — who's in the table's voice mesh
   ICE_CONFIG: "voice.ice",     // { iceServers } — STUN/TURN config for RTCPeerConnection (ephemeral creds)
   RTC_SIGNAL: "rtc.signal",    // { tableId, fromUserId, signal } — relayed WebRTC signal
+  NOTIF: "notif",              // { notification } — a single live notification
+  NOTIF_LIST: "notif.listing", // { notifications:[], unread } — seed / refresh
+  CALL_RING: "call.ring",      // { callId, fromUserId, fromName } — incoming call
+  CALL_STATE: "call.state",    // { callId, state, peer:{userId,name}, room?, iceServers? } — ringing|active|ended|declined|busy|unavailable
   ERROR: "error",             // { code?, msg }
   PING: "ping"
 };

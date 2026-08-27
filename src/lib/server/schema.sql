@@ -605,6 +605,26 @@ CREATE TABLE IF NOT EXISTS report (
   CONSTRAINT fk_report_target FOREIGN KEY (target_id) REFERENCES user(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- v20 (2026-08-27, "Notifications"): the in-app activity feed backing the topbar
+-- bell. One row per event (friend request/accept, chip transfer, missed messages).
+-- Gated at creation by the recipient's notify* prefs. `seq` gives stable ordering
+-- (created_at ms can tie), `ref` holds a context id (e.g. a conversation id).
+CREATE TABLE IF NOT EXISTS notification (
+  id          VARCHAR(64) NOT NULL PRIMARY KEY,
+  seq         BIGINT NOT NULL AUTO_INCREMENT,
+  user_id     VARCHAR(64) NOT NULL,                  -- recipient
+  kind        VARCHAR(24) NOT NULL,                  -- friend_request | friend_accept | transfer | message
+  actor_id    VARCHAR(64),                           -- who caused it (NULL for system)
+  ref         VARCHAR(64),                           -- context id (conv id, etc.)
+  body        VARCHAR(255) NOT NULL,                 -- prerendered display text
+  created_at  BIGINT NOT NULL,
+  read_at     BIGINT,                                -- NULL = unread
+  UNIQUE KEY uq_notif_seq (seq),
+  KEY idx_notif_user (user_id, seq),
+  KEY idx_notif_unread (user_id, read_at),
+  CONSTRAINT fk_notif_user FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS meta (
   meta_key   VARCHAR(64)  NOT NULL PRIMARY KEY,
   meta_value VARCHAR(255) NOT NULL

@@ -10,6 +10,8 @@
   import { fly } from "svelte/transition";
   import Num from "$lib/poker/components/Num.svelte";
   import ProfilePopover from "$lib/poker/components/ProfilePopover.svelte";
+  import NotifBell from "$lib/poker/components/NotifBell.svelte";
+  import CallOverlay from "$lib/poker/components/CallOverlay.svelte";
 
   // Smooth slide+fade between main sections via the View Transitions API.
   // Only <main> (view-transition-name: main-content) animates — the topbar and
@@ -104,6 +106,7 @@
     <button class="theme-btn" aria-label="Toggle theme" title="Toggle light / dark" onclick={toggleTheme}>
       {theme === "dark" ? "☾" : "☀"}
     </button>
+    {#if data.user}<NotifBell />{/if}
     {#if data.user}
       <a class="chips-pill" href="/account" title="Your chips balance">
         <span class="chip-ico"></span>
@@ -139,6 +142,7 @@
 </main>
 
 <ProfilePopover />
+{#if data.user}<CallOverlay />{/if}
 
 {#if data.user && poker.myTables.length > 1}
   <div class="table-switcher" aria-label="Your tables">

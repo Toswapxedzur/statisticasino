@@ -43,7 +43,9 @@ export const actions = {
     if (target.id === locals.user.id) return fail(400, { addError: "You can't add yourself." });
     const res = await requestFriend(locals.user.id, target.id);
     if (res.status === "exists") return fail(409, { addError: `You're already connected with ${target.name}.` });
-    if (res.status === "accepted") return { addOk: `You're now friends with ${target.name}!` };
+    const myName = locals.user.displayName || locals.user.email;
+    if (res.status === "accepted") { hub.notifyFriendAccept?.(locals.user.id, myName, target.id); return { addOk: `You're now friends with ${target.name}!` }; }
+    if (res.status === "pending") hub.notifyFriendRequest?.(locals.user.id, myName, target.id);
     return { addOk: `Friend request sent to ${target.name}.` };
   },
 
@@ -55,7 +57,9 @@ export const actions = {
     if (!targetId || targetId === locals.user.id) return fail(400, { addError: "Bad request." });
     const res = await requestFriend(locals.user.id, targetId);
     if (res.status === "exists") return fail(409, { addError: "Already connected." });
-    if (res.status === "accepted") return { addOk: "You're now friends!" };
+    const myName = locals.user.displayName || locals.user.email;
+    if (res.status === "accepted") { hub.notifyFriendAccept?.(locals.user.id, myName, targetId); return { addOk: "You're now friends!" }; }
+    if (res.status === "pending") hub.notifyFriendRequest?.(locals.user.id, myName, targetId);
     return { addOk: "Friend request sent." };
   },
 
@@ -76,6 +80,7 @@ export const actions = {
     const accept = String(form.get("accept")) === "true";
     if (!requesterId) return fail(400, { respondError: "Bad request." });
     await respondFriend(locals.user.id, requesterId, accept);
+    if (accept) hub.notifyFriendAccept?.(locals.user.id, locals.user.displayName || locals.user.email, requesterId);
     return { respondOk: true };
   },
 

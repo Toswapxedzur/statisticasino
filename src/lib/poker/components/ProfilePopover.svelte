@@ -4,6 +4,7 @@
   // and lets you add/accept/message without leaving the page.
   import { profilePop } from "$lib/profilePopover.svelte.js";
   import Avatar from "$lib/poker/components/Avatar.svelte";
+  import { calls } from "$lib/poker/call.svelte.js";
   import { fly } from "svelte/transition";
   import { d, DUR } from "$lib/motion.js";
 
@@ -85,6 +86,7 @@
         {:else}
           {#if profile.relationship === "friends"}
             <a class="btn btn-sm" href="/social?to={profile.id}">Message</a>
+            {#if profile.online}<button class="btn btn-sm btn-secondary pp-call" title="Voice call" aria-label="Voice call" onclick={() => { const p = profile; profilePop.close(); calls.start(p.id, p.name); }}>📞</button>{/if}
           {:else if profile.relationship === "incoming"}
             <button class="btn btn-sm" disabled={busy} onclick={() => act("accept")}>Accept</button>
           {:else if profile.relationship === "outgoing"}
@@ -114,4 +116,5 @@
   .pp-err { font-size: 12px; color: var(--danger); margin-bottom: 8px; }
   .pp-actions { display: flex; gap: 8px; margin-top: 4px; }
   .pp-actions .btn { flex: 1; }
+  .pp-actions .pp-call { flex: 0 0 auto; }
 </style>

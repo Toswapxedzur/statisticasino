@@ -38,6 +38,15 @@ class PokerClient {
   readSeq = $state({});         // convId -> { userId: lastReadSeq } (read receipts)
   _typingTimers = {};
 
+  // v20 "Notifications" — the topbar bell feed.
+  notifications = $state([]);   // [{id,seq,kind,actorId,ref,body,createdAt,readAt}] newest first
+  notifUnread = $state(0);
+
+  // Phase E — out-of-game friend voice calls.
+  incomingCall = $state(null);  // { callId, fromUserId, fromName } — ringing at me
+  call = $state(null);          // { callId, state, peer:{userId,name}, room } — my active/outgoing call
+  _callHandlers = null;         // set by the Call controller (call.svelte.js)
+
   _wantLobby = false;
   _watching = new Set();
   _backoff = 500;
@@ -104,6 +113,7 @@ class PokerClient {
         this.me = msg.user;
         // Load the conversation list so the Social badge + chat list are ready app-wide.
         this.loadConvs();
+        this._raw(encode(C2S.NOTIF_LIST)); // seed the notification bell
         break;
       case S2C.LOBBY:
         this.lobby = {
@@ -238,6 +248,32 @@ class PokerClient {
       case S2C.RTC_SIGNAL:
         this._voice?.signal?.(msg);
         break;
+
+      case S2C.NOTIF: {
+        const n = msg.notification;
+        if (n) {
+          this.notifications = [n, ...this.notifications.filter((x) => x.id !== n.id)].slice(0, 50);
+          if (!n.readAt) this.notifUnread = this.notifUnread + 1;
+        }
+        break;
+      }
+      case S2C.NOTIF_LIST:
+        this.notifications = msg.notifications || [];
+        this.notifUnread = msg.unread || 0;
+        break;
+
+      case S2C.CALL_RING:
+        // Ignore a ring if I'm already busy; otherwise show the incoming prompt.
+        if (!this.call && !this.incomingCall) {
+          this.incomingCall = { callId: msg.callId, fromUserId: msg.fromUserId, fromName: msg.fromName };
+        } else {
+          this._raw(encode(C2S.CALL_DECLINE, { callId: msg.callId }));
+        }
+        break;
+      case S2C.CALL_STATE:
+        this._callHandlers?.state?.(msg);
+        break;
+
       case S2C.TOAST:
         this.toast = { level: msg.level, text: msg.text };
         break;
@@ -373,6 +409,28 @@ class PokerClient {
   voiceJoin(tableId) { this.connect(); this._raw(encode(C2S.VOICE_JOIN, { tableId })); }
   voiceLeave(tableId) { this._raw(encode(C2S.VOICE_LEAVE, { tableId })); }
   sendSignal(tableId, toUserId, signal) { this._raw(encode(C2S.RTC_SIGNAL, { tableId, toUserId, signal })); }
+
+  // -------------------------------------------------- notifications
+
+  markNotifsRead(ids = null) {
+    // Optimistic: clear locally, then tell the server (which echoes a fresh list).
+    if (ids && ids.length) {
+      const set = new Set(ids);
+      this.notifications = this.notifications.map((n) => (set.has(n.id) && !n.readAt ? { ...n, readAt: Date.now() } : n));
+    } else {
+      this.notifications = this.notifications.map((n) => (n.readAt ? n : { ...n, readAt: Date.now() }));
+    }
+    this.notifUnread = this.notifications.filter((n) => !n.readAt).length;
+    this._raw(encode(C2S.NOTIF_READ, ids && ids.length ? { ids } : { all: true }));
+  }
+
+  // -------------------------------------------------- out-of-game voice calls
+
+  setCallHandlers(h) { this._callHandlers = h; }
+  startCall(toUserId) { this.connect(); this._raw(encode(C2S.CALL_INVITE, { toUserId })); }
+  acceptCall(callId) { this._raw(encode(C2S.CALL_ACCEPT, { callId })); }
+  declineCall(callId) { this._raw(encode(C2S.CALL_DECLINE, { callId })); }
+  endCall(callId) { this._raw(encode(C2S.CALL_END, { callId })); }
 
   // Every table I'm currently SEATED at (I keep watching them across navigation),
   // with a flag for whether it's my turn there — powers the multi-table switcher.

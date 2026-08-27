@@ -22,7 +22,8 @@ import { areFriends } from "../friends.js";
 import { sendMessage, markRead } from "../dm.js";
 import * as convo from "../conversations.js";
 import { isBlocked } from "../moderation.js";
-import { getSocialSettings } from "../social-settings.js";
+import { getSocialSettings, SOCIAL_DEFAULTS } from "../social-settings.js";
+import { createNotification, listNotifications, unreadCount, markRead as markNotifRead } from "../notifications.js";
 import { query as dbQuery } from "../db.js";
 import { iceConfig } from "../voice.js";
 import { LiveTable } from "./table.js";
@@ -49,6 +50,7 @@ export class PokerHub {
     this.shuttingDown = false;      // set during a graceful drain (rejects ops)
     this.botManager = new BotManager(); // owns bot identities + seating
     this._socialCache = new Map();  // userId -> { val, exp } social-settings cache
+    this.calls = new Map();         // callId -> { id, from, to, state, createdAt } out-of-game voice calls
   }
 
   // Cached read of a user's social prefs (readReceipts / typing / …). Typing
@@ -60,7 +62,7 @@ export class PokerHub {
     if (hit && hit.exp > now) return hit.val;
     let val;
     try { val = await getSocialSettings(userId); }
-    catch { return { readReceipts: true, typing: true }; } // fail open
+    catch { return { ...SOCIAL_DEFAULTS }; } // fail open — everything enabled
     this._socialCache.set(userId, { val, exp: now + 15000 });
     return val;
   }
@@ -138,6 +140,7 @@ export class PokerHub {
     if (conn.user && this.connsForUser(conn.user.id).length === 0) {
       this._forgetWaitlists(conn.user.id);
       this._forgetVoice(conn.user.id);
+      this._forgetCalls(conn.user.id);
     }
     const watched = [...(conn.watching ?? [])];
     for (const tableId of watched) {
@@ -774,6 +777,26 @@ export class PokerHub {
           this.relaySignal(conn, msg);
           break;
 
+        case C2S.NOTIF_LIST:
+          await this.sendNotifList(conn);
+          break;
+        case C2S.NOTIF_READ:
+          await this.notifRead(conn, msg);
+          break;
+
+        case C2S.CALL_INVITE:
+          await this.callInvite(conn, msg);
+          break;
+        case C2S.CALL_ACCEPT:
+          await this.callAccept(conn, msg);
+          break;
+        case C2S.CALL_DECLINE:
+          this.callDecline(conn, msg);
+          break;
+        case C2S.CALL_END:
+          this.callEnd(conn, msg);
+          break;
+
         case C2S.TOURNEY_CREATE:
           await this.createTournament(conn, msg);
           break;
@@ -1071,9 +1094,20 @@ export class PokerHub {
   async _broadcastMsg(convId, row) {
     const memberList = await convo.memberIds(convId);
     const info = await this._usersInfo([row.senderId, ...memberList]);
-    const message = { ...row, senderName: row.senderId ? (info.get(row.senderId)?.name || "Player") : null };
+    const senderName = row.senderId ? (info.get(row.senderId)?.name || "Player") : null;
+    const message = { ...row, senderName };
     const frame = encode(S2C.MSG, { convId, message });
     for (const uid of memberList) for (const c of this.connsForUser(uid)) c.send(frame);
+    // Notify AWAY recipients so missed chats wait in the bell (online users
+    // already have the live message + nav badge). Skip system messages.
+    if (row.senderId) {
+      const snippet = row.kind === "image" ? "📷 Photo" : String(row.body || "").slice(0, 80);
+      for (const uid of memberList) {
+        if (uid === row.senderId) continue;
+        if (this.connsForUser(uid).length > 0) continue; // online → skip
+        this.notify(uid, "message", { actorId: row.senderId, ref: convId, body: `${senderName}: ${snippet}` }).catch(() => {});
+      }
+    }
   }
 
   async msgRead(conn, msg) {
@@ -1153,7 +1187,14 @@ export class PokerHub {
 
     if (add.length && role !== "owner" && role !== "admin") return this._err(conn, "Only admins can add members.");
     const allowedAdd = [];
-    for (const uid of add) if ((await areFriends(conn.user.id, uid)) && !(await convo.isMember(msg.convId, uid))) allowedAdd.push(uid);
+    for (const uid of add) {
+      if (!(await areFriends(conn.user.id, uid))) continue;
+      if (await convo.isMember(msg.convId, uid)) continue;
+      // Respect the target's "let friends add me to groups" preference.
+      const prefs = await this._socialSettings(uid);
+      if (!prefs.allowGroupAdd) continue;
+      allowedAdd.push(uid);
+    }
     if (allowedAdd.length) {
       await convo.addMembers(msg.convId, allowedAdd);
       const info = await this._usersInfo(allowedAdd);
@@ -1189,6 +1230,7 @@ export class PokerHub {
       if (sys) await this._broadcastMsg(convId, sys);
       await this.pushConvList(fromId);
       await this.pushConvList(toId);
+      await this.notify(toId, "transfer", { actorId: fromId, body: `${fromName} sent you ${Number(amount).toLocaleString()} chips` });
     } catch { /* best effort */ }
   }
 
@@ -1250,6 +1292,143 @@ export class PokerHub {
     if (!room || !room.has(conn.user.id) || !room.has(msg.toUserId)) return;
     const frame = encode(S2C.RTC_SIGNAL, { tableId: msg.tableId, fromUserId: conn.user.id, signal: msg.signal });
     for (const c of this.connsForUser(msg.toUserId)) c.send(frame);
+  }
+
+  // ------------------------------------------------------- notifications
+
+  // Create a notification (gated by the recipient's notify* prefs) and push it
+  // live to their online sockets. Returns the stored row, or null if suppressed.
+  async notify(userId, kind, payload) {
+    try {
+      const row = await createNotification(userId, kind, payload);
+      if (row) {
+        const frame = encode(S2C.NOTIF, { notification: row });
+        for (const c of this.connsForUser(userId)) c.send(frame);
+      }
+      return row;
+    } catch { return null; } // notifications are best-effort, never block the action
+  }
+
+  notifyFriendRequest(fromId, fromName, toId) {
+    return this.notify(toId, "friend_request", { actorId: fromId, body: `${fromName} sent you a friend request` });
+  }
+
+  notifyFriendAccept(accepterId, accepterName, requesterId) {
+    return this.notify(requesterId, "friend_accept", { actorId: accepterId, body: `${accepterName} accepted your friend request` });
+  }
+
+  async sendNotifList(conn) {
+    if (!conn.user) return;
+    try {
+      const [notifications, unread] = await Promise.all([
+        listNotifications(conn.user.id, 30),
+        unreadCount(conn.user.id),
+      ]);
+      conn.send(encode(S2C.NOTIF_LIST, { notifications, unread }));
+    } catch { /* best effort */ }
+  }
+
+  async notifRead(conn, msg) {
+    if (!conn.user) return;
+    try {
+      await markNotifRead(conn.user.id, { all: !!msg.all, ids: Array.isArray(msg.ids) ? msg.ids : null });
+      await this.sendNotifList(conn);
+    } catch { /* best effort */ }
+  }
+
+  // ------------------------------------------------------- out-of-game voice calls
+  //
+  // A thin call-coordination layer (ring / accept / decline / hang-up) on top of
+  // the existing voice mesh. The actual audio reuses voiceJoin(convId) + the
+  // RTC_SIGNAL relay: on 'active', both clients join the DM conversation's voice
+  // room and the mesh connects them. The friendship gate is areFriends.
+
+  _callFor(userId) {
+    for (const call of this.calls.values()) if (call.from === userId || call.to === userId) return call;
+    return null;
+  }
+
+  _sendCall(userId, state, call, extra = {}) {
+    const peerId = userId === call.from ? call.to : call.from;
+    const frame = encode(S2C.CALL_STATE, {
+      callId: call.id,
+      state,
+      peer: { userId: peerId, name: call.names?.[peerId] || "Player" },
+      ...extra,
+    });
+    for (const c of this.connsForUser(userId)) c.send(frame);
+  }
+
+  _endCall(callId, endedState = "ended", exceptUserId = null) {
+    const call = this.calls.get(callId);
+    if (!call) return;
+    if (call.timer) { clearTimeout(call.timer); call.timer = null; }
+    this.calls.delete(callId);
+    for (const uid of [call.from, call.to]) {
+      if (uid === exceptUserId) continue;
+      this._sendCall(uid, endedState, call);
+    }
+  }
+
+  async callInvite(conn, msg) {
+    if (!conn.user) return this._err(conn, "Sign in to call.", "AUTH");
+    const toId = msg.toUserId;
+    if (!toId || toId === conn.user.id) return;
+    if (!(await areFriends(conn.user.id, toId))) return this._err(conn, "You can only call friends.");
+    // One call at a time per party.
+    if (this._callFor(conn.user.id)) return this._err(conn, "You're already in a call.");
+    const call = { id: "call-" + randomBytes(8).toString("hex"), from: conn.user.id, to: toId, state: "ringing", names: {} };
+    const info = await this._usersInfo([conn.user.id, toId]);
+    call.names[conn.user.id] = info.get(conn.user.id)?.name || "Player";
+    call.names[toId] = info.get(toId)?.name || "Player";
+    call.convId = await convo.getOrCreateDm(conn.user.id, toId);
+
+    if (this.connsForUser(toId).length === 0) {
+      // Offline — nothing to ring. Tell the caller and drop a missed-call note.
+      this._sendCall(conn.user.id, "unavailable", call);
+      await this.notify(toId, "friend_request", { actorId: conn.user.id, body: `${call.names[conn.user.id]} tried to call you` }).catch(() => {});
+      return;
+    }
+    if (this._callFor(toId)) { this._sendCall(conn.user.id, "busy", call); return; }
+
+    this.calls.set(call.id, call);
+    this._sendCall(conn.user.id, "ringing", call);
+    const ring = encode(S2C.CALL_RING, { callId: call.id, fromUserId: conn.user.id, fromName: call.names[conn.user.id] });
+    for (const c of this.connsForUser(toId)) c.send(ring);
+    // Auto-cancel an unanswered call after 30s.
+    call.timer = setTimeout(() => {
+      const live = this.calls.get(call.id);
+      if (live && live.state === "ringing") this._endCall(call.id, "ended");
+    }, 30000);
+  }
+
+  async callAccept(conn, msg) {
+    const call = this.calls.get(msg.callId);
+    if (!call || !conn.user || call.to !== conn.user.id || call.state !== "ringing") return;
+    call.state = "active";
+    if (call.timer) { clearTimeout(call.timer); call.timer = null; }
+    const extra = { room: call.convId, iceServers: iceConfig().iceServers };
+    this._sendCall(call.from, "active", call, extra);
+    this._sendCall(call.to, "active", call, extra);
+  }
+
+  callDecline(conn, msg) {
+    const call = this.calls.get(msg.callId);
+    if (!call || !conn.user || call.to !== conn.user.id) return;
+    this._endCall(call.id, "declined");
+  }
+
+  callEnd(conn, msg) {
+    const call = this.calls.get(msg.callId);
+    if (!call || !conn.user || (call.from !== conn.user.id && call.to !== conn.user.id)) return;
+    // Tell the other party; the hanger-upper already knows.
+    this._endCall(call.id, "ended", conn.user.id);
+  }
+
+  // Disconnect cleanup: if a user drops with no remaining sockets, end their call.
+  _forgetCalls(userId) {
+    const call = this._callFor(userId);
+    if (call) this._endCall(call.id, "ended", userId);
   }
 
   // ------------------------------------------------------- tournaments (Sit-N-Go)

@@ -13,6 +13,7 @@
   import { slidingIndicator } from "$lib/actions/slider.js";
   import VoiceBar from "$lib/poker/components/VoiceBar.svelte";
   import { voice } from "$lib/poker/voice.svelte.js";
+  import { calls } from "$lib/poker/call.svelte.js";
   import { uploadMedia } from "$lib/media.js";
   import Avatar from "$lib/poker/components/Avatar.svelte";
 
@@ -190,6 +191,7 @@
                 <span class="frow-status {f.online ? 'on' : ''}">{f.online ? (f.tableName ? "at " + f.tableName : "online") : "offline"}</span>
               </a>
               <button class="btn btn-xs" onclick={() => openFriendDm(f)}>Message</button>
+              {#if f.online}<button class="btn btn-xs btn-secondary" title="Voice call" aria-label="Voice call {f.name}" onclick={() => calls.start(f.id, f.name)}>📞</button>{/if}
               <form method="POST" action="?/remove" use:enhance>
                 <input type="hidden" name="userId" value={f.id} />
                 <button class="btn btn-xs btn-secondary" type="submit" title="Remove friend">✕</button>

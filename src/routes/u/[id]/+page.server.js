@@ -28,6 +28,9 @@ export const actions = {
   addFriend: async ({ params, locals }) => {
     if (!locals.user) return fail(401, { error: "Sign in first." });
     const res = await requestFriend(locals.user.id, params.id);
+    const myName = locals.user.displayName || locals.user.email;
+    if (res?.status === "pending") hub.notifyFriendRequest?.(locals.user.id, myName, params.id);
+    else if (res?.status === "accepted") hub.notifyFriendAccept?.(locals.user.id, myName, params.id);
     return { ok: res.status };
   },
   removeFriend: async ({ params, locals }) => {
@@ -38,6 +41,7 @@ export const actions = {
   acceptFriend: async ({ params, locals }) => {
     if (!locals.user) return fail(401, { error: "Sign in first." });
     await respondFriend(locals.user.id, params.id, true);
+    hub.notifyFriendAccept?.(locals.user.id, locals.user.displayName || locals.user.email, params.id);
     return { ok: "accepted" };
   },
 
