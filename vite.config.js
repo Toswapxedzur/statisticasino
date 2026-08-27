@@ -20,54 +20,114 @@ function loadDotEnv() {
 // Dev/preview plugin: attach the poker WebSocket gateway to Vite's own
 // HTTP server so `npm run dev` serves both the app and /ws. In prod the
 // same attachPokerGateway() runs from server.js instead.
-let _devBootstrapped = false;
+//
+// The gateway serves ALL realtime (poker tables AND chat/presence/typing),
+// and it only attaches once this process holds the single-instance poker
+// lease — so a second local process (a stale/crashed server, a second
+// `npm run dev`, a `node server.js`) that already holds the lease would
+// otherwise leave this dev server with NO /ws and every realtime feature
+// silently dead. Two guards against that failure mode:
+//   1. Loud logging on BOTH paths, so the boot log always says whether
+//      /ws attached ("realtime enabled") or not ("realtime DISABLED").
+//   2. A background retry: if the lease is held elsewhere at boot we do
+//      NOT latch off — we re-attempt every few seconds and attach /ws the
+//      moment the lease frees, instead of staying broken until a restart.
+const LEASE_RETRY_MS = 5000;
 let _devPokerEnabled = false;
+let _wsAttached = false;
+let _leaseRetryTimer = null;
+let _leaseRetries = 0;
 function pokerWebSocket() {
+  // Attach the /ws gateway exactly once (idempotent — the gateway itself
+  // also guards against double-attach on HMR).
+  const attachGatewayOnce = async (httpServer) => {
+    if (_wsAttached || !_devPokerEnabled) return;
+    const { attachPokerGateway } = await import("./src/lib/server/poker/gateway.js");
+    attachPokerGateway(httpServer);
+    _wsAttached = true;
+    console.log("[riverside] realtime ENABLED — /ws attached (poker + chat + presence live)");
+  };
+
+  // Try to become the poker singleton. Returns true once we hold the lease.
+  const tryAcquireLease = async (httpServer) => {
+    const bank = await import("./src/lib/server/poker/bank.js");
+    _devPokerEnabled = await bank.acquireInstanceLease((e) => {
+      // Lease connection died unexpectedly: poker authority is gone. Warn
+      // loudly and re-arm the retry so /ws re-attaches when we re-acquire.
+      _devPokerEnabled = false;
+      _wsAttached = false;
+      console.error("[riverside] ⚠ lost the poker lease — realtime authority gone:", e?.message || e);
+      scheduleLeaseRetry(httpServer);
+    });
+    if (!_devPokerEnabled) return false;
+    const r = await bank.reconcileEscrowOnBoot();
+    if (!r.skipped && r.seats > 0) console.log(`[riverside] escrow reconcile: refunded ${r.chips} chips across ${r.seats} seat(s)`);
+    await attachGatewayOnce(httpServer);
+    return true;
+  };
+
+  // Background retry loop (unref'd so it never keeps the process alive).
+  function scheduleLeaseRetry(httpServer) {
+    if (_leaseRetryTimer || _devPokerEnabled) return;
+    _leaseRetryTimer = setInterval(async () => {
+      try {
+        if (await tryAcquireLease(httpServer)) {
+          clearInterval(_leaseRetryTimer); _leaseRetryTimer = null;
+          console.log(`[riverside] poker lease acquired after ${_leaseRetries} retr${_leaseRetries === 1 ? "y" : "ies"} — realtime is back up.`);
+        } else if (++_leaseRetries % 6 === 0) {
+          // Remind every ~30s so the operator knows why realtime is off.
+          console.warn(`[riverside] still waiting on the poker lease (${_leaseRetries} tries) — stop the other local process to enable realtime.`);
+        }
+      } catch (err) {
+        console.error("[riverside] lease retry error:", err?.message || err);
+      }
+    }, LEASE_RETRY_MS);
+    _leaseRetryTimer.unref?.();
+  }
+
   const attach = async (server) => {
     if (!server?.httpServer) return;
+    if (_wsAttached) return; // already up (e.g. HMR re-run of configureServer)
     loadDotEnv();
-    // One-time dev bootstrap: take the instance lease, then crash-recover
-    // escrow — same discipline as prod server.js, so two dev/preview processes
-    // on one DB can't both serve poker or double-refund.
-    if (!_devBootstrapped) {
-      // Resolve the EFFECTIVE db host the way db.js does — DATABASE_URL wins
-      // over MYSQL_HOST — and require an EXACT loopback match, so a prod
-      // DATABASE_URL with a stale MYSQL_HOST=127.0.0.1 can't be reconciled here.
-      let host = "";
-      if (process.env.DATABASE_URL) {
-        try { host = new URL(process.env.DATABASE_URL).hostname; }
-        catch { host = "(unparseable DATABASE_URL)"; }
-      } else {
-        host = process.env.MYSQL_HOST || "";
-      }
-      const isLocal = host === "localhost" || host === "127.0.0.1" || host === "::1";
-      if (!isLocal) {
-        // NEVER touch a non-local DB from a dev server: reconcile refunds/clears
-        // escrow and closes ephemeral tables — that would corrupt a live prod room.
-        console.warn(`[riverside] dev poker disabled: non-local DB host (${host || "unset"})`);
-        _devBootstrapped = true;
-      } else {
-        try {
-          const bank = await import("./src/lib/server/poker/bank.js");
-          _devPokerEnabled = await bank.acquireInstanceLease((e) => {
-            _devPokerEnabled = false;
-            console.error("[riverside] dev lost the poker lease:", e?.message || e);
-          });
-          if (!_devPokerEnabled) {
-            console.warn("[riverside] another local process holds the poker lease — dev serving without poker.");
-          } else {
-            const r = await bank.reconcileEscrowOnBoot();
-            if (!r.skipped && r.seats > 0) console.log(`[riverside] escrow reconcile: refunded ${r.chips} chips across ${r.seats} seat(s)`);
-          }
-          _devBootstrapped = true; // only after success, so a failure retries on the next attach
-        } catch (err) {
-          console.error("[riverside] dev poker bootstrap error (will retry):", err?.message || err);
-        }
-      }
+    // Resolve the EFFECTIVE db host the way db.js does — DATABASE_URL wins
+    // over MYSQL_HOST — and require an EXACT loopback match, so a prod
+    // DATABASE_URL with a stale MYSQL_HOST=127.0.0.1 can't be reconciled here.
+    let host = "";
+    if (process.env.DATABASE_URL) {
+      try { host = new URL(process.env.DATABASE_URL).hostname; }
+      catch { host = "(unparseable DATABASE_URL)"; }
+    } else {
+      host = process.env.MYSQL_HOST || "";
     }
-    if (_devPokerEnabled) {
-      const { attachPokerGateway } = await import("./src/lib/server/poker/gateway.js");
-      attachPokerGateway(server.httpServer);
+    const isLocal = host === "localhost" || host === "127.0.0.1" || host === "::1";
+    if (!isLocal) {
+      // NEVER touch a non-local DB from a dev server: reconcile refunds/clears
+      // escrow and closes ephemeral tables — that would corrupt a live prod room.
+      console.warn(`[riverside] realtime DISABLED — refusing to attach /ws against non-local DB host (${host || "unset"}).`);
+      return;
+    }
+    // Release the poker lease when THIS server closes. Vite restarts in-process
+    // on a config change: it closes this httpServer but does NOT close our
+    // lease's MySQL connection, so the orphan keeps holding GET_LOCK and the
+    // NEXT incarnation can't acquire the lease — it then comes up with /ws
+    // detached (a self-deadlock; this was the original "dev realtime silently
+    // dead after a restart" bug). Handing the lock back on close lets the next
+    // incarnation take it cleanly (its retry loop picks it up within seconds).
+    {
+      const bank = await import("./src/lib/server/poker/bank.js");
+      server.httpServer.once("close", () => {
+        if (_leaseRetryTimer) { clearInterval(_leaseRetryTimer); _leaseRetryTimer = null; }
+        Promise.resolve(bank.releaseInstanceLease?.()).catch(() => {});
+      });
+    }
+    try {
+      if (!(await tryAcquireLease(server.httpServer))) {
+        console.warn("[riverside] ⚠ realtime DISABLED — another local process holds the poker lease; /ws NOT attached (chat/presence/tables are off). Auto-retrying every 5s — stop the other process to recover.");
+        scheduleLeaseRetry(server.httpServer);
+      }
+    } catch (err) {
+      console.error("[riverside] poker bootstrap error — /ws not attached, will retry:", err?.message || err);
+      scheduleLeaseRetry(server.httpServer);
     }
   };
   return {
