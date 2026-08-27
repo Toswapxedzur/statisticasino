@@ -1,0 +1,262 @@
+// SprintPool — the live fast-fold engine behind the River Sprint. It runs a set
+// of persistent tournament-mode tables and moves players between them Zoom-style:
+// the instant a player FOLDS they're plucked off their table and re-seated at a
+// fresh one from a waiting pool, so nobody waits out a hand they've left. A clock
+// ends the round; final chip stacks become the ranked standings the lifecycle
+// (sprint.finishRound) turns into payouts.
+//
+// Integration (see the engine map):
+//   * Tables are `tournament:true` LiveTables — T-chip stacks, no wallet/escrow,
+//     auto-hidden from the public lobby. Chips enter/leave the economy once, in
+//     sprint.js (bid on register, prize on finish); the pool itself never touches
+//     wallets.
+//   * Each table's `.tournament` back-pointer is set to THIS pool, so the engine's
+//     existing per-hand seam (`table.tournament.onHandEnd`) drives bust handling,
+//     and the new `hub.onSeatFold -> table.tournament.onSeatFold` hook drives the
+//     instant re-seat.
+//   * All seat mutations that need the op-lock (sit/pluck) are DEFERRED off the
+//     lock (we're notified from inside it), then serialized normally.
+
+import { LiveTable } from "./table.js";
+import { encode, S2C } from "../../poker/protocol.js";
+import { rankStandings } from "../sprint-core.js";
+
+export class SprintPool {
+  constructor(hub, opts = {}) {
+    this.hub = hub;
+    this.roundId = opts.roundId || "sprint";
+    this.variant = opts.variant || "holdem";
+    this.maxSeats = opts.maxSeats || 6;
+    this.startingStack = opts.startingStack || 1500;
+    this.smallBlind = opts.smallBlind || 10;
+    this.bigBlind = opts.bigBlind || 20;
+    this.durationMs = opts.durationMs || 15 * 60 * 1000;
+
+    this.now = opts.now || (() => Date.now());
+    this.defer = opts.defer || ((fn) => { const t = setTimeout(fn, 0); t.unref?.(); return t; });
+    this.setTimer = opts.setTimeout || ((fn, ms) => { const t = setTimeout(fn, ms); t.unref?.(); return t; });
+
+    this.tables = [];                 // LiveTable[]
+    this.players = new Map();         // userId -> { userId, isHuman, stack, busted, bustAt, seated }
+    this.botConns = new Map();        // userId -> BotConn
+    this.humanConns = new Map();      // userId -> conn (real WS conn or stub)
+    this.queue = [];                  // userIds waiting for a seat
+    this._running = false;
+    this._resolve = null;
+    this._clock = null;
+    this._pumpScheduled = false;
+  }
+
+  // ---- setup -------------------------------------------------------------
+
+  _makeTable(i) {
+    const id = `sprint-${this.roundId}-${i}`;
+    const table = new LiveTable(
+      { id, name: `River Sprint ${i + 1}`, variant: this.variant, max_seats: this.maxSeats,
+        small_blind: this.smallBlind, big_blind: this.bigBlind, min_buyin: 1, max_buyin: this.startingStack,
+        tournament: true },
+      this.hub
+    );
+    table.tournament = this; // route onHandEnd + onSeatFold back here
+    this.hub.tables.set(id, table);
+    this.tables.push(table);
+    return table;
+  }
+
+  addHuman(conn) {
+    const uid = conn.user.id;
+    this.players.set(uid, { userId: uid, isHuman: true, stack: this.startingStack, busted: false, bustAt: 0, seated: false });
+    this.humanConns.set(uid, conn);
+    this.queue.push(uid);
+  }
+
+  // ---- run ---------------------------------------------------------------
+
+  // Seat everyone across freshly-made tables, start the clock, and resolve with
+  // the final standings when the buzzer fires.
+  async run({ botCount = 0 } = {}) {
+    const total = this.players.size + botCount;
+    const tableCount = Math.max(1, Math.ceil(total / this.maxSeats));
+    for (let i = 0; i < tableCount; i++) this._makeTable(i);
+
+    if (botCount > 0) {
+      const bots = await this.hub.botManager.makeBots(this.tables[0], botCount, "reg");
+      for (const b of bots) {
+        this.players.set(b.user.id, { userId: b.user.id, isHuman: false, stack: this.startingStack, busted: false, bustAt: 0, seated: false });
+        this.botConns.set(b.user.id, b);
+        this.queue.push(b.user.id);
+      }
+    }
+
+    this._running = true;
+    this._clock = this.setTimer(() => this._buzzer(), this.durationMs);
+    const done = new Promise((resolve) => { this._resolve = resolve; });
+    await this._pump();
+    return done;
+  }
+
+  // ---- seating / matchmaking --------------------------------------------
+
+  _openSeat(table) {
+    for (let s = 0; s < this.maxSeats; s++) if (!table.seats.has(s)) return s;
+    return -1;
+  }
+
+  _activePlayers() {
+    return [...this.players.values()].filter((p) => !p.busted);
+  }
+
+  async _seatPlayer(uid, table) {
+    const p = this.players.get(uid);
+    if (!p || p.busted) return false;
+    const seatNo = this._openSeat(table);
+    if (seatNo < 0) return false;
+    const stack = p.stack;
+    if (p.isHuman) {
+      const conn = this.humanConns.get(uid);
+      if (!conn) return false;
+      table.addWatcher(conn);
+      await table.sit(conn, seatNo, stack, { tournament: true, silent: true });
+      try { conn.send(encode(S2C.TABLE_CREATED, { tableId: table.id })); } catch { /* stub conn */ }
+    } else {
+      const bot = this.botConns.get(uid);
+      if (!bot) return false;
+      for (const t of this.tables) if (t.id !== table.id) t.removeWatcher?.(bot);
+      bot.rebind(table);
+      table.addWatcher(bot);
+      await table.sit(bot, seatNo, stack, { tournament: true, silent: true });
+    }
+    p.seated = true;
+    p.tableId = table.id;
+    return true;
+  }
+
+  // Matchmaker: pull lone/idle players into the queue, then fill tables to >=2 so
+  // hands can run. Debounced so bursts of folds coalesce into one pass. Ends the
+  // round early if the field has collapsed to a single survivor.
+  _pump() {
+    if (this._pumpScheduled) return Promise.resolve();
+    this._pumpScheduled = true;
+    return new Promise((resolve) => {
+      this.defer(async () => {
+        this._pumpScheduled = false;
+        if (!this._running) return resolve();
+        try { await this._doPump(); } catch { /* keep the round alive */ }
+        resolve();
+      });
+    });
+  }
+
+  async _doPump() {
+    // Collapse to a winner? End early.
+    const active = this._activePlayers();
+    if (active.length <= 1) { this._buzzer(); return; }
+
+    // Reclaim any player sitting alone at an idle table (can't play heads-down-one).
+    for (const t of this.tables) {
+      if (t.hand) continue; // a live hand is running — leave it
+      const seated = [...t.seats.values()];
+      if (seated.length === 1) {
+        const snap = await t.pluck(seated[0].userId);
+        if (snap) { const p = this.players.get(snap.userId); if (p) { p.stack = snap.stack; p.seated = false; this.queue.push(snap.userId); } }
+      }
+    }
+
+    // Seat queued players into tables with open seats (prefer filling toward >=2).
+    const stillQueued = [];
+    for (const uid of this.queue) {
+      const p = this.players.get(uid);
+      if (!p || p.busted || p.seated) continue;
+      // pick the table with the most seated players but still an open seat, else any open, else a table below cap
+      const target = this.tables
+        .filter((t) => this._openSeat(t) >= 0)
+        .sort((a, b) => b.seats.size - a.seats.size)[0];
+      if (!target) { stillQueued.push(uid); continue; }
+      const ok = await this._seatPlayer(uid, target);
+      if (!ok) stillQueued.push(uid);
+    }
+    this.queue = stillQueued;
+  }
+
+  // Minimal tournament-HUD shape the table's publicView expects from a controller.
+  view() {
+    return {
+      id: this.roundId, name: "River Sprint", variant: this.variant, kind: "sprint",
+      status: this._running ? "running" : "complete",
+      startingStack: this.startingStack, remaining: this._activePlayers().length,
+      blinds: { sb: this.smallBlind, bb: this.bigBlind }, players: [],
+    };
+  }
+
+  // ---- engine hooks (called from the table op-lock — DEFER real work) ----
+
+  // A player folded: pull them to a fresh table immediately.
+  onSeatFold(table, seatNo, userId) {
+    if (!this._running || !userId) return;
+    const p = this.players.get(userId);
+    if (!p || p.busted) return;
+    this.defer(async () => {
+      if (!this._running) return;
+      const snap = await table.pluck(userId).catch(() => null);
+      if (!snap) return; // couldn't pluck (their turn / still in pot) — catch at hand end
+      p.stack = snap.stack; p.seated = false;
+      if (!this.queue.includes(userId)) this.queue.push(userId);
+      await this._pump();
+    });
+  }
+
+  // A hand finished on `table` (this.hand is already null here). Remove busts,
+  // sync surviving stacks, then re-pump. Runs inside the op-lock: mutate seats
+  // directly (like the Tournament controller) and defer anything that needs sit().
+  async onHandEnd(table) {
+    if (!this._running) return;
+    for (const s of [...table.seats.values()]) {
+      const p = this.players.get(s.userId);
+      if (!p) { table.seats.delete(s.seat); continue; }
+      if ((s.stack || 0) <= 0) {
+        p.busted = true; p.bustAt = this.now(); p.stack = 0; p.seated = false;
+        table.seats.delete(s.seat);
+        if (!p.isHuman) { try { this.botConns.get(s.userId)?.detach(); } catch { /* noop */ } }
+      } else {
+        p.stack = s.stack; // keep the pool's mirror current
+      }
+    }
+    this._pump();
+  }
+
+  // ---- finish ------------------------------------------------------------
+
+  _standings() {
+    const list = this._activePlayers().map((p) => {
+      // Prefer the live seat stack for anyone still seated.
+      let stack = p.stack;
+      for (const t of this.tables) { const s = t.seatForUser?.(p.userId); if (s) { stack = s.stack; break; } }
+      return { id: p.userId, stack: p.busted ? 0 : stack, bustAt: p.bustAt || 0, isHuman: p.isHuman };
+    });
+    // Include busted players too (they rank below survivors, by bust time).
+    for (const p of this.players.values()) {
+      if (!p.busted) continue;
+      list.push({ id: p.userId, stack: 0, bustAt: p.bustAt || 0, isHuman: p.isHuman });
+    }
+    return rankStandings(list);
+  }
+
+  _buzzer() {
+    if (!this._running) return;
+    this._running = false;
+    if (this._clock) { try { clearTimeout(this._clock); } catch { /* injected */ } this._clock = null; }
+    const standings = this._standings();
+    this._teardown();
+    if (this._resolve) { const r = this._resolve; this._resolve = null; r(standings); }
+  }
+
+  _teardown() {
+    for (const t of this.tables) {
+      try { t._closed = true; t.clearActionTimer?.(); t.clearStartTimer?.(); } catch { /* noop */ }
+      try { this.hub.botManager.detachAll?.(t); } catch { /* noop */ }
+      try { this.hub.botManager.forgetTable?.(t.id); } catch { /* noop */ }
+      this.hub.tables.delete(t.id);
+    }
+    for (const b of this.botConns.values()) { try { b.detach(); } catch { /* noop */ } }
+  }
+}

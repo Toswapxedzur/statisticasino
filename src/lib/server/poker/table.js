@@ -595,6 +595,14 @@ export class LiveTable {
     this.sendAllPrivates();
     this.setLastAction(seatNo, action);
     this.clearActionTimer();
+    // Fast-fold hook: the instant a player folds, notify any coordinator (the
+    // River Sprint pool) so it can pull them to a new table. Fire-and-forget and
+    // no-op unless a coordinator is attached, so ordinary tables are unaffected.
+    // The coordinator MUST defer its re-seat off the op-lock (we're inside it).
+    if (action.type === "fold") {
+      const s = this.seats.get(seatNo);
+      try { this.hub?.onSeatFold?.(this, seatNo, s?.userId ?? null); } catch { /* never disrupt the hand */ }
+    }
   }
 
   syncSeatsFromHand() {
@@ -856,6 +864,33 @@ export class LiveTable {
       this._error(conn, "Cash-out failed — you're still seated. Try Stand again.");
     }
   }
+
+  // Fast-fold pool support: atomically remove a player's seat WITHOUT any wallet
+  // touch and return a snapshot so a coordinator can re-seat them (carrying their
+  // T-chip stack) at another pool table. Tournament mode only. Safe mid-hand ONLY
+  // for a seat that is not on the clock and has already folded — the engine keeps
+  // folded players in `hand.players` (untouched) and every `this.seats` reader
+  // guards a missing seat, so removing the seat can't corrupt the live hand.
+  // Returns the snapshot, or null if the seat can't be plucked right now. Call via
+  // pluck() so it serializes on the op-lock like every other seat mutation.
+  _pluck(userId) {
+    if (!this.isTournament) return null;
+    const seat = this.seatForUser(userId);
+    if (!seat) return null;
+    if (this.hand && this.hand.street !== "complete") {
+      if (this.hand.toActSeat === seat.seat) return null; // it's their turn
+      if (seat.status !== "folded") return null;          // still contesting the pot
+    }
+    const snap = {
+      userId: seat.userId, funderId: seat.funderId, name: seat.name,
+      stack: seat.stack, timeBankMs: seat.timeBankMs,
+    };
+    this.clearVacateTimer?.(seat);
+    this.seats.delete(seat.seat);
+    this.broadcast();
+    return snap;
+  }
+  pluck(userId) { return this._run(() => this._pluck(userId)); }
 
   // opts.silent suppresses the user-facing error frames (used by the
   // Quick Play matcher, which retries on a seat-collision and handles its

@@ -276,6 +276,13 @@ export class PokerHub {
     } catch { /* achievements + quests are best-effort; never disrupt the table */ }
   }
 
+  // Fast-fold hook (River Sprint): a seat just folded. Delegate to the table's
+  // coordinator — a SprintPool sets itself as `table.tournament`. No-op for
+  // ordinary tables and standard tournaments (which don't implement onSeatFold).
+  onSeatFold(table, seatNo, userId) {
+    try { table.tournament?.onSeatFold?.(table, seatNo, userId); } catch { /* never disrupt the hand */ }
+  }
+
   // Remove a table already determined empty+closed, and its dangling invites.
   // No locking here — the caller made the close decision safely (tryClose /
   // markClosedIfEmpty set table._closed under the op-lock).

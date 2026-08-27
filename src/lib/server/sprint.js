@@ -158,6 +158,26 @@ export async function roundView(roundId, userId, db = realDb, at = Date.now()) {
   return { ...r, entered, playedToday };
 }
 
+// Rounds whose start time has arrived but haven't run yet (scheduler drives these).
+export async function roundsToStart(now, db = realDb) {
+  return db.query(
+    "SELECT * FROM sprint_round WHERE status IN ('scheduled','registering') AND scheduled_at <= ? ORDER BY scheduled_at ASC",
+    [now]
+  );
+}
+
+// Is there already a round scheduled for this exact timeslot? (dedup on creation.)
+export async function findRoundAt(scheduledAt, db = realDb) {
+  return (await db.query("SELECT id FROM sprint_round WHERE scheduled_at = ? LIMIT 1", [scheduledAt]))[0] || null;
+}
+
+// Cancel a round and refund every human entrant (used when a slot has no players).
+export async function cancelRound(roundId, db = realDb, wallet = realWallet) {
+  const entries = await db.query("SELECT user_id, bid_paid FROM sprint_entry WHERE round_id = ?", [roundId]);
+  for (const e of entries) await refundEntry(roundId, e.user_id, Number(e.bid_paid), db, wallet);
+  await db.execute("UPDATE sprint_round SET status = 'canceled', ended_at = ? WHERE id = ?", [Date.now(), roundId]);
+}
+
 // Finished-round leaderboard (placed humans, best first).
 export async function roundResults(roundId, limit = 25, db = realDb) {
   return db.query(

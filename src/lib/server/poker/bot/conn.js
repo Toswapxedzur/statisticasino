@@ -222,6 +222,19 @@ export class BotConn {
     return this.table.act(this, action);
   }
 
+  // Fast-fold pool: re-point this bot at a new table it's just been re-seated at.
+  // Clears the learned seat + any pending decision so it re-syncs cleanly from the
+  // new table's frames (TABLE_STATE / TABLE_PRIVATE / TABLE_TURN).
+  rebind(newTable) {
+    this.table = newTable;
+    this.seat = null;
+    this.hole = null;
+    this.view = null;
+    this._pendingTurn = null;
+    this._scheduled = false;
+    if (this._timer != null) { try { clearTimeout(this._timer); } catch { /* injected handle */ } this._timer = null; }
+  }
+
   // Stop the bot from acting (called when it's removed / the table closes).
   detach() {
     this._detached = true;
