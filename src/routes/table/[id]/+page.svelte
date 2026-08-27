@@ -1,5 +1,6 @@
 <script>
   import { onMount, onDestroy } from "svelte";
+  import { goto } from "$app/navigation";
   import { poker } from "$lib/poker/client.svelte.js";
   import { voice } from "$lib/poker/voice.svelte.js";
   import VoiceBar from "$lib/poker/components/VoiceBar.svelte";
@@ -27,7 +28,10 @@
   import { d, DUR } from "$lib/motion.js";
 
   let { data } = $props();
-  const tableId = data.table.id;
+  // Reactive: a River Sprint fold-teleport navigates /table/A -> /table/B on the
+  // SAME route, which REUSES this component — so tableId must track the param, not
+  // capture it once, or the page would stay bound to the old table.
+  let tableId = $derived(data.table.id);
 
   // --- reactive live state from the shared client singleton ---
   let view = $derived(poker.tables[tableId] || null);
@@ -166,16 +170,32 @@
     if (typeof e.detail === "number") walletChips = e.detail;
   }
 
-  onMount(() => {
-    poker.joinTable(tableId);
-    window.addEventListener("chips", onChips);
+  // Join the CURRENT table and stream its state — reactive so a fold-teleport
+  // (component reused across /table/A -> /table/B) leaves A and joins B. On
+  // cleanup, keep watching a table we're still SEATED at (multi-tabling), only
+  // stop watching one we're merely spectating.
+  $effect(() => {
+    const id = tableId;
+    poker.joinTable(id);
+    return () => {
+      const seatedHere = !!(poker.me && (poker.tables[id]?.seats || []).some((s) => s.userId === poker.me.id));
+      if (!seatedHere) poker.leaveTable(id);
+    };
   });
+
+  // If the table we're on VANISHES (a River Sprint round ends and the pool tears
+  // its tables down), don't strand the player on a dead felt — send them home.
+  // Keyed on the exact tableId last seen live, so a teleport's brief null (before
+  // the new table's state arrives) doesn't trip it.
+  let _seenTable = $state(null);
+  $effect(() => {
+    if (view) _seenTable = tableId;
+    else if (_seenTable === tableId) goto("/");
+  });
+
+  onMount(() => { window.addEventListener("chips", onChips); });
   onDestroy(() => {
     voice.leave(); // drop out of voice when leaving the table page
-    // Multi-tabling: keep watching a table we're SEATED at after navigating away,
-    // so its turn alerts keep coming and the switcher can bring us back. Only stop
-    // watching tables we're just spectating.
-    if (!isSeated) poker.leaveTable(tableId);
     if (typeof window !== "undefined") window.removeEventListener("chips", onChips);
     clearTimeout(_toastTimer);
   });

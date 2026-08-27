@@ -75,8 +75,8 @@
       </div>
       {#if !profile.restricted && profile.stats}
         <div class="pp-stats">
-          <span><b>{profile.stats.handsPlayed.toLocaleString()}</b> hands</span>
-          <span class:pos={profile.stats.netGame >= 0} class:neg={profile.stats.netGame < 0}><b>{profile.stats.netGame >= 0 ? "+" : ""}{profile.stats.netGame.toLocaleString()}</b> net</span>
+          <span><b>{(profile.stats.handsPlayed ?? 0).toLocaleString()}</b> hands</span>
+          <span class:pos={(profile.stats.netGame ?? 0) >= 0} class:neg={(profile.stats.netGame ?? 0) < 0}><b>{(profile.stats.netGame ?? 0) >= 0 ? "+" : ""}{(profile.stats.netGame ?? 0).toLocaleString()}</b> net</span>
         </div>
       {/if}
       {#if profile.reqError}<div class="pp-err">{profile.reqError}</div>{/if}

@@ -108,22 +108,31 @@ console.log(`[multiplay] draining (${tablesSeen.size} tables seen, ${handResults
 for (const u of users) { u.leaving = true; if (u.table) { try { u.ws.send(encode(C2S.TABLE_STAND, { tableId: u.table })); } catch {} } }
 
 // Poll the wallet total until every stack has been cashed back (or timeout).
+// Progression FAUCETS (achievement / quest / sprint rewards) legitimately MINT
+// chips when a player hits a milestone during play, so the conserved total is
+// START*N PLUS those reward ledger entries — not START*N alone.
 const idsList = users.map((u) => u.id);
 const placeholders = idsList.map(() => "?").join(",");
+const faucetSql = `SELECT COALESCE(SUM(delta),0) AS f FROM chip_ledger WHERE user_id IN (${placeholders}) AND reason IN ('achievement_reward','quest_reward','sprint_prize','sprint_bid')`;
+const expectedTotal = async () => {
+  const [f] = await query(faucetSql, idsList);
+  return START * N + Number(f.f); // sprint_bid is negative, so this nets correctly
+};
 let conserved = false;
 for (let i = 0; i < 30; i++) {
   await sleep(1000);
   const [row] = await query(`SELECT COALESCE(SUM(chips),0) AS s FROM user WHERE id IN (${placeholders})`, idsList);
-  if (Number(row.s) === START * N) { conserved = true; break; }
+  if (Number(row.s) === await expectedTotal()) { conserved = true; break; }
 }
 const [finalRow] = await query(`SELECT COALESCE(SUM(chips),0) AS s FROM user WHERE id IN (${placeholders})`, idsList);
+const expected = await expectedTotal();
 
 console.log("");
 console.log(`[multiplay] RESULTS`);
 console.log(`  distinct tables formed : ${tablesSeen.size}`);
 console.log(`  hand results observed  : ${handResults}`);
 console.log(`  socket errors (non-turn): ${errors}`);
-console.log(`  wallet total after drain: ${Number(finalRow.s)} (expected ${START * N})`);
+console.log(`  wallet total after drain: ${Number(finalRow.s)} (expected ${expected}, incl. progression rewards)`);
 console.log(`  CHIP CONSERVATION      : ${conserved ? "OK ✅" : "MISMATCH ❌"}`);
 
 // ---- cleanup ----

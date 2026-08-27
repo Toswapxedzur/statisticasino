@@ -2,7 +2,7 @@
   import "../app.css";
   import { page } from "$app/stores";
   import { onMount } from "svelte";
-  import { onNavigate } from "$app/navigation";
+  import { onNavigate, goto } from "$app/navigation";
   import { SITE_NAME } from "$lib/config.js";
   import { poker } from "$lib/poker/client.svelte.js";
   import { slidingIndicator } from "$lib/actions/slider.js";
@@ -17,13 +17,24 @@
   // Only <main> (view-transition-name: main-content) animates — the topbar and
   // its sliding tab indicator stay put and glide on their own. Progressive
   // enhancement: browsers without the API just navigate; reduced-motion skips it.
+  // Skip the transition when one is already running (a rapid second navigation —
+  // e.g. a River Sprint fold-teleport hopping tables — would otherwise throw
+  // InvalidStateError and ABORT the navigation), and never let a transition
+  // failure block the navigation itself: always resolve so SvelteKit proceeds.
+  let _vtActive = false;
+  let _skipVTOnce = false;
   onNavigate((navigation) => {
-    if (typeof document === "undefined" || !document.startViewTransition || reducedMotion()) return;
+    if (_skipVTOnce) { _skipVTOnce = false; return; } // programmatic table hop — no transition
+    if (typeof document === "undefined" || !document.startViewTransition || reducedMotion() || _vtActive) return;
     return new Promise((resolve) => {
-      document.startViewTransition(async () => {
-        resolve();
-        await navigation.complete;
-      });
+      try {
+        _vtActive = true;
+        const vt = document.startViewTransition(async () => { resolve(); await navigation.complete; });
+        vt.finished.catch(() => {}).finally(() => { _vtActive = false; });
+      } catch {
+        _vtActive = false;
+        resolve(); // plain navigation
+      }
     });
   });
 
@@ -33,6 +44,19 @@
   // arrive on any page, and the nav can badge unread DMs.
   $effect(() => { if (data.user) poker.connect(); });
   const socialUnread = $derived(poker.socialUnread);
+
+  // Server sets pendingNav on table.created (create / quick-play / invite-accept /
+  // River Sprint seating + fold-teleport). Consume it app-wide and navigate to the
+  // table, so a Sprint that begins while you're on /sprint (or anywhere) actually
+  // takes you to the felt — and each fold hops you to your new table.
+  $effect(() => {
+    if (poker.pendingNav) {
+      const id = poker.pendingNav;
+      poker.clearNav();
+      _skipVTOnce = true; // skip the view transition for this hop (avoids abort)
+      goto("/table/" + id);
+    }
+  });
 
   // Live chip balance for the topbar pill (SSR seed + live "chips" events).
   let chips = $state(data.chips ?? 0);

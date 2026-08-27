@@ -40,7 +40,7 @@ export class SprintPool {
     this.tables = [];                 // LiveTable[]
     this.players = new Map();         // userId -> { userId, isHuman, stack, busted, bustAt, seated }
     this.botConns = new Map();        // userId -> BotConn
-    this.humanConns = new Map();      // userId -> conn (real WS conn or stub)
+    this.humanIds = new Set();        // human userIds (conns resolved fresh from the hub)
     this.queue = [];                  // userIds waiting for a seat
     this._running = false;
     this._resolve = null;
@@ -64,11 +64,10 @@ export class SprintPool {
     return table;
   }
 
-  addHuman(conn) {
-    const uid = conn.user.id;
-    this.players.set(uid, { userId: uid, isHuman: true, stack: this.startingStack, busted: false, bustAt: 0, seated: false });
-    this.humanConns.set(uid, conn);
-    this.queue.push(uid);
+  addHuman(userId) {
+    this.players.set(userId, { userId, isHuman: true, stack: this.startingStack, busted: false, bustAt: 0, seated: false });
+    this.humanIds.add(userId);
+    this.queue.push(userId);
   }
 
   // ---- run ---------------------------------------------------------------
@@ -114,11 +113,20 @@ export class SprintPool {
     if (seatNo < 0) return false;
     const stack = p.stack;
     if (p.isHuman) {
-      const conn = this.humanConns.get(uid);
-      if (!conn) return false;
+      // Resolve the player's LIVE conns fresh (a reconnect since round start would
+      // have replaced them). Seat via the first live conn; point ALL of their conns
+      // (multi-tab) at the table so the browser actually navigates to the felt.
+      const conns = this.hub.connsForUser?.(uid) || [];
+      if (!conns.length) return false; // went offline — skip (bid forfeit)
+      const conn = conns[0];
       table.addWatcher(conn);
       await table.sit(conn, seatNo, stack, { tournament: true, silent: true });
-      try { conn.send(encode(S2C.TABLE_CREATED, { tableId: table.id })); } catch { /* stub conn */ }
+      // Point every one of the player's tabs at the new table — but only when it
+      // actually changed, so a re-pump can't spam redundant navigations.
+      if (p.navTable !== table.id) {
+        p.navTable = table.id;
+        for (const c of conns) { try { c.send(encode(S2C.TABLE_CREATED, { tableId: table.id })); } catch { /* dead conn */ } }
+      }
     } else {
       const bot = this.botConns.get(uid);
       if (!bot) return false;
@@ -247,6 +255,18 @@ export class SprintPool {
     this._running = false;
     if (this._clock) { try { clearTimeout(this._clock); } catch { /* injected */ } this._clock = null; }
     const standings = this._standings();
+    // Toast each human their placing and clear their table view so the client
+    // routes them off the felt that's about to be torn down.
+    const placeById = new Map(standings.map((s) => [s.id, s.place]));
+    for (const uid of this.humanIds) {
+      const place = placeById.get(uid);
+      for (const conn of (this.hub.connsForUser?.(uid) || [])) {
+        try {
+          conn.send(encode(S2C.TOAST, { level: place === 1 ? "success" : "info", text: `River Sprint over — you finished #${place ?? "?"} of ${standings.length}.` }));
+          for (const t of this.tables) conn.send(encode(S2C.TABLE_LEFT, { tableId: t.id }));
+        } catch { /* conn gone */ }
+      }
+    }
     this._teardown();
     if (this._resolve) { const r = this._resolve; this._resolve = null; r(standings); }
   }
@@ -281,8 +301,7 @@ export function makeSprintRunner(hub, { fillTo = 8, maxSeats = 6 } = {}) {
     });
     let seated = 0;
     for (const uid of humanIds) {
-      const conns = hub.connsForUser?.(uid) || [];
-      if (conns.length) { pool.addHuman(conns[0]); seated++; }
+      if ((hub.connsForUser?.(uid) || []).length) { pool.addHuman(uid); seated++; }
     }
     let botCount = Math.max(0, fillTo - seated);
     if (seated + botCount < 2) botCount = 2 - seated; // need at least heads-up to play

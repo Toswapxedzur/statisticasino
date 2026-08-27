@@ -54,15 +54,8 @@
     if (typeof window !== "undefined") window.removeEventListener("chips", onChips);
   });
 
-  // Server sets pendingNav on table.created (create / quick-play /
-  // invite-accept). Consume it once and navigate to the table.
-  $effect(() => {
-    if (poker.pendingNav) {
-      const id = poker.pendingNav;
-      poker.clearNav();
-      goto("/table/" + id);
-    }
-  });
+  // Table navigation on `table.created` is handled app-wide in +layout.svelte
+  // (so a River Sprint that starts on /sprint also takes you to the felt).
 
   function quickPlay() {
     if (!signedIn) return;
