@@ -17,7 +17,7 @@ import {
   handsPlayedByUser
 } from "./store.js";
 import { getBalance } from "../wallet.js";
-import { unlock, handAchievements } from "../achievements.js";
+import { unlockAndReward, handAchievements } from "../achievements.js";
 import { recordEvent as recordQuestEvent } from "../quests.js";
 import { areFriends } from "../friends.js";
 import { sendMessage, markRead } from "../dm.js";
@@ -263,7 +263,7 @@ export class PokerHub {
         if (s.userId == null || this.botManager.isBotUser(s.userId)) continue; // humans only
         const won = (s.net ?? 0) > 0;
         const handsPlayed = await handsPlayedByUser(s.userId);
-        await unlock(s.userId, handAchievements({
+        await unlockAndReward(s.userId, handAchievements({
           won, vsBot, allInWin: false, potWon: won ? (s.net ?? 0) : 0, handsPlayed
         }));
         // Quest progress (best-effort — recordQuestEvent swallows its own errors).

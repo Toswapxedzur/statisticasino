@@ -15,8 +15,9 @@ import {
   dailyBonusReady,
   DAILY_BONUS
 } from "$lib/server/wallet.js";
-import { listForUser, unlock, streakAchievements } from "$lib/server/achievements.js";
+import { listForUser, unlockAndReward, streakAchievements } from "$lib/server/achievements.js";
 import { recordEvent as recordQuestEvent } from "$lib/server/quests.js";
+import { handsPlayedByUser } from "$lib/server/poker/store.js";
 
 const MAX_DISPLAY_NAME_LEN = 64;
 const MAX_ADMIN_ADJUST = 10_000_000;
@@ -32,7 +33,8 @@ export async function load({ locals }) {
   const bonusReady = walletRow ? dailyBonusReady(walletRow.last_daily_bonus_at) : false;
   const streak = walletRow ? Number(walletRow.daily_streak || 0) : 0;
   const bestStreak = walletRow ? Number(walletRow.best_streak || 0) : 0;
-  const achievements = await listForUser(locals.user.id);
+  const handsPlayed = await handsPlayedByUser(locals.user.id).catch(() => 0);
+  const achievements = await listForUser(locals.user.id, undefined, { handsPlayed, streak });
   const ledger = await recentLedger(locals.user.id, 20);
 
   // v2: `hand_upload.perspective_seat_id` is gone — per-row hero seat
@@ -95,8 +97,8 @@ export const actions = {
       const mins = Math.max(1, Math.ceil((res.nextAt - Date.now()) / 60000));
       return fail(429, { bonusError: `Already claimed. Come back in ~${mins} min.` });
     }
-    // Streak milestones are status badges (no chips) — award any the new streak hit.
-    const newBadges = await unlock(locals.user.id, streakAchievements(res.streak));
+    // Streak milestones — award (and reward) any badge the new streak reaches.
+    const newBadges = await unlockAndReward(locals.user.id, streakAchievements(res.streak));
     // The daily-login quest is satisfied by claiming the daily reward.
     await recordQuestEvent(locals.user.id, "daily_login", 1);
     return {

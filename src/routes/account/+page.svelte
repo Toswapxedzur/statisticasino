@@ -97,21 +97,35 @@
 </section>
 
 {#if data.achievements?.length}
+  {@const CATS = [["volume", "Volume"], ["skill", "Skill"], ["dedication", "Dedication"], ["event", "Events"]]}
   <section class="card">
     <div class="card-head">
       <h3>Achievements</h3>
       <span class="muted">{data.achievements.filter((a) => a.unlocked).length} / {data.achievements.length}</span>
     </div>
-    <p class="muted" style="margin:0 0 12px">Badges for milestones. Status only — they don't grant chips.</p>
-    <div class="badges">
-      {#each data.achievements as a (a.key)}
-        <div class="badge" class:locked={!a.unlocked} title={a.desc}>
-          <span class="badge-ico">{a.unlocked ? "🏅" : "🔒"}</span>
-          <span class="badge-name">{a.name}</span>
-          <span class="badge-desc muted">{a.desc}</span>
+    <p class="muted" style="margin:0 0 6px">Hit milestones to unlock badges and earn a one-time chip reward.</p>
+    {#each CATS as [cat, label]}
+      {@const items = data.achievements.filter((a) => a.category === cat)}
+      {#if items.length}
+        <div class="ach-cat">{label}</div>
+        <div class="badges">
+          {#each items as a (a.key)}
+            <div class="badge" class:locked={!a.unlocked} class:tier-gold={a.tier === "gold"} class:tier-silver={a.tier === "silver"} title={a.desc}>
+              <div class="badge-top">
+                <span class="badge-ico">{a.unlocked ? "🏅" : "🔒"}</span>
+                {#if a.reward}<span class="badge-reward" class:got={a.unlocked}><span class="coin">●</span> {chips(a.reward)}</span>{/if}
+              </div>
+              <span class="badge-name">{a.name}</span>
+              <span class="badge-desc muted">{a.desc}</span>
+              {#if a.progress && !a.unlocked}
+                <div class="pbar"><div class="pfill" style="width:{Math.round((a.progress.value / a.progress.target) * 100)}%"></div></div>
+                <span class="badge-desc muted">{chips(a.progress.value)} / {chips(a.progress.target)}</span>
+              {/if}
+            </div>
+          {/each}
         </div>
-      {/each}
-    </div>
+      {/if}
+    {/each}
   </section>
 {/if}
 
@@ -299,10 +313,19 @@
     display: flex; flex-direction: column; gap: 3px; padding: 10px 12px;
     border-radius: var(--r-btn); background: var(--well); box-shadow: var(--shadow-card);
   }
-  .badge.locked { opacity: 0.5; }
+  .badge.locked { opacity: 0.6; }
+  .badge.tier-gold { box-shadow: 0 0 0 1px var(--gold-line, rgba(200,160,60,.35)), var(--shadow-card); }
+  .badge.tier-silver { box-shadow: 0 0 0 1px rgba(170,180,200,.28), var(--shadow-card); }
+  .badge-top { display: flex; align-items: center; justify-content: space-between; }
   .badge-ico { font-size: 20px; }
+  .badge-reward { font-size: 11px; font-weight: 800; color: var(--gold-ink); display: inline-flex; align-items: center; gap: 3px; opacity: .75; font-variant-numeric: tabular-nums; }
+  .badge-reward.got { opacity: 1; }
+  .badge .coin { color: var(--gold-ink); }
   .badge-name { font-weight: 700; font-size: 13px; }
   .badge-desc { font-size: 11.5px; line-height: 1.3; }
+  .ach-cat { font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); margin: 16px 0 8px; }
+  .pbar { height: 5px; background: var(--surface); border-radius: var(--r-pill); overflow: hidden; margin-top: 5px; }
+  .pfill { height: 100%; background: var(--accent); border-radius: var(--r-pill); }
   .chip-ico.big {
     width: 20px; height: 20px; border-radius: 50%; align-self: center;
     background: var(--gold-ink); box-shadow: inset 0 0 0 3px var(--gold-bg); display: inline-block;

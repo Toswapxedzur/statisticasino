@@ -3,7 +3,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ACHIEVEMENTS, streakAchievements, handAchievements, unlock, listForUser } from "./achievements.js";
+import { ACHIEVEMENTS, streakAchievements, handAchievements, unlock, unlockAndReward, listForUser, progressFor } from "./achievements.js";
 
 // Minimal db mock mirroring db.js's { query, execute } with a user_achievement set.
 function makeDb() {
@@ -65,4 +65,42 @@ test("listForUser annotates the full catalog with unlocked state", async () => {
   assert.ok(fh.unlockedAt > 0);
   assert.equal(fw.unlocked, false);
   assert.equal(fw.unlockedAt, null);
+});
+
+test("progressFor reports ladder progress and null for non-ladder badges", () => {
+  assert.deepEqual(progressFor("hands_1000", { handsPlayed: 250 }), { value: 250, target: 1000 });
+  assert.deepEqual(progressFor("hands_100", { handsPlayed: 5000 }), { value: 100, target: 100 }); // capped
+  assert.deepEqual(progressFor("streak_7", { streak: 4 }), { value: 4, target: 7 });
+  assert.equal(progressFor("first_win", { handsPlayed: 10 }), null);
+  assert.equal(progressFor("nope", {}), null);
+});
+
+test("handAchievements adds the new gold-tier ladders", () => {
+  const whale = handAchievements({ won: true, potWon: 12000, handsPlayed: 10000 });
+  assert.ok(whale.includes("hands_10000"));
+  assert.ok(whale.includes("whale_pot"));
+  assert.ok(whale.includes("big_pot"));
+  // Below thresholds: no gold tiers.
+  const mid = handAchievements({ won: true, potWon: 1500, handsPlayed: 100 });
+  assert.ok(!mid.includes("whale_pot"));
+  assert.ok(!mid.includes("hands_10000"));
+});
+
+test("unlockAndReward pays each newly-unlocked reward exactly once", async () => {
+  const db = makeDb();
+  const credited = [];
+  const wallet = { credit: async (u, a, r, ref) => { credited.push({ u, a, r, ref }); return 1; } };
+
+  const fresh = await unlockAndReward("u9", ["first_hand", "big_pot"], db, wallet);
+  assert.deepEqual(fresh.sort(), ["big_pot", "first_hand"]);
+  // Two reward-bearing badges → two credits, matching the catalog amounts.
+  assert.equal(credited.length, 2);
+  const byKey = Object.fromEntries(credited.map((c) => [c.ref, c.a]));
+  assert.equal(byKey["ach:first_hand"], ACHIEVEMENTS.find((x) => x.key === "first_hand").reward);
+  assert.equal(byKey["ach:big_pot"], ACHIEVEMENTS.find((x) => x.key === "big_pot").reward);
+
+  // Re-running unlocks nothing new, so no further credits.
+  const again = await unlockAndReward("u9", ["first_hand", "big_pot"], db, wallet);
+  assert.deepEqual(again, []);
+  assert.equal(credited.length, 2);
 });
