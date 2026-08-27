@@ -226,12 +226,13 @@
 
 {#if view?.tournament}
   {@const tny = view.tournament}
+  {@const isSprint = tny.kind === "sprint"}
   <section class="tny-hud" transition:fly={{ y: d(-10), duration: d(DUR.base) }}>
-    <span class="tny-badge">{tny.status === "complete" ? "🏆 Finished" : tny.status === "running" ? "Level " + tny.level : "Registering"}</span>
+    <span class="tny-badge">{isSprint ? "⚡ River Sprint" : tny.status === "complete" ? "🏆 Finished" : tny.status === "running" ? "Level " + tny.level : "Registering"}</span>
     {#if tny.blinds}<span>Blinds <b>{tny.blinds.sb}/{tny.blinds.bb}</b></span>{/if}
-    <span>Prize pool <b>{tny.prizePool.toLocaleString()}</b></span>
-    <span>{tny.remaining} left / {tny.registered}</span>
-    {#if tny.status === "running"}<span class="muted">next level in {tny.nextLevelInHands}</span>{/if}
+    {#if !isSprint}<span>Prize pool <b>{(tny.prizePool ?? 0).toLocaleString()}</b></span>{/if}
+    <span>{tny.remaining} left{#if !isSprint} / {tny.registered}{/if}</span>
+    {#if !isSprint && tny.status === "running"}<span class="muted">next level in {tny.nextLevelInHands}</span>{/if}
     {#if me && tny.places?.length}
       {@const myPlace = tny.places.find((p) => p.userId === me.id)}
       {#if myPlace}<span class="tny-place">You finished #{myPlace.place}</span>{/if}
