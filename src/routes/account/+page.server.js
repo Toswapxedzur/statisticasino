@@ -16,6 +16,7 @@ import {
   DAILY_BONUS
 } from "$lib/server/wallet.js";
 import { listForUser, unlock, streakAchievements } from "$lib/server/achievements.js";
+import { recordEvent as recordQuestEvent } from "$lib/server/quests.js";
 
 const MAX_DISPLAY_NAME_LEN = 64;
 const MAX_ADMIN_ADJUST = 10_000_000;
@@ -96,6 +97,8 @@ export const actions = {
     }
     // Streak milestones are status badges (no chips) — award any the new streak hit.
     const newBadges = await unlock(locals.user.id, streakAchievements(res.streak));
+    // The daily-login quest is satisfied by claiming the daily reward.
+    await recordQuestEvent(locals.user.id, "daily_login", 1);
     return {
       bonusOk: true, bonusAmount: res.amount, chips: res.balance,
       streak: res.streak, bestStreak: res.bestStreak, newBadges

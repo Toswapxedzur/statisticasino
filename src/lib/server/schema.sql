@@ -461,6 +461,28 @@ CREATE TABLE IF NOT EXISTS user_achievement (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------------
+-- v21 (2026-08-27, "progression"): quest progress. The quest CATALOG
+-- lives in code (quests.js QUESTS) exactly like the achievement catalog;
+-- only per-user progress is persisted. One row per (user, quest,
+-- period_key), where period_key buckets the reset window — 'YYYY-MM-DD'
+-- daily, 'YYYY-Www' weekly, 'YYYY-MM' monthly — so a new period starts
+-- fresh rows automatically and expired ones remain as history. progress
+-- is capped at the quest target on write; claimed_at NULL until redeemed.
+-- -----------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS quest_progress (
+  user_id     VARCHAR(64) NOT NULL,
+  quest_id    VARCHAR(64) NOT NULL,
+  period_key  VARCHAR(16) NOT NULL,
+  progress    INT NOT NULL DEFAULT 0,
+  claimed_at  BIGINT DEFAULT NULL,
+  updated_at  BIGINT NOT NULL,
+  PRIMARY KEY (user_id, quest_id, period_key),
+  KEY idx_quest_progress_user (user_id, period_key),
+  CONSTRAINT fk_quest_progress_user FOREIGN KEY (user_id)
+    REFERENCES user(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------------------
 -- v15 (2026-08-24, "friends"): the friend graph. One row per relation,
 -- DIRECTED by who sent the request (requester → addressee) but treated
 -- as undirected once `status = 'accepted'`. `pending` is an outstanding

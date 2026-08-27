@@ -18,6 +18,7 @@ import {
 } from "./store.js";
 import { getBalance } from "../wallet.js";
 import { unlock, handAchievements } from "../achievements.js";
+import { recordEvent as recordQuestEvent } from "../quests.js";
 import { areFriends } from "../friends.js";
 import { sendMessage, markRead } from "../dm.js";
 import * as convo from "../conversations.js";
@@ -265,8 +266,14 @@ export class PokerHub {
         await unlock(s.userId, handAchievements({
           won, vsBot, allInWin: false, potWon: won ? (s.net ?? 0) : 0, handsPlayed
         }));
+        // Quest progress (best-effort — recordQuestEvent swallows its own errors).
+        await recordQuestEvent(s.userId, "hands_played", 1);
+        if (won) {
+          await recordQuestEvent(s.userId, "pots_won", 1);
+          if ((s.net ?? 0) > 0) await recordQuestEvent(s.userId, "chips_won", s.net);
+        }
       }
-    } catch { /* achievements are best-effort; never disrupt the table */ }
+    } catch { /* achievements + quests are best-effort; never disrupt the table */ }
   }
 
   // Remove a table already determined empty+closed, and its dangling invites.

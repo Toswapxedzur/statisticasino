@@ -46,7 +46,13 @@ export const REASON = {
   // Only game-EARNED chips are transferable (see transfers.js getTransferable);
   // received chips raise the balance but NOT the transferable pool.
   TRANSFER_SEND: "transfer_send",
-  TRANSFER_RECV: "transfer_recv"
+  TRANSFER_RECV: "transfer_recv",
+  // Progression rewards (quests + achievement tiers) — pure faucets.
+  QUEST_REWARD: "quest_reward",
+  ACHIEVEMENT_REWARD: "achievement_reward",
+  // River Sprint fast-fold event: BID is the entry sink, PRIZE the payout faucet.
+  SPRINT_BID: "sprint_bid",
+  SPRINT_PRIZE: "sprint_prize"
 };
 
 function newLedgerId() {

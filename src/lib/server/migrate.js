@@ -152,11 +152,13 @@ export async function ensureMigrated() {
   await migrateToV19();
   // v20 (notifications): the `notification` table is created by schema.sql's
   // CREATE TABLE IF NOT EXISTS (applied above) — no ALTERs, so no migrateToV20.
+  // v21 (progression): the `quest_progress` table is created by schema.sql's
+  // CREATE TABLE IF NOT EXISTS (applied above) — no ALTERs, so no migrateToV21.
 
   // Stamp the version row (idempotent — schema.sql also INSERT IGNOREs
   // it, but we want to be defensive).
   await execute(
-    "INSERT INTO meta(meta_key, meta_value) VALUES ('schema_version', '20') "
+    "INSERT INTO meta(meta_key, meta_value) VALUES ('schema_version', '21') "
     + "ON DUPLICATE KEY UPDATE meta_value = VALUES(meta_value)"
   );
 

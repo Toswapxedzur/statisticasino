@@ -22,6 +22,10 @@ const MONEY = {
   transfer_recv: { label: "Received chips", icon: "💰" },
   admin_adjust: { label: "Adjustment", icon: "⚙️" },
   escrow_refund: { label: "Table refund", icon: "↩️" },
+  quest_reward: { label: "Quest reward", icon: "✅" },
+  achievement_reward: { label: "Achievement reward", icon: "🏅" },
+  sprint_bid: { label: "River Sprint buy-in", icon: "⚡" },
+  sprint_prize: { label: "River Sprint prize", icon: "⚡" },
 };
 
 export async function recentActivity(userId, { limit = 200, filter = "all" } = {}) {

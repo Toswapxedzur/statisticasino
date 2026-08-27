@@ -78,6 +78,7 @@
   const links = $derived([
     { href: "/", label: "Lobby", show: true },
     { href: "/social", label: "Social", show: !!data.user, badge: socialUnread },
+    { href: "/quests", label: "Quests", show: !!data.user },
     { href: "/leaderboards", label: "Ranks", show: true },
     { href: "/data", label: "Data", show: true },
     { href: "/blog", label: "Blog", show: true },
