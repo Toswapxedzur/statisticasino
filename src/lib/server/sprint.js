@@ -146,6 +146,11 @@ export async function nextRounds(limit = 4, db = realDb) {
   );
 }
 
+// The most recently finished round (for showing last results on the Sprint page).
+export async function lastFinishedRound(db = realDb) {
+  return (await db.query("SELECT * FROM sprint_round WHERE status = 'done' ORDER BY ended_at DESC LIMIT 1", []))[0] || null;
+}
+
 // A round annotated with this viewer's state (already in it? already played today?).
 export async function roundView(roundId, userId, db = realDb, at = Date.now()) {
   const r = (await db.query("SELECT * FROM sprint_round WHERE id = ?", [roundId]))[0];
@@ -164,6 +169,12 @@ export async function roundsToStart(now, db = realDb) {
     "SELECT * FROM sprint_round WHERE status IN ('scheduled','registering') AND scheduled_at <= ? ORDER BY scheduled_at ASC",
     [now]
   );
+}
+
+// The user ids registered for a round (for seating at start).
+export async function roundHumans(roundId, db = realDb) {
+  const rows = await db.query("SELECT user_id FROM sprint_entry WHERE round_id = ?", [roundId]);
+  return rows.map((r) => r.user_id);
 }
 
 // Is there already a round scheduled for this exact timeslot? (dedup on creation.)

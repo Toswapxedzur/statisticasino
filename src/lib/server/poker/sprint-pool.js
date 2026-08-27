@@ -20,6 +20,7 @@
 import { LiveTable } from "./table.js";
 import { encode, S2C } from "../../poker/protocol.js";
 import { rankStandings } from "../sprint-core.js";
+import { roundHumans } from "../sprint.js";
 
 export class SprintPool {
   constructor(hub, opts = {}) {
@@ -259,4 +260,32 @@ export class SprintPool {
     }
     for (const b of this.botConns.values()) { try { b.detach(); } catch { /* noop */ } }
   }
+}
+
+// A scheduler `runner`: build + play a pool for one round and return the ranked
+// standings. Seats the round's registered humans who are ONLINE (an absent
+// registrant simply doesn't play — their bid is forfeit, no place, no prize) and
+// fills toward `fillTo` with bots for a lively field. Blinds are fixed (a timed
+// sprint rewards the chip leader at the buzzer, not the last player standing).
+export function makeSprintRunner(hub, { fillTo = 8, maxSeats = 6 } = {}) {
+  return async (round) => {
+    const humanIds = await roundHumans(round.id);
+    const stack = Number(round.starting_stack) || 1500;
+    const pool = new SprintPool(hub, {
+      roundId: round.id,
+      startingStack: stack,
+      durationMs: Number(round.duration_ms) || 15 * 60 * 1000,
+      smallBlind: Math.max(10, Math.round(stack / 100)),
+      bigBlind: Math.max(20, Math.round(stack / 50)),
+      maxSeats,
+    });
+    let seated = 0;
+    for (const uid of humanIds) {
+      const conns = hub.connsForUser?.(uid) || [];
+      if (conns.length) { pool.addHuman(conns[0]); seated++; }
+    }
+    let botCount = Math.max(0, fillTo - seated);
+    if (seated + botCount < 2) botCount = 2 - seated; // need at least heads-up to play
+    return pool.run({ botCount });
+  };
 }

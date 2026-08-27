@@ -18,6 +18,8 @@ import { validateSessionToken } from "../auth.js";
 import { SESSION_COOKIE } from "../cookies.js";
 import { encode, S2C } from "../../poker/protocol.js";
 import { hub } from "./hub.js";
+import { startScheduler } from "../sprint-scheduler.js";
+import { makeSprintRunner } from "./sprint-pool.js";
 
 const WS_PATH = "/ws";
 const HEARTBEAT_MS = 30_000;
@@ -36,12 +38,24 @@ function parseCookies(header) {
 }
 
 let _attached = false;
+let _schedulerStarted = false;
+
+// Start the River Sprint scheduler exactly once, on the instance that holds the
+// WS gateway (i.e. the poker lease). It creates the day's rounds and runs each
+// one through the fast-fold pool at its scheduled time.
+function startSprintSchedulerOnce() {
+  if (_schedulerStarted) return;
+  _schedulerStarted = true;
+  try { startScheduler(makeSprintRunner(hub)); }
+  catch (e) { console.error("[riverside] sprint scheduler failed to start:", e?.message || e); }
+}
 
 export function attachPokerGateway(httpServer, { path = WS_PATH } = {}) {
   // Guard against double-attach (Vite can re-run config on HMR).
   if (httpServer.__pokerGatewayAttached__) return;
   httpServer.__pokerGatewayAttached__ = true;
   _attached = true;
+  startSprintSchedulerOnce();
 
   const wss = new WebSocketServer({ noServer: true });
 
