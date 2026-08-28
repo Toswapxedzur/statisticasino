@@ -1,53 +1,55 @@
 <script>
-  // A single playing card, rendered by the EXISTING Replay Poker deck
-  // renderer (static/replay-engine/cards.js via window.CasinoCards) — the
-  // same artwork the Data-page replay uses, so cards look identical across
-  // the whole site. We do not draw our own card faces.
+  // A single playing card for the redesigned felt, drawn by the Riverside
+  // vector deck ($lib/poker/deck.js) — pure SVG, no async load, no PNGs, so
+  // it renders identically on the server and client and never flashes in.
+  // (The /data replay page keeps the classic window.CasinoCards deck; this
+  // component is table-only.)
   //
-  // `card` is a 2-char engine string ("As","Td"); the renderer's face
-  // format matches the engine's exactly. `faceDown` shows the shared back
-  // (X.png). No card + not face-down = an empty slot.
-  import { onMount } from "svelte";
-  import { loadCards } from "$lib/poker/cards-loader.js";
+  //  card     — 2-char engine string ("As","Td"); null = empty slot.
+  //  faceDown — show the shared card back.
+  //  size     — layout token; maps to a render width, which drives the deck's
+  //             size rule (smaller ⇒ bigger index, less detail).
+  import { renderFace, renderBack, renderEmpty } from "$lib/poker/deck.js";
 
   let { card = null, faceDown = false, size = "md" } = $props();
 
-  // Map size tokens to the renderer's pixel width (viewBox is 60x78).
-  const WIDTHS = { xs: 32, sm: 42, md: 62, lg: 82 };
+  const WIDTHS = { xs: 32, sm: 42, md: 62, lg: 82, xl: 108 };
   let width = $derived(WIDTHS[size] ?? WIDTHS.md);
-  let height = $derived(Math.round((width * 78) / 60));
 
-  let ready = $state(false);
-  onMount(() => {
-    loadCards().then(() => { ready = true; }).catch(() => { ready = false; });
-  });
-
-  // Recomputes when the renderer becomes ready or the inputs change.
   let html = $derived.by(() => {
-    if (!ready || typeof window === "undefined" || !window.CasinoCards) return null;
-    const C = window.CasinoCards;
-    if (faceDown) return C.render("X", { width });
-    if (!card) return C.empty({ width });
-    return C.render(card, { width });
+    if (faceDown) return renderBack({ width });
+    if (!card) return renderEmpty({ width });
+    return renderFace(card, { width });
   });
 </script>
 
-{#if html}
-  {@html html}
-{:else}
-  <!-- Placeholder before the classic renderer finishes loading (keeps
-       layout stable so cards don't pop the felt around). -->
-  <span
-    class="card-loading"
-    class:back={faceDown}
-    style="width:{width}px;height:{height}px"
-    aria-hidden="true"
-  ></span>
-{/if}
+{@html html}
 
 <style>
-  /* Card renderer output styling, copied from replay-felt.css so the
-     table page doesn't need to load the whole felt stylesheet. */
+  /* Deck theme tokens — the vector deck ($lib/poker/deck.js) paints with
+     these, so it follows the app's light/dark theme (and switches live). */
+  :global(:root) {
+    --rvc-face-a: #20304e;   /* face gradient top */
+    --rvc-face-b: #111c31;   /* face gradient bottom */
+    --rvc-edge: #38496b;     /* card border */
+    --rvc-inner: #ffffff14;  /* inner hairline */
+    --rvc-ink: #e7eef9;      /* spades/clubs + rank */
+    --rvc-red: #ff5b52;      /* hearts/diamonds */
+    --rvc-panel: #27385a;    /* court panel fill */
+  }
+  :global(:root[data-theme="light"]) {
+    --rvc-face-a: #ffffff;
+    --rvc-face-b: #f6f4ec;
+    --rvc-edge: #e4e0d4;
+    --rvc-inner: #00000010;
+    --rvc-ink: #16294d;
+    --rvc-red: #c4142b;
+    --rvc-panel: #fffdf8;
+  }
+
+  /* Deck output styling. The renderer emits <span class="card-wrap"><svg
+     class="card-svg">…</svg></span>; these rules give the card its rounded
+     silhouette + lift. */
   :global(.card-wrap) {
     display: inline-block;
     line-height: 0;
@@ -62,13 +64,11 @@
     display: block;
     border-radius: 6px;
   }
-  :global(.card-wrap.empty) { opacity: 0.4; }
-
-  .card-loading {
-    display: inline-block;
-    border-radius: 7px;
-    background: var(--well);
-    box-shadow: var(--shadow-card);
-    box-sizing: border-box;
+  :global(.card-wrap.empty) {
+    color: var(--muted, #8ea3bd);
+    filter: none;
+  }
+  :global(.card-wrap.back) {
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5));
   }
 </style>
