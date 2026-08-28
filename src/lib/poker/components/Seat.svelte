@@ -2,7 +2,8 @@
   import Card from "./Card.svelte";
   import Num from "./Num.svelte";
   import Avatar from "./Avatar.svelte";
-  import { scale, fade } from "svelte/transition";
+  import Chip from "./Chip.svelte";
+  import { scale, fade, fly } from "svelte/transition";
   import { d, DUR } from "$lib/motion.js";
 
   // One seat position on the felt.
@@ -27,6 +28,7 @@
     deadline = null,
     seatNo = 0,
     winner = false,
+    won = 0,
   } = $props();
 
   const RING_MAX_MS = 25_000; // ACTION_TIMEOUT_MS reference for the ring arc.
@@ -65,11 +67,18 @@
   }
 </script>
 
-<div class="seat" class:mine={isMine} class:folded class:sitting-out={sittingOut} class:winner>
+<div class="seat" class:mine={isMine} class:folded class:sitting-out={sittingOut} class:winner class:allin>
   {#if seat && seat.userId != null}
+    <!-- winnings float up from the seat on a win -->
+    {#if winner && won > 0}
+      <div class="won" in:fly={{ y: d(10), duration: d(DUR.slow) }} out:fade={{ duration: d(DUR.base) }}>
+        <Chip value={won} size={14} />+<Num value={won} />
+      </div>
+    {/if}
+
     <!-- committed bet chips in front of the seat -->
     {#if seat.committed > 0}
-      <div class="bet" in:scale={{ start: 0.7, duration: d(DUR.base) }} out:fade={{ duration: d(DUR.fast) }}><span class="chip-dot"></span><Num value={seat.committed} /></div>
+      <div class="bet" in:scale={{ start: 0.6, duration: d(DUR.base) }} out:fade={{ duration: d(DUR.fast) }}><Chip value={seat.committed} size={15} /><Num value={seat.committed} /></div>
     {/if}
 
     <div class="pod" class:toact={seat.isToAct} in:scale={{ start: 0.9, duration: d(DUR.base) }} out:fade={{ duration: d(DUR.fast) }}>
@@ -90,10 +99,16 @@
            cleared hasCards). Fall back to face-down backs while the seat is
            in a hand but not revealed to us. (#3) -->
       <div class="cards" class:has={cards || seat.hasCards}>
-        {#if cards}
-          {#each cards as c}<Card card={c} size="sm" />{/each}
-        {:else if seat.hasCards}
-          <Card faceDown size="sm" /><Card faceDown size="sm" />
+        {#if cards || seat.hasCards}
+          {@const n = cards ? cards.length : 2}
+          <div class="cardwrap" in:fly={{ y: d(-12), duration: d(DUR.base) }}>
+            {#each Array.from({ length: n }) as _, i}
+              <div class="flip" class:up={!!cards} style="--i:{i}">
+                <div class="face back"><Card faceDown size="sm" /></div>
+                <div class="face front">{#if cards && cards[i]}<Card card={cards[i]} size="sm" />{/if}</div>
+              </div>
+            {/each}
+          </div>
         {/if}
       </div>
 
@@ -144,19 +159,48 @@
     align-items: center;
     gap: 5px;
     margin-bottom: 4px;
-    padding: 2px 8px;
+    padding: 2px 9px 2px 4px;
     font-size: 12px;
-    font-weight: 700;
-    color: #12202e;
-    background: #e7c14b;
+    font-weight: 800;
+    color: var(--gold-ink);
+    background: color-mix(in srgb, var(--surface) 78%, #000 22%);
     border-radius: 999px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+    font-variant-numeric: tabular-nums;
   }
-  .chip-dot {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: radial-gradient(circle at 35% 30%, #fff 0 25%, #d33 26% 100%);
-    box-shadow: 0 0 0 1px rgba(0,0,0,0.3);
+
+  /* winnings float above the seat on a win */
+  .won {
+    position: absolute;
+    top: -16px; left: 50%;
+    transform: translateX(-50%);
+    z-index: 6;
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 13px; font-weight: 800;
+    color: var(--gold-ink);
+    background: color-mix(in srgb, var(--surface) 90%, transparent);
+    padding: 2px 9px 2px 5px; border-radius: 999px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45), 0 0 0 1px color-mix(in srgb, var(--gold) 45%, transparent);
+    white-space: nowrap; pointer-events: none;
+    font-variant-numeric: tabular-nums;
   }
+
+  /* 3-D card flip: back shows first, then rotates to reveal the face */
+  .cardwrap { display: flex; gap: 3px; }
+  .flip {
+    position: relative;
+    width: 42px; height: 55px;
+    transform-style: preserve-3d;
+    transition: transform 0.5s cubic-bezier(0.4, 0.85, 0.35, 1);
+    transition-delay: calc(var(--i) * 0.07s);
+  }
+  .flip.up { transform: rotateY(180deg); }
+  .flip .face {
+    position: absolute; inset: 0;
+    backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    line-height: 0;
+  }
+  .flip .front { transform: rotateY(180deg); }
 
   .pod { position: relative; display: flex; flex-direction: column; align-items: center; }
 
@@ -240,9 +284,37 @@
     box-shadow: 0 0 0 2px rgba(74,222,128,0.65), 0 0 18px rgba(74,222,128,0.4);
     animation: winpulse 1.1s ease-in-out 2;
   }
+  /* a light sweeps across the winning plate once */
+  .seat.winner .plate::after {
+    content: "";
+    position: absolute; inset: 0; border-radius: 12px;
+    background: linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.32) 50%, transparent 65%);
+    clip-path: inset(0 round 12px);
+    transform: translateX(-130%);
+    animation: shine 1s ease-out 0.15s 1;
+    pointer-events: none; z-index: 2;
+  }
+  @keyframes shine { to { transform: translateX(130%); } }
   @keyframes winpulse {
     0%, 100% { box-shadow: 0 0 0 2px rgba(74,222,128,0.5), 0 0 12px rgba(74,222,128,0.3); }
     50% { box-shadow: 0 0 0 3px rgba(74,222,128,0.85), 0 0 24px rgba(74,222,128,0.55); }
+  }
+
+  /* all-in: a red ring flash + the tag pops in */
+  .seat.allin .plate {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--danger) 72%, transparent),
+                0 0 16px color-mix(in srgb, var(--danger) 32%, transparent);
+  }
+  .tag.allin { animation: allinpop 0.45s ease-out 1; }
+  @keyframes allinpop {
+    0% { transform: scale(0.55); }
+    60% { transform: scale(1.18); }
+    100% { transform: scale(1); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .flip { transition: none; }
+    .seat.winner .plate, .tag.allin { animation: none; }
   }
 
   /* empty seat */

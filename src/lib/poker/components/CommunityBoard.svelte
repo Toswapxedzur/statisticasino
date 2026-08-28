@@ -1,7 +1,8 @@
 <script>
   import Card from "./Card.svelte";
   import Num from "./Num.svelte";
-  import { scale } from "svelte/transition";
+  import Chip from "./Chip.svelte";
+  import { scale, fly } from "svelte/transition";
   import { d, DUR } from "$lib/motion.js";
 
   // The community cards and the central pot pill.
@@ -38,6 +39,9 @@
   </div>
 
   <div class="pot" class:result={!!result}>
+    {#if (result ? (wonAmount || potTotal) : potTotal) > 0}
+      <span class="pot-chip"><Chip value={result ? (wonAmount || potTotal) : potTotal} size={17} /></span>
+    {/if}
     {#if result}
       <span class="pot-lbl">{result.type === "showdown" ? "Showdown" : "Winner"}</span>
       <span class="pot-amt"><Num value={wonAmount || potTotal} /></span>
@@ -71,6 +75,7 @@
     font-variant-numeric: tabular-nums;
     transition: box-shadow var(--dur) var(--ease);
   }
+  .pot-chip { line-height: 0; display: inline-flex; margin-right: -2px; }
   .pot-lbl {
     font-size: 10px; font-weight: 700; letter-spacing: 0.8px;
     text-transform: uppercase; color: var(--muted);

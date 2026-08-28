@@ -1,6 +1,8 @@
 <script>
   import Seat from "./Seat.svelte";
   import CommunityBoard from "./CommunityBoard.svelte";
+  import Chip from "./Chip.svelte";
+  import { reducedMotion } from "$lib/motion.js";
 
   // The felt. Lays out config.maxSeats seats around an ellipse, rotated so the
   // signed-in user's seat sits bottom-center, with the community board centered.
@@ -34,6 +36,12 @@
   });
 
   let winnerSet = $derived(new Set((view?.result?.winners || []).map((w) => w.seat)));
+  // seat number -> chips won (for the floating "+N" on a winning seat).
+  let wonByNo = $derived.by(() => {
+    const m = new Map();
+    for (const w of view?.result?.winners || []) m.set(w.seat, (m.get(w.seat) || 0) + (w.amount || 0));
+    return m;
+  });
 
   // Positions rotated so my seat (or seat 0 when unseated) is bottom-center.
   let positions = $derived.by(() => {
@@ -66,10 +74,71 @@
   }
 
   let iAmSeated = $derived(mySeatNo != null);
+
+  // ---- chip flight: bets fly seat→pot, the pot rakes to the winner(s) ----
+  // Transient chips animated over the felt, driven by state DIFFS: a seat's
+  // `committed` rising spawns a bet-chip toward the pot; a fresh result spawns
+  // rake chips from the pot to each winner. Purely cosmetic — never blocks play.
+  let flights = $state([]);
+  let _fid = 0;
+  let _prevCommitted = new Map();
+  let _prevResultKey = null;
+  let _seededDiff = false; // don't fire flights for the state we mount ON
+
+  const POT = { x: 50, y: 50 };
+
+  function spawn(x0, y0, x1, y1, value, kind, delay = 0) {
+    if (reducedMotion()) return;
+    const id = ++_fid;
+    // slight fan so stacked chips don't perfectly overlap
+    const jx = (Math.random() - 0.5) * 3, jy = (Math.random() - 0.5) * 3;
+    flights.push({ id, kind, value, pos: { x: x0 + jx, y: y0 + jy }, o: 0 });
+    const f = flights[flights.length - 1];
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      f.pos.x = x1 + jx; f.pos.y = y1 + jy; f.o = 1;
+    }));
+    setTimeout(() => { f.o = 0; }, 520 + delay);
+    setTimeout(() => { flights = flights.filter((g) => g.id !== id); }, 720 + delay);
+  }
+
+  $effect(() => {
+    const seats = view?.seats || [];
+    const posByNo = new Map(positions.map((p) => [p.seatNo, p]));
+    // On the first pass just seed the baseline so a mid-hand mount doesn't erupt.
+    if (!_seededDiff) {
+      for (const s of seats) _prevCommitted.set(s.seat, s.committed || 0);
+      _prevResultKey = view?.result ? JSON.stringify(view.result.winners || []) : null;
+      _seededDiff = true;
+      return;
+    }
+    for (const s of seats) {
+      const prev = _prevCommitted.get(s.seat) || 0;
+      const cur = s.committed || 0;
+      if (cur > prev) {
+        const p = posByNo.get(s.seat);
+        if (p) spawn(p.x, p.y - 4, POT.x, POT.y, cur - prev, "bet");
+      }
+      _prevCommitted.set(s.seat, cur);
+    }
+    const rk = view?.result?.winners ? JSON.stringify(view.result.winners) : null;
+    if (rk && rk !== _prevResultKey) {
+      let i = 0;
+      for (const w of view.result.winners) {
+        const p = posByNo.get(w.seat);
+        if (p) { spawn(POT.x, POT.y, p.x, p.y - 4, w.amount, "rake", i * 90); spawn(POT.x, POT.y, p.x, p.y - 4, w.amount, "rake", i * 90 + 120); }
+        i++;
+      }
+    }
+    _prevResultKey = rk;
+  });
 </script>
 
 <div class="felt-shell">
   <div class="felt">
+    <!-- ambient depth: a soft glow pools under the board so the floating seats
+         sit in a lit space (no green felt — just light + shadow). -->
+    <div class="ambient" aria-hidden="true"></div>
+
     <div class="center">
       {#if view}
         <CommunityBoard
@@ -92,10 +161,20 @@
           canSit={!!me && !iAmSeated && (!s || s.userId == null)}
           deadline={s?.isToAct ? view?.actionDeadline ?? null : null}
           winner={winnerSet.has(p.seatNo)}
+          won={wonByNo.get(p.seatNo) ?? 0}
           {onSit}
         />
       </div>
     {/each}
+
+    <!-- flying chips (bets → pot, pot → winner). Above seats, ignores input. -->
+    <div class="fx" aria-hidden="true">
+      {#each flights as f (f.id)}
+        <span class="flight {f.kind}" style="left:{f.pos.x}%; top:{f.pos.y}%; opacity:{f.o};">
+          <Chip value={f.value} size={f.kind === "rake" ? 19 : 16} />
+        </span>
+      {/each}
+    </div>
 
     {#if !view}
       <div class="center placeholder">
@@ -137,4 +216,36 @@
   }
 
   .placeholder { z-index: 1; }
+
+  /* soft light pooled under the board — depth without a felt */
+  .ambient {
+    position: absolute;
+    inset: 6% 10%;
+    z-index: 0;
+    pointer-events: none;
+    border-radius: 50%;
+    background:
+      radial-gradient(60% 60% at 50% 46%, color-mix(in srgb, var(--accent) 16%, transparent) 0%, transparent 70%),
+      radial-gradient(42% 42% at 50% 50%, color-mix(in srgb, var(--gold) 10%, transparent) 0%, transparent 65%);
+    filter: blur(6px);
+  }
+
+  /* flying-chip layer */
+  .fx { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+  .flight {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    line-height: 0;
+    transition:
+      left 0.55s cubic-bezier(0.32, 0.72, 0.24, 1),
+      top 0.55s cubic-bezier(0.32, 0.72, 0.24, 1),
+      opacity 0.2s ease;
+    will-change: left, top, opacity;
+    filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.45));
+  }
+  .flight.rake { transition-duration: 0.5s, 0.5s, 0.2s; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .flight { transition: none; }
+  }
 </style>
