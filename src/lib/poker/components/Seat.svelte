@@ -101,7 +101,7 @@
       <div class="cards" class:has={cards || seat.hasCards}>
         {#if cards || seat.hasCards}
           {@const n = cards ? cards.length : 2}
-          <div class="cardwrap" in:fly={{ y: d(-12), duration: d(DUR.base) }}>
+          <div class="cardwrap" in:fly={{ y: d(-12), duration: d(DUR.base) }} out:fly={{ y: d(-26), duration: d(DUR.base) }}>
             {#each Array.from({ length: n }) as _, i}
               <div class="flip" class:up={!!cards} style="--i:{i}">
                 <div class="face back"><Card faceDown size="sm" /></div>
