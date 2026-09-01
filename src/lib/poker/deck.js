@@ -61,14 +61,18 @@ function rankLabel(rank) {
 }
 
 // rank font — a condensed display face ("poker number" look). Loaded via the
-// app's Google Fonts link; falls back to the app grotesk.
-const FONT = `font-family="'Oswald','Hanken Grotesk',sans-serif" font-weight="700"`;
+// app's Google Fonts link; falls back to the app grotesk. `renderFace` can
+// pass a `font` override (used by the bake-off preview).
+const DEFAULT_FAMILY = "'Oswald','Hanken Grotesk',sans-serif";
+function fontAttr(family) {
+  return `font-family="${family || DEFAULT_FAMILY}" font-weight="700"`;
+}
 
 // one index block (rank + suit) anchored to the top-left ("start") or
 // top-right ("end") corner, with the SUIT offset down-and-inward from the
 // rank and drawn `suitR`× the rank size (default 1.2 — suit bigger than the
 // number). Rotate the whole card 180° to reach the bottom corners.
-function idxBlock(rank, suit, col, idxFont, anchor, suitR = 1.2) {
+function idxBlock(rank, suit, col, idxFont, anchor, suitR = 1.2, family) {
   const label = rankLabel(rank);
   const two = label.length > 1;
   const rf = two ? idxFont * 0.82 : idxFont;
@@ -76,22 +80,23 @@ function idxBlock(rank, suit, col, idxFont, anchor, suitR = 1.2) {
   const pad = 5;
   const ls = two ? ' letter-spacing="-2"' : "";
   const ry = pad + rf * 0.8;
+  const F0 = fontAttr(family);
   if (anchor === "end") {
     const rx = W - pad;
     return (
-      `<text x="${rx}" y="${f(ry)}" text-anchor="end" ${FONT} font-size="${f(rf)}" style="fill:${col}"${ls}>${esc(label)}</text>` +
+      `<text x="${rx}" y="${f(ry)}" text-anchor="end" ${F0} font-size="${f(rf)}" style="fill:${col}"${ls}>${esc(label)}</text>` +
       pip(suit, rx - rf * 0.45, ry + gs * 0.45, gs, col)
     );
   }
   return (
-    `<text x="${pad}" y="${f(ry)}" ${FONT} font-size="${f(rf)}" style="fill:${col}"${ls}>${esc(label)}</text>` +
+    `<text x="${pad}" y="${f(ry)}" ${F0} font-size="${f(rf)}" style="fill:${col}"${ls}>${esc(label)}</text>` +
     pip(suit, pad + rf * 0.55, ry + gs * 0.45, gs, col)
   );
 }
 
 // design ① — the hero: a big rank top-left and a bigger suit (1.2×) to its
 // lower-right, together filling most of the card.
-function hero(rank, suit, col) {
+function hero(rank, suit, col, family) {
   const label = rankLabel(rank);
   const two = label.length > 1;
   const N = two ? 30 : 37;
@@ -99,7 +104,7 @@ function hero(rank, suit, col) {
   const ry = 7 + N * 0.8;
   const ls = two ? ' letter-spacing="-3"' : "";
   return (
-    `<text x="7" y="${f(ry)}" ${FONT} font-size="${N}" style="fill:${col}"${ls}>${esc(label)}</text>` +
+    `<text x="7" y="${f(ry)}" ${fontAttr(family)} font-size="${N}" style="fill:${col}"${ls}>${esc(label)}</text>` +
     pip(suit, two ? 39 : 37, ry + gs * 0.42, gs, col)
   );
 }
@@ -162,7 +167,7 @@ function designFor(width) {
 }
 
 // ---- public: a card face --------------------------------------------------
-export function renderFace(card, { width = 62 } = {}) {
+export function renderFace(card, { width = 62, font } = {}) {
   if (!card || card.length < 2) return renderEmpty({ width });
   const rank = card[0].toUpperCase();
   const suit = card[1].toLowerCase();
@@ -173,14 +178,14 @@ export function renderFace(card, { width = 62 } = {}) {
   let inner = frame();
 
   if (d === 1) {
-    inner += hero(rank, suit, col);
+    inner += hero(rank, suit, col, font);
   } else if (d === 2) {
-    const tl = idxBlock(rank, suit, col, idxF, "start");
+    const tl = idxBlock(rank, suit, col, idxF, "start", 1.2, font);
     inner += tl + rot180(tl);
   } else if (d === 3) {
     // pips carry the "many symbols"; keep the corner index compact so the
     // rank stays clear and doesn't fight the grid.
-    const tl = idxBlock(rank, suit, col, idxF, "start", 0.8);
+    const tl = idxBlock(rank, suit, col, idxF, "start", 0.8, font);
     inner += tl + rot180(tl);
     if (rank === "A") {
       inner += `<circle cx="${CX}" cy="${CY}" r="16" fill="none" style="stroke:${col}" stroke-opacity="0.15" stroke-width="1"/>` + pip(suit, CX, CY, 30, col);
@@ -191,8 +196,8 @@ export function renderFace(card, { width = 62 } = {}) {
     }
   } else {
     // ④ — four corners, open middle (per spec)
-    const tl = idxBlock(rank, suit, col, idxF, "start");
-    const tr = idxBlock(rank, suit, col, idxF, "end");
+    const tl = idxBlock(rank, suit, col, idxF, "start", 1.2, font);
+    const tr = idxBlock(rank, suit, col, idxF, "end", 1.2, font);
     inner += tl + tr + rot180(tl) + rot180(tr);
   }
 
