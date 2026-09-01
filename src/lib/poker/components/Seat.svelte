@@ -189,7 +189,7 @@
   .cardwrap { display: flex; gap: 3px; }
   .flip {
     position: relative;
-    width: 42px; height: 55px;
+    width: 42px; height: 59px;
     transform-style: preserve-3d;
     transition: transform 0.5s cubic-bezier(0.4, 0.85, 0.35, 1);
     transition-delay: calc(var(--i) * 0.07s);
@@ -221,7 +221,7 @@
   }
   .ring.urgent .ring-fg { stroke: var(--danger, #f87171); }
 
-  .cards { display: flex; gap: 3px; height: 42px; margin-bottom: -8px; z-index: 1; }
+  .cards { display: flex; gap: 3px; height: 46px; margin-bottom: -8px; z-index: 1; }
   .cards:not(.has) { height: 0; margin-bottom: 0; }
 
   .plate {
