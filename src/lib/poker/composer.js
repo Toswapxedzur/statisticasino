@@ -74,17 +74,16 @@ function centre(rank, suit, color) {
   if (rank === "J" || rank === "Q" || rank === "K")
     return `<image href="/deck-parts/court-${rank}${suit}.svg" x="10" y="16" width="43" height="60" preserveAspectRatio="xMidYMid meet"/>`;
   const spec = LAYOUT[rank];
-  return spec.map(([c, t]) => place(SUITPART[suit], COL[c], bandY(t), 13, color, t > 0.5 ? 180 : 0)).join("");
+  return spec.map(([c, t]) => place(SUITPART[suit], COL[c], bandY(t), 15, color, t > 0.5 ? 180 : 0)).join("");
 }
 
 function frame() {
   return `<rect x="0.6" y="0.6" width="${W - 1.2}" height="${H - 1.2}" rx="6" fill="#fff" stroke="#cfcabd" stroke-width="0.7"/>`;
 }
 function designFor(width) {
-  if (width <= 48) return 1;
-  if (width <= 60) return 2;
-  if (width <= 104) return 3;
-  return 4;
+  if (width <= 48) return 1; // number in a corner + big centre suit
+  if (width <= 60) return 2; // + the opposite corner number
+  return 3;                  // the full real card (board & up) — real pips/court
 }
 function svgWrap(inner, width, cls, label) {
   const w = Math.round(width), h = Math.round((width * H) / W);
@@ -101,23 +100,18 @@ export function renderFace(card, { width = 62 } = {}) {
   const label = `${rank === "T" ? "10" : rank} of ${SUITNAME[suit]}s`;
   const d = designFor(width);
 
-  if (d === 4) {
+  // ③ (board & up) → the full real card (real pips + court, no overlap)
+  if (d === 3) {
     const w = Math.round(width), h = Math.round((width * H) / W);
     return `<img class="rvcard face" src="/cards/${suit}${RR[rank]}.svg" width="${w}" height="${h}" alt="${label}" draggable="false" />`;
   }
 
+  // small cards: number in the corner(s) + a big suit in the MIDDLE
   const color = suit === "h" || suit === "d" ? RED : BLACK;
-  const numH = (NUM_PX * W) / width, suitH = (SUIT_PX * W) / width;
-  let inner = frame();
-  if (d === 1) {
-    inner += cornerBig(rank, suit, color, numH, suitH);
-  } else if (d === 2) {
-    inner += place(SUITPART[suit], CX, CY, 38, color);
-    const n = numberCorner(rank, color, numH);
-    inner += n + rot180(n);
-  } else {
-    inner += cornerBig(rank, suit, color, numH, suitH) + centre(rank, suit, color);
-  }
+  const numH = (NUM_PX * W) / width;
+  let inner = frame() + place(SUITPART[suit], CX, 45, 34, color);
+  const n = numberCorner(rank, color, numH);
+  inner += d === 1 ? n : n + rot180(n); // ① one corner · ② two diagonal corners
   return svgWrap(inner, width, "face", label);
 }
 
