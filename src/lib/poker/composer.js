@@ -64,7 +64,9 @@ const LAYOUT = {
 function centre(rank, suit, color) {
   if (rank === "A") return place(SUITPART[suit], CX, 40, 24, color);
   if (rank === "J" || rank === "Q" || rank === "K")
-    return `<image href="/deck-parts/court-${rank}${suit}.svg" x="15" y="12" width="30" height="54" preserveAspectRatio="xMidYMid meet"/>`;
+    // Replay's own court portrait (permitted), matched to its geometry, so the
+    // courts look like Replay while our pips/labels stay ours.
+    return `<image href="/replay-engine/assets/${rank}${suit}.png" x="21" y="8" width="35" height="66" preserveAspectRatio="xMidYMid meet"/>`;
   return LAYOUT[rank].map(([c, t]) => place(SUITPART[suit], COL[c], bandY(t), 8, color, t > 0.5 ? 180 : 0)).join("");
 }
 
