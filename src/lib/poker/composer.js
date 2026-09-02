@@ -37,13 +37,15 @@ function place(name, cx, cy, targetH, color, rot = 0) {
 }
 const rot180 = (inner) => `<g transform="rotate(180 ${CX} ${CY})">${inner}</g>`;
 
-// top-left corner: big numeral, suit tucked to its lower-right (withSuit)
+// top-left corner (Replay-style): big numeral, suit DIRECTLY BELOW it, both
+// left-aligned to the corner.
 function cornerBig(rank, suit, color, numH, suitH, withSuit = true) {
-  const pad = 5.5;
+  const pad = 5;
   const nw = partW(rankPart(rank), numH);
-  const numCx = pad + nw / 2, numCy = pad + numH / 2;
-  let out = place(rankPart(rank), numCx, numCy, numH, color);
-  if (withSuit) out += place(SUITPART[suit], numCx + nw / 2 + suitH * 0.25, numCy + numH / 2 + suitH * 0.4, suitH, color);
+  const sw = partW(SUITPART[suit], suitH);
+  const numCy = pad + numH / 2;
+  let out = place(rankPart(rank), pad + nw / 2, numCy, numH, color);
+  if (withSuit) out += place(SUITPART[suit], pad + sw / 2 + 0.5, numCy + numH / 2 + suitH / 2 + 1, suitH, color);
   return out;
 }
 // number only at a corner (for ②) — left ('l') edge; rotate for the diagonal
@@ -72,7 +74,7 @@ function centre(rank, suit, color) {
   if (rank === "J" || rank === "Q" || rank === "K")
     return `<image href="/deck-parts/court-${rank}${suit}.svg" x="10" y="16" width="43" height="60" preserveAspectRatio="xMidYMid meet"/>`;
   const spec = LAYOUT[rank];
-  return spec.map(([c, t]) => place(SUITPART[suit], COL[c], bandY(t), 12, color, t > 0.5 ? 180 : 0)).join("");
+  return spec.map(([c, t]) => place(SUITPART[suit], COL[c], bandY(t), 13, color, t > 0.5 ? 180 : 0)).join("");
 }
 
 function frame() {
