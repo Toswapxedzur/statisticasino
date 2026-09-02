@@ -5,7 +5,7 @@
   // our own composed form. See composer.js.
   import { onMount } from "svelte";
   import { loadCards } from "$lib/poker/cards-loader.js";
-  import { renderSmall, labelOverlay, formFor } from "$lib/poker/composer.js";
+  import { renderSmall, renderBoard, formFor } from "$lib/poker/composer.js";
 
   let { card = null, faceDown = false, size = "md" } = $props();
 
@@ -25,10 +25,7 @@
     if (!card) return C.empty({ width });
     const form = formFor(width);
     if (form <= 2) return renderSmall(card, width); // our composed small card
-    if (form === 3) {
-      // Replay's body (pips + court) + OUR label in the corner
-      return C.render(card, { width }).replace("</svg>", labelOverlay(card) + "</svg>");
-    }
+    if (form === 3) return renderBoard(card, width); // OUR OWN Replay-style board card
     return C.render(card, { width }); // ④ full Replay card
   });
 </script>
