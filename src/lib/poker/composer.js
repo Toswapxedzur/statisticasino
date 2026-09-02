@@ -67,7 +67,9 @@ function centre(rank, suit, color) {
     // Replay's own court portrait (permitted), matched to its geometry, so the
     // courts look like Replay while our pips/labels stay ours.
     return `<image href="/replay-engine/assets/${rank}${suit}.png" x="21" y="8" width="35" height="66" preserveAspectRatio="xMidYMid meet"/>`;
-  return LAYOUT[rank].map(([c, t]) => place(SUITPART[suit], COL[c], bandY(t), 10, color, t > 0.5 ? 180 : 0)).join("");
+  const spec = LAYOUT[rank];
+  const pip = spec.length <= 5 ? 12 : spec.length <= 8 ? 10.5 : 9; // fit high counts
+  return spec.map(([c, t]) => place(SUITPART[suit], COL[c], bandY(t), pip, color, t > 0.5 ? 180 : 0)).join("");
 }
 
 function svgWrap(inner, width) {
@@ -81,7 +83,7 @@ export function renderBoard(card, width) {
   const rank = card[0].toUpperCase(), suit = card[1].toLowerCase();
   if (!RANK_OK.has(rank) || !SUITNAME[suit]) return "";
   const color = colorOf(suit);
-  return svgWrap(frame() + cornerLabel(rank, suit, color, 17, 13) + centre(rank, suit, color), width);
+  return svgWrap(frame() + cornerLabel(rank, suit, color, 19, 15) + centre(rank, suit, color), width);
 }
 
 // ---- small cards (① / ②) --------------------------------------------------
