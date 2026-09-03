@@ -171,7 +171,7 @@
     <div class="fx" aria-hidden="true">
       {#each flights as f (f.id)}
         <span class="flight {f.kind}" style="left:{f.pos.x}%; top:{f.pos.y}%; opacity:{f.o};">
-          <Chip value={f.value} size={f.kind === "rake" ? 19 : 16} />
+          <Chip value={f.value} size={f.kind === "rake" ? 26 : 22} />
         </span>
       {/each}
     </div>

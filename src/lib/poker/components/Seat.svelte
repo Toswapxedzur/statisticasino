@@ -72,13 +72,13 @@
     <!-- winnings float up from the seat on a win -->
     {#if winner && won > 0}
       <div class="won" in:fly={{ y: d(10), duration: d(DUR.slow) }} out:fade={{ duration: d(DUR.base) }}>
-        <Chip value={won} size={14} />+<Num value={won} />
+        <Chip value={won} size={24} />+<Num value={won} />
       </div>
     {/if}
 
     <!-- committed bet chips in front of the seat -->
     {#if seat.committed > 0}
-      <div class="bet" in:scale={{ start: 0.6, duration: d(DUR.base) }} out:fade={{ duration: d(DUR.fast) }}><Chip value={seat.committed} size={15} /><Num value={seat.committed} /></div>
+      <div class="bet" in:scale={{ start: 0.6, duration: d(DUR.base) }} out:fade={{ duration: d(DUR.fast) }}><Chip value={seat.committed} size={26} /><Num value={seat.committed} /></div>
     {/if}
 
     <div class="pod" class:toact={seat.isToAct} in:scale={{ start: 0.9, duration: d(DUR.base) }} out:fade={{ duration: d(DUR.fast) }}>

@@ -40,7 +40,7 @@
 
   <div class="pot" class:result={!!result}>
     {#if (result ? (wonAmount || potTotal) : potTotal) > 0}
-      <span class="pot-chip"><Chip value={result ? (wonAmount || potTotal) : potTotal} size={17} /></span>
+      <span class="pot-chip"><Chip value={result ? (wonAmount || potTotal) : potTotal} size={34} /></span>
     {/if}
     {#if result}
       <span class="pot-lbl">{result.type === "showdown" ? "Showdown" : "Winner"}</span>
