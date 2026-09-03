@@ -73,9 +73,8 @@ const LAYOUT = {
 function centre(rank, suit, color) {
   if (rank === "A") return place(SUITPART[suit], CX, 40, 24, color);
   if (rank === "J" || rank === "Q" || rank === "K")
-    // Replay's own court portrait (permitted), matched to its geometry, so the
-    // courts look like Replay while our pips/labels stay ours.
-    return `<image href="/replay-engine/assets/${rank}${suit}.png" x="21" y="8" width="35" height="66" preserveAspectRatio="xMidYMid meet"/>`;
+    // OUR OWN extracted court figures (Aguilar, LGPL) — original, not Replay's.
+    return `<image href="/deck-parts/court-${rank}${suit}.svg" x="14" y="9" width="37" height="62" preserveAspectRatio="xMidYMid meet"/>`;
   const spec = LAYOUT[rank];
   // bigger pips (there's plenty of room), scaled down as the count rises so 9/10 still fit
   const n = spec.length;
