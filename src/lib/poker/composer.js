@@ -19,32 +19,36 @@ const rankPart = (r) => (r === "T" ? "rank-10" : `rank-${r}`);
 const partW = (name, h) => (PARTS[name].vb[2] / PARTS[name].vb[3]) * h;
 const colorOf = (s) => (s === "h" || s === "d" ? RED : INK);
 
-function place(name, cx, cy, targetH, color, rot = 0) {
+function place(name, cx, cy, targetH, color, rot = 0, boldW = 0) {
   const p = PARTS[name];
   if (!p) return "";
   const [vx, vy, vw, vh] = p.vb;
   const s = targetH / vh;
   const body = color ? p.body.replace(/fill="[^"]*"/g, `fill="${color}"`) : p.body;
   const r = rot ? ` rotate(${rot})` : "";
-  return `<g transform="translate(${f(cx)} ${f(cy)})${r} scale(${f(s)}) translate(${f(-(vx + vw / 2))} ${f(-(vy + vh / 2))})">${body}</g>`;
+  // embolden: a same-colour stroke thickens the glyph's strokes/letterform
+  const bold = boldW ? ` stroke="${color}" stroke-width="${boldW}" stroke-linejoin="round"` : "";
+  return `<g transform="translate(${f(cx)} ${f(cy)})${r} scale(${f(s)}) translate(${f(-(vx + vw / 2))} ${f(-(vy + vh / 2))})"${bold}>${body}</g>`;
 }
 const rot180 = (inner) => `<g transform="rotate(180 ${CX} ${CY})">${inner}</g>`;
 const frame = () => `<rect x="0.5" y="0.5" width="59" height="77" rx="6" fill="#fff" stroke="rgba(0,0,0,0.18)"/>`;
 
-// our corner label — numeral, suit directly below it, left-aligned
+const NUM_BOLD = 2.4; // embolden the numeral to match Replay's chunkier glyphs
+
+// our corner label — numeral (emboldened), suit directly below it, left-aligned
 function cornerLabel(rank, suit, color, numH, suitH) {
   const pad = 4;
   const nw = partW(rankPart(rank), numH);
   const sw = partW(SUITPART[suit], suitH);
   const numCy = pad + numH / 2;
   return (
-    place(rankPart(rank), pad + nw / 2, numCy, numH, color) +
+    place(rankPart(rank), pad + nw / 2, numCy, numH, color, 0, NUM_BOLD) +
     place(SUITPART[suit], pad + sw / 2 + 0.4, numCy + numH / 2 + suitH / 2 + 0.8, suitH, color)
   );
 }
 function numberCorner(rank, color, numH) {
   const nw = partW(rankPart(rank), numH);
-  return place(rankPart(rank), 4 + nw / 2, 4 + numH / 2, numH, color);
+  return place(rankPart(rank), 4 + nw / 2, 4 + numH / 2, numH, color, 0, NUM_BOLD);
 }
 
 // ---- #3 centre: our suit-pips (Replay-style layout) / ace / court ---------
