@@ -33,7 +33,7 @@ function place(name, cx, cy, targetH, color, rot = 0, boldW = 0) {
 const rot180 = (inner) => `<g transform="rotate(180 ${CX} ${CY})">${inner}</g>`;
 const frame = () => `<rect x="0.5" y="0.5" width="59" height="77" rx="6" fill="#fff" stroke="rgba(0,0,0,0.18)"/>`;
 
-const NUM_BOLD = 1.2; // embolden the numeral (midpoint) toward Replay's weight
+const NUM_BOLD = 0.8; // embolden the numeral toward Replay's weight
 
 // our corner label — numeral (emboldened), suit directly below it, left-aligned
 function cornerLabel(rank, suit, color, numH, suitH) {
