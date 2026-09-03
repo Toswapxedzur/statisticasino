@@ -52,10 +52,13 @@ function numberCorner(rank, color, numH) {
 }
 
 // ---- #3 centre: our suit-pips (Replay-style layout) / ace / court ---------
-// Only a top-left index → asymmetric. The top-RIGHT & centre are free, so the
-// pip field reaches nearly to the top; the left column sits right of the index.
-const COL = { L: 23, C: 34, R: 45 };
-const bandY = (t) => 9 + t * 65; // 9..74 — fills almost the whole card
+// Uniform-buffer rule: the pip section's gap to the card edge should equal its
+// gap to the top-left index. Columns centred between the index's right edge
+// (~15) and the card's right edge (60) → L+R ≈ 75 makes left-buffer = right-
+// buffer for any pip size. Band symmetric about the card centre (2a+c=78) →
+// equal top/bottom buffer.
+const COL = { L: 27, C: 37.5, R: 48 };
+const bandY = (t) => 9 + t * 60; // 9..69, centred on 39
 const LAYOUT = {
   2: [["C", 0.06], ["C", 0.94]],
   3: [["C", 0.06], ["C", 0.5], ["C", 0.94]],
