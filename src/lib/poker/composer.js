@@ -87,9 +87,8 @@ export function renderBoard(card, width) {
   const rank = card[0].toUpperCase(), suit = card[1].toLowerCase();
   if (!RANK_OK.has(rank) || !SUITNAME[suit]) return "";
   const color = colorOf(suit);
-  // corner = NUMBER ONLY (Replay has no suit glyph below the number); the suit
-  // shows only in the centred pips, now cleanly in the body.
-  return svgWrap(frame() + numberCorner(rank, color, 18) + centre(rank, suit, color), width);
+  // corner = number + a SMALL suit tucked in the top-left; pips sit in the body.
+  return svgWrap(frame() + cornerLabel(rank, suit, color, 18, 8) + centre(rank, suit, color), width);
 }
 
 // ---- small cards (① / ②) --------------------------------------------------
