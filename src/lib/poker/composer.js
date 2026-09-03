@@ -52,8 +52,11 @@ function numberCorner(rank, color, numH) {
 }
 
 // ---- #3 centre: our suit-pips (Replay-style layout) / ace / court ---------
-const COL = { L: 20, C: CX, R: 40 };
-const bandY = (t) => 24 + t * 44; // 24..68 — pips sit in the body, clear of the corner index
+// We have only a top-left index (no bottom-right), so the pip block need NOT be
+// symmetric — nudge it down + slightly right so it sits clear of the full-size
+// corner index instead of shrinking the index.
+const COL = { L: 22, C: 32, R: 42 };
+const bandY = (t) => 27 + t * 43; // 27..70
 const LAYOUT = {
   2: [["C", 0.06], ["C", 0.94]],
   3: [["C", 0.06], ["C", 0.5], ["C", 0.94]],
@@ -87,8 +90,8 @@ export function renderBoard(card, width) {
   const rank = card[0].toUpperCase(), suit = card[1].toLowerCase();
   if (!RANK_OK.has(rank) || !SUITNAME[suit]) return "";
   const color = colorOf(suit);
-  // corner = number + a SMALL suit tucked in the top-left; pips sit in the body.
-  return svgWrap(frame() + cornerLabel(rank, suit, color, 18, 8) + centre(rank, suit, color), width);
+  // full-size corner index (number + suit) top-left; asymmetric pips clear it.
+  return svgWrap(frame() + cornerLabel(rank, suit, color, 18, 12) + centre(rank, suit, color), width);
 }
 
 // ---- small cards (① / ②) --------------------------------------------------
