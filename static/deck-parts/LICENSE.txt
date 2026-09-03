@@ -1,0 +1,14 @@
+The court figures in this folder (court-*.svg) and the suit/rank glyphs embedded
+in src/lib/poker/deck-parts.js are extracted from:
+
+    Vector Playing Cards 3.0
+    https://totalnonsense.com/open-source-vector-playing-cards/
+    Copyright 2011, 2019 - Chris Aguilar - conjurenation@gmail.com
+    Licensed under: LGPL 3.0 - https://www.gnu.org/licenses/lgpl-3.0.html
+
+Riverside modifications: individual glyphs/figures were extracted from the full
+cards and recomposed (resized/repositioned) into the app's own card layout. These
+modified SVG sources are distributed here in full, as required by the LGPL.
+
+The card back, the corner-index layout, and the pip arrangement are original
+Riverside work.
