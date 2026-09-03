@@ -87,7 +87,8 @@ export function renderBoard(card, width) {
   const rank = card[0].toUpperCase(), suit = card[1].toLowerCase();
   if (!RANK_OK.has(rank) || !SUITNAME[suit]) return "";
   const color = colorOf(suit);
-  return svgWrap(frame() + cornerLabel(rank, suit, color, 19, 15) + centre(rank, suit, color), width);
+  // corner = NUMBER ONLY (like Replay); suit shows only in the centred pips.
+  return svgWrap(frame() + numberCorner(rank, color, 19) + centre(rank, suit, color), width);
 }
 
 // ---- small cards (① / ②) --------------------------------------------------
