@@ -74,7 +74,10 @@ function centre(rank, suit, color) {
   if (rank === "A") return place(SUITPART[suit], CX, 40, 24, color);
   if (rank === "J" || rank === "Q" || rank === "K")
     // OUR OWN extracted court figures (Aguilar, LGPL) — original, not Replay's.
-    return `<image href="/deck-parts/court-${rank}${suit}.svg" x="14" y="9" width="37" height="62" preserveAspectRatio="xMidYMid meet"/>`;
+    // Same equal-buffer rule as the pips: centred between the index right edge
+    // (~15) and the card right edge (60) → x≈19.5, so gap-to-index == gap-to-edge
+    // (right-of-centre, not card-centred). Vertically centred (equal top/bottom).
+    return `<image href="/deck-parts/court-${rank}${suit}.svg" x="19.5" y="6" width="35" height="66" preserveAspectRatio="xMidYMid meet"/>`;
   const spec = LAYOUT[rank];
   // bigger pips (there's plenty of room), scaled down as the count rises so 9/10 still fit
   const n = spec.length;
