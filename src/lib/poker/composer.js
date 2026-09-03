@@ -52,11 +52,10 @@ function numberCorner(rank, color, numH) {
 }
 
 // ---- #3 centre: our suit-pips (Replay-style layout) / ace / court ---------
-// We have only a top-left index (no bottom-right), so the pip block need NOT be
-// symmetric — nudge it down + slightly right so it sits clear of the full-size
-// corner index instead of shrinking the index.
-const COL = { L: 22, C: 32, R: 42 };
-const bandY = (t) => 27 + t * 43; // 27..70
+// Only a top-left index → asymmetric. The top-RIGHT & centre are free, so the
+// pip field reaches up near the top; the left column sits right of the index.
+const COL = { L: 24, C: 33, R: 43 };
+const bandY = (t) => 13 + t * 59; // 13..72 — uses the top space
 const LAYOUT = {
   2: [["C", 0.06], ["C", 0.94]],
   3: [["C", 0.06], ["C", 0.5], ["C", 0.94]],
@@ -75,7 +74,9 @@ function centre(rank, suit, color) {
     // courts look like Replay while our pips/labels stay ours.
     return `<image href="/replay-engine/assets/${rank}${suit}.png" x="21" y="8" width="35" height="66" preserveAspectRatio="xMidYMid meet"/>`;
   const spec = LAYOUT[rank];
-  const pip = spec.length <= 5 ? 12 : spec.length <= 8 ? 10.5 : 9; // fit high counts
+  // bigger pips (there's plenty of room), scaled down as the count rises so 9/10 still fit
+  const n = spec.length;
+  const pip = n <= 3 ? 19 : n <= 5 ? 17 : n <= 6 ? 15 : n <= 8 ? 13 : 11;
   return spec.map(([c, t]) => place(SUITPART[suit], COL[c], bandY(t), pip, color, t > 0.5 ? 180 : 0)).join("");
 }
 
@@ -90,8 +91,8 @@ export function renderBoard(card, width) {
   const rank = card[0].toUpperCase(), suit = card[1].toLowerCase();
   if (!RANK_OK.has(rank) || !SUITNAME[suit]) return "";
   const color = colorOf(suit);
-  // full-size corner index (number + suit) top-left; asymmetric pips clear it.
-  return svgWrap(frame() + cornerLabel(rank, suit, color, 18, 12) + centre(rank, suit, color), width);
+  // corner index (number + its own suit size) top-left; bigger asymmetric pips.
+  return svgWrap(frame() + cornerLabel(rank, suit, color, 18, 13) + centre(rank, suit, color), width);
 }
 
 // ---- small cards (① / ②) --------------------------------------------------
