@@ -30,10 +30,13 @@ function place(name, cx, cy, targetH, color, rot = 0, boldW = 0) {
   const bold = boldW ? ` stroke="${color}" stroke-width="${boldW}" stroke-linejoin="round"` : "";
   return `<g transform="translate(${f(cx)} ${f(cy)})${r} scale(${f(s)}) translate(${f(-(vx + vw / 2))} ${f(-(vy + vh / 2))})"${bold}>${body}</g>`;
 }
-const rot180 = (inner) => `<g transform="rotate(180 ${CX} ${CY})">${inner}</g>`;
 const frame = () => `<rect x="0.5" y="0.5" width="59" height="77" rx="6" fill="#fff" stroke="rgba(0,0,0,0.18)"/>`;
 
-const NUM_BOLD = 0.8; // embolden the numeral toward Replay's weight
+// Numeral weight is defined as a fraction of the numeral's own height, so every
+// form (#1 big, #2 small, #3 board) reads at the SAME perceived boldness
+// regardless of size. Ratio calibrated to the approved #3 look (0.8 stroke @ 18).
+const BOLD_RATIO = 0.8 / 18;
+const boldFor = (numH) => f(numH * BOLD_RATIO);
 
 // our corner label — numeral (emboldened), suit directly below it, left-aligned
 function cornerLabel(rank, suit, color, numH, suitH) {
@@ -42,13 +45,13 @@ function cornerLabel(rank, suit, color, numH, suitH) {
   const sw = partW(SUITPART[suit], suitH);
   const numCy = pad + numH / 2;
   return (
-    place(rankPart(rank), pad + nw / 2, numCy, numH, color, 0, NUM_BOLD) +
+    place(rankPart(rank), pad + nw / 2, numCy, numH, color, 0, boldFor(numH)) +
     place(SUITPART[suit], pad + sw / 2 + 0.4, numCy + numH / 2 + suitH / 2 + 0.3, suitH, color)
   );
 }
 function numberCorner(rank, color, numH) {
   const nw = partW(rankPart(rank), numH);
-  return place(rankPart(rank), 4 + nw / 2, 4 + numH / 2, numH, color, 0, NUM_BOLD);
+  return place(rankPart(rank), 4 + nw / 2, 4 + numH / 2, numH, color, 0, boldFor(numH));
 }
 
 // ---- #3 centre: our suit-pips (Replay-style layout) / ace / court ---------
@@ -100,17 +103,23 @@ export function renderBoard(card, width) {
   return svgWrap(frame() + cornerLabel(rank, suit, color, 18, 13) + centre(rank, suit, color), width);
 }
 
-// ---- small cards (① / ②) — corner index like Replay's small stack ---------
-// No centre suit (asymmetric): number top-left, suit at its LOWER-RIGHT (a
-// diagonal pair, per Replay). ① that corner only; ② also the opposite corner.
-function smallIndex(rank, suit, color) {
-  const pad = 5, numH = 23, suitH = 18;
+// ---- small / hole card (#1) — Replay's simplified deck (cards@2x.png) -------
+// Verified against the live Replay simplified sprite: a BIG rank numeral hugging
+// the top-left corner (bold 1.3), with a large suit tucked at the LOWER-RIGHT.
+// The rest of the card is left blank (asymmetric; no centre suit, no bottom-right
+// index). Glyphs are our own (Aguilar); only the composition matches Replay.
+function smallIndex(rank, suit, color, numH, suitH, bold = boldFor(numH)) {
+  const pad = 5;
   const nw = partW(rankPart(rank), numH);
   const sw = partW(SUITPART[suit], suitH);
   const numCx = pad + nw / 2, numCy = pad + numH / 2;
+  // suit anchored to the lower-right (dropped ~73% down, right of centre; the
+  // max() keeps it clear of wide numerals like 10) — per the measured sprite.
+  const suitCx = Math.max(W * 0.68, pad + nw * 0.72 + sw * 0.4);
+  const suitCy = numCy + numH * 0.97;
   return (
-    place(rankPart(rank), numCx, numCy, numH, color, 0, NUM_BOLD) +
-    place(SUITPART[suit], pad + nw + sw / 2 - sw * 0.1, numCy + numH * 0.5, suitH, color)
+    place(rankPart(rank), numCx, numCy, numH, color, 0, bold) +
+    place(SUITPART[suit], suitCx, suitCy, suitH, color)
   );
 }
 export function renderSmall(card, width) {
@@ -118,17 +127,12 @@ export function renderSmall(card, width) {
   const rank = card[0].toUpperCase(), suit = card[1].toLowerCase();
   if (!RANK_OK.has(rank) || !SUITNAME[suit]) return "";
   const color = colorOf(suit);
-  const d = width <= 48 ? 1 : 2;
-  const tl = smallIndex(rank, suit, color);
-  let inner = frame() + tl;
-  if (d === 2) inner += rot180(tl); // + opposite corner
-  return svgWrap(inner, width);
+  return svgWrap(frame() + smallIndex(rank, suit, color, 36, 32, 1.3), width);
 }
 
-// which form for a given render width
+// which form for a given render width — three sizes: #1 small, #3 board, #4 full
 export function formFor(width) {
-  if (width <= 48) return 1;
-  if (width <= 58) return 2;
-  if (width <= 104) return 3;
-  return 4;
+  if (width <= 52) return 1; // small / hole
+  if (width <= 104) return 3; // board
+  return 4; // full Replay deck
 }

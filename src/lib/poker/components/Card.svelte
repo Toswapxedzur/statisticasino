@@ -24,9 +24,9 @@
     if (faceDown) return C.render("X", { width });
     if (!card) return C.empty({ width });
     const form = formFor(width);
-    if (form <= 2) return renderSmall(card, width); // our composed small card
-    if (form === 3) return renderBoard(card, width); // OUR OWN Replay-style board card
-    return C.render(card, { width }); // ④ full Replay card
+    if (form === 1) return renderSmall(card, width); // #1 our composed small/hole card
+    if (form === 3) return renderBoard(card, width); // #3 our own Replay-style board card
+    return C.render(card, { width }); // #4 full Replay card
   });
 </script>
 
