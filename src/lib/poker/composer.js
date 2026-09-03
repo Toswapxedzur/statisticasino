@@ -53,9 +53,9 @@ function numberCorner(rank, color, numH) {
 
 // ---- #3 centre: our suit-pips (Replay-style layout) / ace / court ---------
 // Only a top-left index → asymmetric. The top-RIGHT & centre are free, so the
-// pip field reaches up near the top; the left column sits right of the index.
-const COL = { L: 24, C: 33, R: 43 };
-const bandY = (t) => 13 + t * 59; // 13..72 — uses the top space
+// pip field reaches nearly to the top; the left column sits right of the index.
+const COL = { L: 23, C: 34, R: 45 };
+const bandY = (t) => 9 + t * 65; // 9..74 — fills almost the whole card
 const LAYOUT = {
   2: [["C", 0.06], ["C", 0.94]],
   3: [["C", 0.06], ["C", 0.5], ["C", 0.94]],
