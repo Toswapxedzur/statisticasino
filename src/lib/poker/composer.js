@@ -43,7 +43,7 @@ function cornerLabel(rank, suit, color, numH, suitH) {
   const numCy = pad + numH / 2;
   return (
     place(rankPart(rank), pad + nw / 2, numCy, numH, color, 0, NUM_BOLD) +
-    place(SUITPART[suit], pad + sw / 2 + 0.4, numCy + numH / 2 + suitH / 2 + 0.8, suitH, color)
+    place(SUITPART[suit], pad + sw / 2 + 0.4, numCy + numH / 2 + suitH / 2 + 0.3, suitH, color)
   );
 }
 function numberCorner(rank, color, numH) {
@@ -53,7 +53,7 @@ function numberCorner(rank, color, numH) {
 
 // ---- #3 centre: our suit-pips (Replay-style layout) / ace / court ---------
 const COL = { L: 20, C: CX, R: 40 };
-const bandY = (t) => 14 + t * 50; // 14..64
+const bandY = (t) => 24 + t * 44; // 24..68 — pips sit in the body, clear of the corner index
 const LAYOUT = {
   2: [["C", 0.06], ["C", 0.94]],
   3: [["C", 0.06], ["C", 0.5], ["C", 0.94]],
@@ -87,8 +87,9 @@ export function renderBoard(card, width) {
   const rank = card[0].toUpperCase(), suit = card[1].toLowerCase();
   if (!RANK_OK.has(rank) || !SUITNAME[suit]) return "";
   const color = colorOf(suit);
-  // corner = NUMBER ONLY (like Replay); suit shows only in the centred pips.
-  return svgWrap(frame() + numberCorner(rank, color, 19) + centre(rank, suit, color), width);
+  // corner = NUMBER ONLY (Replay has no suit glyph below the number); the suit
+  // shows only in the centred pips, now cleanly in the body.
+  return svgWrap(frame() + numberCorner(rank, color, 18) + centre(rank, suit, color), width);
 }
 
 // ---- small cards (① / ②) --------------------------------------------------
