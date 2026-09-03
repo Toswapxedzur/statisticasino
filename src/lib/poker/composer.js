@@ -101,15 +101,25 @@ export function renderBoard(card, width) {
 }
 
 // ---- small cards (① / ②) — corner index like Replay's small stack ---------
-// No centre suit (asymmetric): number+suit stacked in the top-left corner.
-// ① that corner only; ② also the opposite (bottom-right, rotated) corner.
+// No centre suit (asymmetric): number top-left, suit at its LOWER-RIGHT (a
+// diagonal pair, per Replay). ① that corner only; ② also the opposite corner.
+function smallIndex(rank, suit, color) {
+  const pad = 5, numH = 23, suitH = 18;
+  const nw = partW(rankPart(rank), numH);
+  const sw = partW(SUITPART[suit], suitH);
+  const numCx = pad + nw / 2, numCy = pad + numH / 2;
+  return (
+    place(rankPart(rank), numCx, numCy, numH, color, 0, NUM_BOLD) +
+    place(SUITPART[suit], pad + nw + sw / 2 - sw * 0.1, numCy + numH * 0.5, suitH, color)
+  );
+}
 export function renderSmall(card, width) {
   if (!card || card.length < 2) return "";
   const rank = card[0].toUpperCase(), suit = card[1].toLowerCase();
   if (!RANK_OK.has(rank) || !SUITNAME[suit]) return "";
   const color = colorOf(suit);
   const d = width <= 48 ? 1 : 2;
-  const tl = cornerLabel(rank, suit, color, 24, 16); // big number + suit, top-left
+  const tl = smallIndex(rank, suit, color);
   let inner = frame() + tl;
   if (d === 2) inner += rot180(tl); // + opposite corner
   return svgWrap(inner, width);
