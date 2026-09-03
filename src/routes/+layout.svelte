@@ -7,6 +7,7 @@
   import { poker } from "$lib/poker/client.svelte.js";
   import { slidingIndicator } from "$lib/actions/slider.js";
   import { reducedMotion, d, DUR } from "$lib/motion.js";
+  import Chip from "$lib/poker/components/Chip.svelte";
   import { fly } from "svelte/transition";
   import Num from "$lib/poker/components/Num.svelte";
   import ProfilePopover from "$lib/poker/components/ProfilePopover.svelte";
@@ -135,7 +136,7 @@
     {#if data.user}<NotifBell />{/if}
     {#if data.user}
       <a class="chips-pill" href="/account" title="Your chips balance">
-        <span class="chip-ico"></span>
+        <Chip value={chips} size={15} />
         <Num value={chips} />
         {#if data.bonusReady}<span class="bonus-dot" title="Daily bonus ready"></span>{/if}
       </a>
@@ -204,11 +205,6 @@
 
   .topbar-right { display: flex; align-items: center; gap: 9px; margin-left: auto; }
 
-  .chip-ico {
-    width: 13px; height: 13px; border-radius: 50%;
-    background: radial-gradient(circle at 35% 30%, #ffe08a, #f5b301 60%, #b8860b);
-    box-shadow: inset 0 0 0 2px rgba(255,255,255,0.28); display: inline-block;
-  }
   .bonus-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 6px var(--ok); display: inline-block; }
 
   .nav-badge {

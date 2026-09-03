@@ -2,6 +2,7 @@
   import { enhance } from "$app/forms";
   import { onMount } from "svelte";
   import Avatar from "$lib/poker/components/Avatar.svelte";
+  import Chip from "$lib/poker/components/Chip.svelte";
 
   let { data, form } = $props();
   let now = $state(Date.now());
@@ -45,7 +46,7 @@
       <div class="eyebrow">⚡ Daily event</div>
       <h1>River Sprint</h1>
     </div>
-    {#if data.signedIn}<div class="bal"><span class="coin">●</span> {fmt(chips)}</div>{/if}
+    {#if data.signedIn}<div class="bal"><Chip value={chips} size={20} /> {fmt(chips)}</div>{/if}
   </div>
   <p class="muted intro">
     A {data.cfg.durationMin}-minute fast-fold race. Fold and you're instantly moved to a new table — non-stop action, real decisions. Most chips at the buzzer wins a share of the pool. {data.cfg.roundsPerDay} rounds a day, one entry each.
@@ -65,7 +66,7 @@
       </div>
 
       <div class="specs">
-        <div><span class="sv"><span class="coin">●</span> {fmt(data.cfg.bid)}</span><span class="sl">Buy-in</span></div>
+        <div><span class="sv"><Chip value={data.cfg.bid} size={16} /> {fmt(data.cfg.bid)}</span><span class="sl">Buy-in</span></div>
         <div><span class="sv">{fmt(data.cfg.startingStack)}</span><span class="sl">Starting stack</span></div>
         <div><span class="sv">{data.cfg.durationMin} min</span><span class="sl">Clock</span></div>
         <div><span class="sv">70 / 30</span><span class="sl">Bids / house</span></div>
@@ -111,7 +112,7 @@
             <span class="rank" class:medal={r.place <= 3}>{r.place}</span>
             <Avatar id={r.user_id} name={r.name} mediaId={r.avatar_media_id} size={30} userId={r.user_id} />
             <a class="lname" href="/u/{r.user_id}">{r.name}</a>
-            {#if r.prize > 0}<span class="prize"><span class="coin">●</span> +{fmt(r.prize)}</span>{/if}
+            {#if r.prize > 0}<span class="prize"><Chip value={r.prize} size={14} /> +{fmt(r.prize)}</span>{/if}
           </div>
         {/each}
       </div>
@@ -124,8 +125,7 @@
   .head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
   .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .04em; color: var(--gold-ink); text-transform: uppercase; }
   h1 { margin: 2px 0 0; font-size: 28px; }
-  .bal { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--gold-ink); font-size: 16px; }
-  .coin { color: var(--gold-ink); }
+  .bal { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--gold-ink); font-size: 16px; display: inline-flex; align-items: center; gap: 7px; }
   .intro { margin: 8px 0 20px; max-width: 60ch; }
 
   .feature { padding: 20px; }
@@ -139,7 +139,7 @@
 
   .specs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 18px 0; }
   .specs > div { display: flex; flex-direction: column; gap: 2px; background: var(--well); border-radius: var(--r-btn); padding: 10px 12px; }
-  .sv { font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; }
+  .sv { font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; display: inline-flex; align-items: center; gap: 5px; }
   .sl { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
 
   .cta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -163,6 +163,6 @@
   .rank.medal { color: var(--gold-ink); }
   .lname { flex: 1; min-width: 0; font-weight: 700; font-size: 14px; color: var(--text); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .lname:hover { color: var(--accent-ink); }
-  .prize { font-weight: 800; color: var(--gold-ink); font-variant-numeric: tabular-nums; font-size: 13.5px; }
+  .prize { font-weight: 800; color: var(--gold-ink); font-variant-numeric: tabular-nums; font-size: 13.5px; display: inline-flex; align-items: center; gap: 5px; }
   .empty { text-align: center; padding: 30px; }
 </style>

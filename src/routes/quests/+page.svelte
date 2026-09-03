@@ -2,6 +2,7 @@
   import { enhance } from "$app/forms";
   import { fly } from "svelte/transition";
   import { d, DUR } from "$lib/motion.js";
+  import Chip from "$lib/poker/components/Chip.svelte";
 
   let { data } = $props();
   let quests = $state(data.quests);
@@ -40,7 +41,7 @@
   <div class="head">
     <h1>Quests</h1>
     <div class="bal" title="Your chip balance">
-      <span class="coin">●</span> {fmt(chips)}
+      <Chip value={chips} size={20} /> {fmt(chips)}
     </div>
   </div>
   <p class="muted intro">Complete objectives to earn chips. Progress tracks as you play — come back for a fresh set each day.</p>
@@ -58,7 +59,7 @@
               <div class="q-top">
                 <span class="q-title">{q.title}</span>
                 <span class="q-reward" class:muted={q.claimed}>
-                  {#if q.claimed}Claimed{:else}<span class="coin">●</span> {fmt(q.reward)}{/if}
+                  {#if q.claimed}Claimed{:else}<Chip value={q.reward} size={15} /> {fmt(q.reward)}{/if}
                 </span>
               </div>
               <div class="bar" role="progressbar" aria-valuenow={q.progress} aria-valuemin="0" aria-valuemax={q.target}>
@@ -87,8 +88,7 @@
   .wrap { max-width: 640px; margin: 0 auto; }
   .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   h1 { margin: 0; font-size: 26px; }
-  .bal { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--gold-ink); font-size: 17px; }
-  .coin { color: var(--gold-ink); }
+  .bal { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--gold-ink); font-size: 17px; display: inline-flex; align-items: center; gap: 7px; }
   .intro { margin: 6px 0 20px; }
 
   .grp { margin-bottom: 24px; }
@@ -100,7 +100,7 @@
   .q.done { box-shadow: 0 0 0 1px var(--gold-line, rgba(200,160,60,.3)), var(--shadow-card); }
   .q-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 9px; }
   .q-title { font-weight: 700; font-size: 14.5px; color: var(--text); }
-  .q-reward { font-weight: 800; font-variant-numeric: tabular-nums; font-size: 13.5px; color: var(--gold-ink); white-space: nowrap; }
+  .q-reward { font-weight: 800; font-variant-numeric: tabular-nums; font-size: 13.5px; color: var(--gold-ink); white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; }
 
   .bar { height: 7px; background: var(--well); border-radius: var(--r-pill); overflow: hidden; }
   .fill { height: 100%; background: var(--accent); border-radius: var(--r-pill);

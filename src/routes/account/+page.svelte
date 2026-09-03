@@ -1,6 +1,7 @@
 <script>
   import { enhance } from "$app/forms";
   import Avatar from "$lib/poker/components/Avatar.svelte";
+  import Chip from "$lib/poker/components/Chip.svelte";
   import Select from "$lib/components/Select.svelte";
   import { uploadMedia } from "$lib/media.js";
   let { data, form } = $props();
@@ -63,7 +64,7 @@
   <div class="card-head"><h3>Chips wallet</h3></div>
   <div class="balance-row">
     <div class="balance">
-      <span class="chip-ico big"></span>
+      <Chip value={data.chips} size={26} />
       <span class="balance-num">{chips(data.chips)}</span>
       <span class="muted">chips</span>
     </div>
@@ -113,7 +114,7 @@
             <div class="badge" class:locked={!a.unlocked} class:tier-gold={a.tier === "gold"} class:tier-silver={a.tier === "silver"} title={a.desc}>
               <div class="badge-top">
                 <span class="badge-ico">{a.unlocked ? "🏅" : "🔒"}</span>
-                {#if a.reward}<span class="badge-reward" class:got={a.unlocked}><span class="coin">●</span> {chips(a.reward)}</span>{/if}
+                {#if a.reward}<span class="badge-reward" class:got={a.unlocked}><Chip value={a.reward} size={13} /> {chips(a.reward)}</span>{/if}
               </div>
               <span class="badge-name">{a.name}</span>
               <span class="badge-desc muted">{a.desc}</span>
@@ -320,16 +321,11 @@
   .badge-ico { font-size: 20px; }
   .badge-reward { font-size: 11px; font-weight: 800; color: var(--gold-ink); display: inline-flex; align-items: center; gap: 3px; opacity: .75; font-variant-numeric: tabular-nums; }
   .badge-reward.got { opacity: 1; }
-  .badge .coin { color: var(--gold-ink); }
   .badge-name { font-weight: 700; font-size: 13px; }
   .badge-desc { font-size: 11.5px; line-height: 1.3; }
   .ach-cat { font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); margin: 16px 0 8px; }
   .pbar { height: 5px; background: var(--surface); border-radius: var(--r-pill); overflow: hidden; margin-top: 5px; }
   .pfill { height: 100%; background: var(--accent); border-radius: var(--r-pill); }
-  .chip-ico.big {
-    width: 20px; height: 20px; border-radius: 50%; align-self: center;
-    background: var(--gold-ink); box-shadow: inset 0 0 0 3px var(--gold-bg); display: inline-block;
-  }
   .sub { margin: 16px 0 6px; font-size: 13px; color: var(--muted); }
   .ledger { list-style: none; margin: 0; padding: 0; font-size: 13px; }
   .led-ts { font-size: 11.5px; }
