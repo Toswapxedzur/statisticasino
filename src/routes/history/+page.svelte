@@ -2,6 +2,7 @@
   import { goto } from "$app/navigation";
   import { slidingIndicator } from "$lib/actions/slider.js";
   import HistoryFeed from "$lib/poker/components/HistoryFeed.svelte";
+  import Chip from "$lib/poker/components/Chip.svelte";
   let { data } = $props();
 
   const FILTERS = [
@@ -12,6 +13,8 @@
   ];
   function setFilter(k) { goto(`/history?filter=${k}`, { keepFocus: true, noScroll: true }); }
   const fmt = (n) => Number(n).toLocaleString();
+  const signed = (n) => `${Number(n) >= 0 ? "+" : ""}${fmt(n)}`;
+  const modeName = (mode) => mode === "holdem" ? "Poker" : String(mode || "—").split("-").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
   function when(ts) {
     const dt = new Date(ts), now = new Date();
     const diff = now - dt, day = 86400000;
@@ -35,6 +38,13 @@
     </div>
   </div>
 
+  <a class="stats-strip" href="/stats" aria-label="Open full statistics">
+    <span><small>Matches</small><strong>{fmt(data.stats.matches)}</strong></span>
+    <span><small>Net</small><strong class:pos={data.stats.net >= 0} class:neg={data.stats.net < 0}><Chip value={Math.abs(data.stats.net)} size={15} /> {signed(data.stats.net)}</strong></span>
+    <span><small>Best mode</small><strong>{modeName(data.stats.bestMode?.mode)}</strong></span>
+    <em>Full stats →</em>
+  </a>
+
   {#if data.events.length === 0}
     <div class="empty card"><p class="muted">Nothing here yet — play some hands, claim your daily reward, or add a friend.</p></div>
   {:else}
@@ -52,6 +62,14 @@
     transition: color var(--dur) var(--ease); }
   .fbtn:hover { color: var(--text); }
   .fbtn.on { color: var(--text); }
+  .stats-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; align-items: center; gap: 10px; background: var(--surface); box-shadow: var(--shadow-card); border-radius: var(--r-card); padding: 12px 15px; margin-bottom: 14px; color: var(--text); text-decoration: none; }
+  .stats-strip:hover { background: var(--surface-2); }
+  .stats-strip > span { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .stats-strip small { color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-size: 9.5px; font-weight: 800; }
+  .stats-strip strong { display: flex; align-items: center; gap: 5px; font-size: 14px; font-weight: 850; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stats-strip em { color: var(--accent-ink); font-size: 12px; font-weight: 750; font-style: normal; white-space: nowrap; }
+  .pos { color: var(--ok, #6ee7a8); }
+  .neg { color: var(--danger); }
   .empty { text-align: center; padding: 40px 20px; }
   .feed { display: flex; flex-direction: column; gap: 8px; }
   .ev { display: flex; align-items: center; gap: 13px; margin-bottom: 0; padding: 13px 16px; }
@@ -62,4 +80,5 @@
   .ev-amt { font-weight: 800; font-variant-numeric: tabular-nums; font-size: 14px; flex: 0 0 auto; }
   .ev-amt.pos { color: var(--ok); } .ev-amt.neg { color: var(--danger); }
   .ev-time { color: var(--faint); font-size: 11.5px; flex: 0 0 auto; min-width: 58px; text-align: right; }
+  @media (max-width: 560px) { .stats-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); } .stats-strip em { grid-column: 1 / -1; } }
 </style>

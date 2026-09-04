@@ -10,12 +10,13 @@ import { hub } from "$lib/server/poker/hub.js";
 export async function load({ locals }) {
   if (!locals.user) throw redirect(303, "/account/login");
   const row = await queryOne(
-    "SELECT friend_req_policy, settings, profile_visibility FROM user WHERE id = ?",
+    "SELECT friend_req_policy, settings, profile_visibility, history_window FROM user WHERE id = ?",
     [locals.user.id]
   );
   return {
     friendReqPolicy: row?.friend_req_policy || "everyone",
     visibility: row?.profile_visibility || "public",
+    historyWindow: row?.history_window || "private",
     settings: parseSocialSettings(row?.settings),
   };
 }
@@ -28,7 +29,9 @@ export const actions = {
     const visibility = String(fd.get("visibility") || "public");
     const pol = ["everyone", "fof", "nobody"].includes(policy) ? policy : "everyone";
     const vis = ["public", "friends", "private"].includes(visibility) ? visibility : "public";
-    await execute("UPDATE user SET friend_req_policy = ?, profile_visibility = ? WHERE id = ?", [pol, vis, locals.user.id]);
+    const historyWindow = String(fd.get("historyWindow") || "private");
+    const hw = ["private", "7d", "30d", "90d", "all"].includes(historyWindow) ? historyWindow : "private";
+    await execute("UPDATE user SET friend_req_policy = ?, profile_visibility = ?, history_window = ? WHERE id = ?", [pol, vis, hw, locals.user.id]);
     return { privacyOk: true };
   },
   saveSocial: async ({ request, locals }) => {

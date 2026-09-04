@@ -19,6 +19,7 @@
 
   // --- Privacy (form) ---
   let visibility = $state(data.visibility);
+  let historyWindow = $state(data.historyWindow);
   let friendReqPolicy = $state(data.friendReqPolicy);
 
   // --- Social toggles (form via hidden inputs) ---
@@ -60,6 +61,16 @@
       <label class="field" style="margin-top:14px"><span>Who can send me friend requests</span></label>
       <Select name="friendReqPolicy" bind:value={friendReqPolicy} block
         options={[{ value: "everyone", label: "Everyone" }, { value: "fof", label: "Friends of friends" }, { value: "nobody", label: "Nobody" }]} />
+      <label class="field" style="margin-top:14px"><span>Public play history &amp; replays</span></label>
+      <Select name="historyWindow" bind:value={historyWindow} block
+        options={[
+          { value: "private", label: "Private (only me)" },
+          { value: "7d", label: "Show the last 7 days" },
+          { value: "30d", label: "Show the last 30 days" },
+          { value: "90d", label: "Show the last 90 days" },
+          { value: "all", label: "Show everything" }
+        ]} />
+      <p class="muted small">Visitors to your profile can see your stats and step-through replays from this window. Your hole cards in an exposed replay stay hidden unless they were revealed at showdown.</p>
       <button class="btn" type="submit" style="margin-top:14px">Save privacy</button>
       {#if form?.privacyOk}<p class="form-success">Saved.</p>{/if}
     </form>

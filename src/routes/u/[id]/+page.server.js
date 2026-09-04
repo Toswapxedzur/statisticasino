@@ -6,10 +6,15 @@ import { requestFriend, respondFriend, removeFriend, areFriends } from "$lib/ser
 import { getTransferable, transfer } from "$lib/server/transfers.js";
 import { block, unblock, hasBlocked, report } from "$lib/server/moderation.js";
 import { hub } from "$lib/server/poker/hub.js";
+import { windowStartForUser } from "$lib/server/replay-access.js";
+import { modeBreakdown, overviewStats } from "$lib/server/stats.js";
 
 export async function load({ params, locals }) {
   const viewerId = locals.user?.id || null;
-  const profile = await getProfile(params.id, viewerId);
+  const [profile, historySince] = await Promise.all([
+    getProfile(params.id, viewerId),
+    windowStartForUser(params.id)
+  ]);
   if (!profile) throw error(404, "No such player.");
   const blocked = viewerId ? await hasBlocked(viewerId, params.id) : false;
   profile.blocked = blocked;
@@ -21,7 +26,21 @@ export async function load({ params, locals }) {
   if (viewerId && viewerId !== params.id && profile.relationship === "friends") {
     transferable = await getTransferable(viewerId);
   }
-  return { profile, transferable, presence: { online, tableId: table?.id || null, tableName: table?.config?.name || null } };
+  let publicStats = null;
+  if (!profile.restricted && historySince !== null) {
+    const [overview, modes] = await Promise.all([
+      overviewStats(params.id, { sinceMs: historySince }),
+      modeBreakdown(params.id, { sinceMs: historySince })
+    ]);
+    publicStats = { overview, modes, sinceMs: historySince };
+  }
+  return {
+    profile,
+    transferable,
+    publicStats,
+    historyPrivate: historySince === null,
+    presence: { online, tableId: table?.id || null, tableName: table?.config?.name || null }
+  };
 }
 
 export const actions = {

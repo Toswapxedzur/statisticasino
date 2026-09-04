@@ -4,6 +4,7 @@
   import { d, DUR } from "$lib/motion.js";
   import { fade, scale } from "svelte/transition";
   import Avatar from "$lib/poker/components/Avatar.svelte";
+  import Chip from "$lib/poker/components/Chip.svelte";
   let { data, form } = $props();
   const p = $derived(data.profile);
   const pres = $derived(data.presence);
@@ -15,7 +16,10 @@
   function color(id) { let h = 0; for (const c of String(id || "")) h = (h * 31 + c.charCodeAt(0)) >>> 0; return AV[h % AV.length]; }
   const initial = (n) => String(n || "?").trim().charAt(0).toUpperCase() || "?";
   const fmt = (n) => Number(n).toLocaleString();
+  const signed = (n) => `${Number(n) >= 0 ? "+" : ""}${fmt(n)}`;
+  const modeName = (mode) => mode === "holdem" ? "Poker" : String(mode || "Unknown").split("-").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
   function since(ts) { try { return new Date(ts).toLocaleDateString([], { year: "numeric", month: "long" }); } catch { return ""; } }
+  function statWindow(ts) { return ts > 0 ? `Since ${new Date(ts).toLocaleDateString([], { year: "numeric", month: "short", day: "numeric" })}` : "All visible history"; }
   const rel = $derived(p.relationship);
 </script>
 
@@ -79,6 +83,37 @@
       <div class="stat card" in:fly={{ y: d(10), duration: d(DUR.base), delay: d(200) }}><span class="s-val">{fmt(p.stats.achievements)}</span><span class="s-lbl">Achievements</span></div>
       <div class="stat card" in:fly={{ y: d(10), duration: d(DUR.base), delay: d(240) }}><span class="s-val">🔥 {p.stats ? p.streak : 0}</span><span class="s-lbl">Day streak (best {p.bestStreak})</span></div>
     </section>
+
+    <section class="public-stats card" in:fly={{ y: d(10), duration: d(DUR.base), delay: d(280) }}>
+      <div class="ps-head">
+        <div><span class="s-lbl">Recorded play</span><h2>Stats</h2></div>
+        {#if data.publicStats}<span class="muted small">{statWindow(data.publicStats.sinceMs)}</span>{/if}
+      </div>
+      {#if data.publicStats}
+        <div class="ps-overview">
+          <div><span class="s-lbl">Matches</span><strong>{fmt(data.publicStats.overview.matches)}</strong></div>
+          <div><span class="s-lbl">Net</span><strong class:pos={data.publicStats.overview.totalNet >= 0} class:neg={data.publicStats.overview.totalNet < 0}><Chip value={Math.abs(data.publicStats.overview.totalNet)} size={16} /> {signed(data.publicStats.overview.totalNet)}</strong></div>
+          <div><span class="s-lbl">Win rate</span><strong>{data.publicStats.overview.winRate.toLocaleString()}%</strong></div>
+          <div><span class="s-lbl">Biggest win</span><strong class="gold">{fmt(data.publicStats.overview.biggestWin)}</strong></div>
+        </div>
+        {#if data.publicStats.modes.length}
+          <div class="ps-modes">
+            {#each data.publicStats.modes as mode (`${mode.mode}:${mode.role}`)}
+              <div class="ps-mode">
+                <span class="ps-name">{modeName(mode.mode)}{#if mode.role === "banker"}<em>Banker</em>{/if}</span>
+                <span>{fmt(mode.matches)} played</span>
+                <strong class:pos={mode.net >= 0} class:neg={mode.net < 0}>{signed(mode.net)}</strong>
+              </div>
+            {/each}
+          </div>
+        {:else}
+          <p class="muted small ps-empty">No matches in this visible window.</p>
+        {/if}
+        {#if p.isSelf}<a class="full-stats" href="/stats">Open full statistics →</a>{/if}
+      {:else if data.historyPrivate}
+        <p class="muted small private-note">Play history is private.{#if p.isSelf} <a href="/stats">Your full statistics are still available.</a>{/if}</p>
+      {/if}
+    </section>
   {/if}
 </div>
 
@@ -138,6 +173,23 @@
   .s-val.gold { color: var(--gold-ink); }
   .s-val.pos { color: var(--ok); } .s-val.neg { color: var(--danger); }
   .s-lbl { font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+  .public-stats { margin-top: 14px; padding: 18px; }
+  .ps-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+  .ps-head h2 { margin: 2px 0 0; font-size: 18px; }
+  .ps-overview { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .ps-overview > div { background: var(--well); border-radius: var(--r-btn); padding: 12px; display: flex; flex-direction: column; gap: 5px; }
+  .ps-overview strong { display: flex; align-items: center; gap: 6px; font-size: 18px; font-weight: 850; font-variant-numeric: tabular-nums; }
+  .gold { color: var(--gold-ink); }
+  .ps-modes { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+  .ps-mode { display: grid; grid-template-columns: minmax(140px, 1fr) 90px 100px; align-items: center; gap: 10px; background: color-mix(in srgb, var(--surface) 65%, var(--well)); border-radius: var(--r-btn); padding: 10px 12px; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .ps-mode > span:nth-child(2) { color: var(--muted); }
+  .ps-mode > strong { text-align: right; }
+  .ps-name { color: var(--text); font-weight: 750; }
+  .ps-name em { display: inline-block; margin-left: 5px; padding: 2px 6px; border-radius: var(--r-pill); background: var(--well); color: var(--gold-ink); font-size: 9px; font-style: normal; text-transform: uppercase; letter-spacing: .05em; }
+  .full-stats { display: inline-block; margin-top: 12px; color: var(--accent-ink); font-size: 12.5px; font-weight: 700; text-decoration: none; }
+  .full-stats:hover, .private-note a:hover { color: var(--text); }
+  .private-note, .ps-empty { margin: 3px 0 0; }
+  .private-note a { color: var(--accent-ink); }
   .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: grid; place-items: center; z-index: 60; padding: 20px; }
   .modal { width: min(400px, 94vw); }
   .modal h3 { margin: 0 0 10px; }
@@ -146,5 +198,6 @@
   .hint { display: block; margin-top: 4px; opacity: 0.8; }
   .amt-input { width: 100%; font-size: 18px; text-align: center; font-variant-numeric: tabular-nums; }
   .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
-  @media (max-width: 560px) { .hero { flex-wrap: wrap; } .actions { width: 100%; } }
+  @media (max-width: 660px) { .ps-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 560px) { .hero { flex-wrap: wrap; } .actions { width: 100%; } .ps-mode { grid-template-columns: 1fr auto; } .ps-mode > span:nth-child(2) { display: none; } }
 </style>
