@@ -9,7 +9,10 @@
   let { value = 0, size = 20, maxCols = 5, maxPer = 5 } = $props();
 
   const DENOMS = [5000000, 1000000, 250000, 50000, 10000, 2500, 500, 100, 25, 5, 1];
-  const RISE = 0.22; // fraction of coin size each stacked coin rises
+  // Realistic pile: each coin rises only by its edge thickness (a tight sliver),
+  // columns pack tightly with alternating zig-zag heights so piles nestle.
+  const RISE = 0.14; // fraction of coin size each stacked coin rises
+  const ZIG = 0.16; // alternate columns raised by this fraction
 
   let cols = $derived.by(() => {
     let n = Math.max(0, Math.floor(Number(value) || 0));
@@ -27,8 +30,8 @@
 </script>
 
 <span class="cstack" style="--sz:{size}px; --rise:{rise}px" aria-hidden="true">
-  {#each cols as c (c.denom)}
-    <span class="ccol" style="height:{size + (c.count - 1) * rise}px">
+  {#each cols as c, i (c.denom)}
+    <span class="ccol" class:hi={i % 2 === 1} style="height:{size + (c.count - 1) * rise}px">
       {#each Array(c.count) as _, k}
         <span class="cc" style="--k:{k}"><Chip value={c.denom} size={size} /></span>
       {/each}
@@ -41,6 +44,8 @@
     display: inline-flex;
     align-items: flex-end;
     flex: 0 0 auto;
+    /* headroom for the zig-raised columns */
+    padding-top: calc(var(--sz) * 0.16);
   }
   .ccol {
     position: relative;
@@ -48,7 +53,9 @@
     display: inline-block;
     flex: 0 0 auto;
   }
-  .ccol + .ccol { margin-left: calc(var(--sz) * -0.16); }
+  /* tight: piles overlap; zig-zag: alternate columns sit a little higher */
+  .ccol + .ccol { margin-left: calc(var(--sz) * -0.3); }
+  .ccol.hi { transform: translateY(calc(var(--sz) * -0.16)); }
   .cc {
     position: absolute;
     left: 0;
