@@ -22,6 +22,10 @@
   );
 
   const fmt = (n) => Number(n).toLocaleString();
+  const achievements = data.achievements || [];
+  const CATS = [["volume", "Volume"], ["skill", "Skill"], ["dedication", "Dedication"], ["event", "Events"]];
+  const unlockedCount = achievements.filter((a) => a.unlocked).length;
+  const apct = (a) => Math.min(100, Math.round((a.progress.value / a.progress.target) * 100));
   const pct = (q) => Math.min(100, Math.round((q.progress / q.target) * 100));
 
   function claimHandler(id) {
@@ -82,6 +86,48 @@
       </div>
     </section>
   {/each}
+
+  {#if achievements.length}
+    <section class="grp">
+      <div class="grp-head">
+        <h2>Achievements</h2>
+        <span class="muted small">{unlockedCount} / {achievements.length} unlocked · one-time chip rewards</span>
+      </div>
+      {#each CATS as [cat, label]}
+        {@const items = achievements.filter((a) => a.category === cat)}
+        {#if items.length}
+          <div class="ach-cat">{label}</div>
+          <div class="list ach-list">
+            {#each items as a (a.key)}
+              <div class="q card" class:done={a.unlocked} title={a.desc}>
+                <div class="q-main">
+                  <div class="q-top">
+                    <span class="q-title">
+                      <span class="ach-ico" aria-hidden="true">{a.unlocked ? "🏅" : "🔒"}</span>
+                      {a.name}
+                      {#if a.tier}<span class="tier t-{a.tier}">{a.tier}</span>{/if}
+                    </span>
+                    <span class="q-reward" class:muted={a.unlocked}>
+                      {#if a.unlocked}Earned{:else if a.reward}<Chip value={a.reward} size={15} /> {fmt(a.reward)}{/if}
+                    </span>
+                  </div>
+                  <div class="ach-desc muted small">{a.desc}</div>
+                  {#if a.progress && !a.unlocked}
+                    <div class="bar" role="progressbar" aria-valuenow={a.progress.value} aria-valuemin="0" aria-valuemax={a.progress.target}>
+                      <div class="fill" style="width:{apct(a)}%"></div>
+                    </div>
+                    <div class="q-foot"><span class="muted small">{fmt(a.progress.value)} / {fmt(a.progress.target)}</span></div>
+                  {:else if a.unlocked}
+                    <div class="q-foot"><span class="muted small"></span><span class="check" aria-hidden="true">✓</span></div>
+                  {/if}
+                </div>
+              </div>
+            {/each}
+          </div>
+        {/if}
+      {/each}
+    </section>
+  {/if}
 </div>
 
 <style>
@@ -114,4 +160,14 @@
     transition: filter var(--dur) var(--ease); }
   .claim:hover { filter: brightness(1.08); }
   .check { color: var(--ok); font-weight: 800; }
+
+  .ach-cat { font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); margin: 14px 0 8px; }
+  .ach-list { margin-bottom: 4px; }
+  .ach-ico { margin-right: 2px; }
+  .ach-desc { margin-bottom: 8px; }
+  .tier { font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase;
+    padding: 2px 8px; border-radius: var(--r-pill); margin-left: 6px; vertical-align: 1px; }
+  .t-bronze { background: #c1691f; color: #2a1608; }
+  .t-silver { background: #c6cdda; color: #242a3a; }
+  .t-gold { background: #f5b60d; color: #2a2206; }
 </style>
