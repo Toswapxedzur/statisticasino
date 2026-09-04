@@ -9,10 +9,11 @@
   let { value = 0, size = 20, maxCols = 5, maxPer = 5 } = $props();
 
   const DENOMS = [5000000, 1000000, 250000, 50000, 10000, 2500, 500, 100, 25, 5, 1];
-  // Realistic pile: each coin rises only by its edge thickness (a tight sliver),
-  // columns pack tightly with alternating zig-zag heights so piles nestle.
+  // Realistic pile: each coin rises only by its edge thickness (a tight sliver).
+  // Columns pack at half-coin pitch and alternate front/back rows in a 60°
+  // triangular (hex) packing: pitch p = 0.5·size, equilateral offset √3·p
+  // squashed by the coin tilt (0.696) → zig ≈ 0.6·size. Back row sits behind.
   const RISE = 0.14; // fraction of coin size each stacked coin rises
-  const ZIG = 0.16; // alternate columns raised by this fraction
 
   let cols = $derived.by(() => {
     let n = Math.max(0, Math.floor(Number(value) || 0));
@@ -44,8 +45,8 @@
     display: inline-flex;
     align-items: flex-end;
     flex: 0 0 auto;
-    /* headroom for the zig-raised columns */
-    padding-top: calc(var(--sz) * 0.16);
+    /* headroom for the back (zig-raised) row */
+    padding-top: calc(var(--sz) * 0.6);
   }
   .ccol {
     position: relative;
@@ -53,9 +54,11 @@
     display: inline-block;
     flex: 0 0 auto;
   }
-  /* tight: piles overlap; zig-zag: alternate columns sit a little higher */
-  .ccol + .ccol { margin-left: calc(var(--sz) * -0.3); }
-  .ccol.hi { transform: translateY(calc(var(--sz) * -0.16)); }
+  /* tight 60° zig-zag: half-coin pitch; back row raised √3·pitch·tilt ≈ 0.6·size
+     and drawn BEHIND the front row */
+  .ccol { z-index: 2; }
+  .ccol + .ccol { margin-left: calc(var(--sz) * -0.5); }
+  .ccol.hi { transform: translateY(calc(var(--sz) * -0.6)); z-index: 1; }
   .cc {
     position: absolute;
     left: 0;
