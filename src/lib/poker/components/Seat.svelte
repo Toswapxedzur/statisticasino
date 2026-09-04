@@ -2,7 +2,7 @@
   import Card from "./Card.svelte";
   import Num from "./Num.svelte";
   import Avatar from "./Avatar.svelte";
-  import Chip from "./Chip.svelte";
+  import CoinStack from "./CoinStack.svelte";
   import { scale, fade, fly } from "svelte/transition";
   import { d, DUR } from "$lib/motion.js";
 
@@ -72,13 +72,13 @@
     <!-- winnings float up from the seat on a win -->
     {#if winner && won > 0}
       <div class="won" in:fly={{ y: d(10), duration: d(DUR.slow) }} out:fade={{ duration: d(DUR.base) }}>
-        <Chip value={won} size={24} />+<Num value={won} />
+        <CoinStack value={won} size={17} />+<Num value={won} />
       </div>
     {/if}
 
     <!-- committed bet chips in front of the seat -->
     {#if seat.committed > 0}
-      <div class="bet" in:scale={{ start: 0.6, duration: d(DUR.base) }} out:fade={{ duration: d(DUR.fast) }}><Chip value={seat.committed} size={26} /><Num value={seat.committed} /></div>
+      <div class="bet" in:scale={{ start: 0.6, duration: d(DUR.base) }} out:fade={{ duration: d(DUR.fast) }}><CoinStack value={seat.committed} size={18} /><Num value={seat.committed} /></div>
     {/if}
 
     <div class="pod" class:toact={seat.isToAct} in:scale={{ start: 0.9, duration: d(DUR.base) }} out:fade={{ duration: d(DUR.fast) }}>

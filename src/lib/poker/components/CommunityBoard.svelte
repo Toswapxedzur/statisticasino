@@ -1,7 +1,7 @@
 <script>
   import Card from "./Card.svelte";
   import Num from "./Num.svelte";
-  import Chip from "./Chip.svelte";
+  import CoinStack from "./CoinStack.svelte";
   import { scale, fly } from "svelte/transition";
   import { d, DUR } from "$lib/motion.js";
 
@@ -40,7 +40,7 @@
 
   <div class="pot" class:result={!!result}>
     {#if (result ? (wonAmount || potTotal) : potTotal) > 0}
-      <span class="pot-chip"><Chip value={result ? (wonAmount || potTotal) : potTotal} size={34} /></span>
+      <span class="pot-chip"><CoinStack value={result ? (wonAmount || potTotal) : potTotal} size={20} /></span>
     {/if}
     {#if result}
       <span class="pot-lbl">{result.type === "showdown" ? "Showdown" : "Winner"}</span>
