@@ -124,6 +124,10 @@ CREATE TABLE IF NOT EXISTS user (
   status_text        VARCHAR(140),
   avatar_media_id    VARCHAR(64),
   profile_visibility VARCHAR(16) NOT NULL DEFAULT 'public',
+  -- v22 (replays): how much of this user's play history is publicly visible on
+  -- their profile: private | 7d | 30d | 90d | all. Own history is always fully
+  -- visible to the user themself.
+  history_window     VARCHAR(16) NOT NULL DEFAULT 'private',
   -- v20 (money transfer): chips that may be SENT to friends — only game-earned
   -- inflows raise this; free grants never do; receiving chips does not raise it
   -- (received chips can be played but not re-forwarded). See wallet.js.
@@ -411,6 +415,55 @@ CREATE TABLE IF NOT EXISTS poker_hand_player (
   CONSTRAINT fk_php_hand FOREIGN KEY (hand_id)
     REFERENCES poker_hand(id) ON DELETE CASCADE,
   CONSTRAINT fk_php_user FOREIGN KEY (user_id)
+    REFERENCES user(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------------------
+-- v22 (replays): one row per completed match on ANY game mode — a Hold'em
+-- hand, a banked casino round, a shedding match, a tournament / Sprint hand.
+-- `replay_json` stores the deterministic re-simulation inputs (initial deck +
+-- config + players + ordered action log) plus a final-outcome summary — see
+-- recorder.js. table_id is a PLAIN string (no FK): tournament/Sprint tables
+-- are ephemeral and never exist in poker_table, and a replay must outlive its
+-- table anyway. Hole cards inside replay_json are server-side only; the
+-- serving endpoint redacts per viewer.
+-- -----------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS match_replay (
+  id          VARCHAR(64)  NOT NULL PRIMARY KEY,
+  mode        VARCHAR(32)  NOT NULL,   -- 'holdem' | game module key
+  variant     VARCHAR(32),             -- poker variant key (holdem games only)
+  context     VARCHAR(16)  NOT NULL,   -- 'cash' | 'tournament' | 'sprint'
+  table_id    VARCHAR(64),
+  table_name  VARCHAR(128),
+  hand_no     BIGINT,
+  started_at  BIGINT NOT NULL,
+  ended_at    BIGINT NOT NULL,
+  pot_total   BIGINT NOT NULL DEFAULT 0,
+  replay_json MEDIUMTEXT NOT NULL,
+  KEY idx_mr_ended (ended_at),
+  KEY idx_mr_mode (mode, ended_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Per-participant row of a recorded match: who was in it and their net result.
+-- `mode`/`ended_at` are denormalised from match_replay so per-user history and
+-- stats queries never need the big row. user_id SET NULL keeps the replay when
+-- an account is deleted.
+CREATE TABLE IF NOT EXISTS match_replay_player (
+  id           VARCHAR(64) NOT NULL PRIMARY KEY,
+  replay_id    VARCHAR(64) NOT NULL,
+  user_id      VARCHAR(64),
+  seat         INT NOT NULL,
+  display_name VARCHAR(128),
+  role         VARCHAR(16) NOT NULL DEFAULT 'player',  -- 'player' | 'banker'
+  net          BIGINT NOT NULL DEFAULT 0,
+  mode         VARCHAR(32) NOT NULL,
+  ended_at     BIGINT NOT NULL,
+  KEY idx_mrp_replay (replay_id),
+  KEY idx_mrp_user (user_id, ended_at),
+  KEY idx_mrp_user_mode (user_id, mode, ended_at),
+  CONSTRAINT fk_mrp_replay FOREIGN KEY (replay_id)
+    REFERENCES match_replay(id) ON DELETE CASCADE,
+  CONSTRAINT fk_mrp_user FOREIGN KEY (user_id)
     REFERENCES user(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

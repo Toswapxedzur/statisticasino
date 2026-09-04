@@ -194,6 +194,69 @@ export async function persistHand(hand) {
   return handId;
 }
 
+// ------------------------------------------------------------ match replays
+
+// Persist one recorded match (any game mode) + its participants. `r` is
+// { mode, variant, context, tableId, tableName, handNo, startedAt, endedAt,
+//   potTotal, replay (object), players:[{userId,seat,displayName,role,net}] }.
+// Called by the table loops after settlement; callers swallow errors so a DB
+// hiccup can never break gameplay.
+export async function persistReplay(r) {
+  const replayId = id();
+  await execute(
+    `INSERT INTO match_replay
+       (id, mode, variant, context, table_id, table_name, hand_no,
+        started_at, ended_at, pot_total, replay_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      replayId, r.mode, r.variant ?? null, r.context ?? "cash",
+      r.tableId ?? null, r.tableName ?? null, r.handNo ?? null,
+      r.startedAt, r.endedAt, r.potTotal ?? 0, JSON.stringify(r.replay)
+    ]
+  );
+  for (const p of r.players || []) {
+    await execute(
+      `INSERT INTO match_replay_player
+         (id, replay_id, user_id, seat, display_name, role, net, mode, ended_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id(), replayId, p.userId ?? null, p.seat, p.displayName ?? null,
+       p.role ?? "player", p.net ?? 0, r.mode, r.endedAt]
+    );
+  }
+  return replayId;
+}
+
+// One replay with its participants (viewer-side redaction happens in the route).
+export async function replayById(replayId) {
+  const row = await queryOne("SELECT * FROM match_replay WHERE id = ?", [replayId]);
+  if (!row) return null;
+  const players = await query(
+    "SELECT user_id, seat, display_name, role, net FROM match_replay_player WHERE replay_id = ? ORDER BY seat",
+    [replayId]
+  );
+  return { ...row, players };
+}
+
+// A user's recent recorded matches (their own history page, or a public
+// profile filtered by the exposure window). `sinceMs` bounds ended_at.
+export async function recentReplaysForUser(userId, { sinceMs = 0, mode = null, limit = 50, before = null } = {}) {
+  const args = [userId, sinceMs];
+  let where = "mrp.user_id = ? AND mrp.ended_at >= ?";
+  if (mode) { where += " AND mrp.mode = ?"; args.push(mode); }
+  if (before) { where += " AND mrp.ended_at < ?"; args.push(before); }
+  args.push(limit);
+  return query(
+    `SELECT mr.id, mr.mode, mr.variant, mr.context, mr.table_name, mr.hand_no,
+            mr.started_at, mr.ended_at, mr.pot_total, mrp.seat, mrp.net, mrp.role
+       FROM match_replay_player mrp
+       JOIN match_replay mr ON mr.id = mrp.replay_id
+      WHERE ${where}
+      ORDER BY mrp.ended_at DESC
+      LIMIT ?`,
+    args
+  );
+}
+
 // Lifetime count of hands a user has been dealt into (for milestone achievements).
 export async function handsPlayedByUser(userId) {
   const row = await queryOne(

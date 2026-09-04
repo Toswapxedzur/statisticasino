@@ -19,6 +19,7 @@
 // win/loss so chips stay conserved.
 
 import { encode, S2C } from "../../poker/protocol.js";
+import { MatchRecorder } from "./recorder.js";
 import { shuffle } from "./engine/index.js";
 import { LiveTable, ACTION_TIMEOUT_MS, DISCONNECT_GRACE_MS } from "./table.js";
 
@@ -82,6 +83,24 @@ export class GameTable extends LiveTable {
     this._handStartedAt = this.now();
     this.result = null;
 
+    // Record this round for replay (recorder.js): initial deck + config +
+    // every action. Persisted at finishHand; dropped if the round aborts.
+    this.recorder = new MatchRecorder({
+      mode: this.game.key,
+      context: "cash",
+      tableId: this.id,
+      tableName: this.config.name,
+      handNo,
+      startedAt: this._handStartedAt,
+      config: this.gameConfig,
+      bankerSeat: this.game.usesBanker ? this.bankerSeat : null,
+      deck,
+      players: roundSeats.map((r) => {
+        const s = this.seats.get(r.seat);
+        return { seat: r.seat, stack: r.stack, userId: r.userId ?? null, name: s?.name ?? null };
+      })
+    }, this.now);
+
     for (const s of this.seats.values()) { s.inHand = false; s.stackAtHandStart = undefined; s.lastAction = null; }
     for (const r of roundSeats) {
       const s = this.seats.get(r.seat);
@@ -128,6 +147,7 @@ export class GameTable extends LiveTable {
       this.sendTurnTo(seat);
       return;
     }
+    this.recorder?.action(seat.seat, action);
     this.hand = next;
     this.clearActionTimer();
     await this.promptActor();
@@ -138,9 +158,11 @@ export class GameTable extends LiveTable {
     const seatNo = this.game.actorSeat(this.hand);
     if (seatNo === null) return;
     let next;
+    const autoAction = this.game.defaultAction(this.hand, seatNo);
     try {
-      ({ state: next } = this.game.applyAction(this.hand, this.game.defaultAction(this.hand, seatNo)));
+      ({ state: next } = this.game.applyAction(this.hand, autoAction));
     } catch { return; }
+    this.recorder?.action(seatNo, autoAction, true);
     this.hand = next;
     this.clearActionTimer();
     await this.promptActor();
@@ -169,6 +191,42 @@ export class GameTable extends LiveTable {
     }
 
     this.result = this.game.publicView(round);
+
+    // Persist the universal replay (skips bot-only rounds; never let a DB
+    // error break gameplay). Banker keeps its role so stats can split
+    // banking results from betting results.
+    if (this.recorder) {
+      try {
+        const isBot = (uid) => !!this.hub?.botManager?.isBotUser?.(uid);
+        const participants = this.recorder.meta.players.map((p) => {
+          const d = deltas.find((x) => x.seat === p.seat);
+          return {
+            userId: p.userId, seat: p.seat, displayName: p.name,
+            role: this.game.usesBanker && p.seat === this.recorder.meta.bankerSeat ? "banker" : "player",
+            net: d ? d.delta : 0
+          };
+        });
+        const hasHuman = participants.some((p) => p.userId != null && !isBot(p.userId));
+        if (hasHuman) {
+          const wagered = participants.reduce((sum, p) => sum + Math.max(0, -p.net), 0);
+          await this.store.persistReplay?.({
+            mode: this.game.key,
+            variant: null,
+            context: "cash",
+            tableId: this.id,
+            tableName: this.config.name,
+            handNo: this.handNo,
+            startedAt: this._handStartedAt,
+            endedAt: this.now(),
+            potTotal: wagered,
+            replay: this.recorder.payload({ result: this.result, nets: participants.map((p) => ({ seat: p.seat, net: p.net })) }),
+            players: participants
+          });
+        }
+      } catch { /* swallow persistence errors */ }
+      this.recorder = null;
+    }
+
     for (const s of this.seats.values()) {
       s.inHand = false;
       s.stackAtHandStart = undefined;

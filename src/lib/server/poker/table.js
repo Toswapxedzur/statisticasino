@@ -23,6 +23,7 @@ import {
 } from "./engine/index.js";
 import * as realBank from "./bank.js";
 import * as realStore from "./store.js";
+import { MatchRecorder } from "./recorder.js";
 
 // --------------------------------------------------------------- timing
 export const ACTION_TIMEOUT_MS = 25_000; // per-decision clock
@@ -97,6 +98,8 @@ export class LiveTable {
     this.bbSeat = null;
     this.actionDeadline = null;
     this._handStartedAt = null;
+    this.recorder = null; // universal match recorder for the live hand
+
 
     // post-hand result window (kept until the next hand begins so clients
     // can render the outcome for ~NEW_HAND_DELAY_MS)
@@ -488,6 +491,32 @@ export class LiveTable {
     this.handNo = handNo;
     this._handStartedAt = this.now();
 
+    // Record this hand for replay: initial deck + params + every action
+    // (recorder.js). Persisted at finishHand; dropped if the hand aborts.
+    this.recorder = new MatchRecorder({
+      mode: "holdem",
+      variant: this.variantKey,
+      context: this.isTournament
+        ? (String(this.id).startsWith("sprint-") ? "sprint" : "tournament")
+        : "cash",
+      tableId: this.id,
+      tableName: this.config.name,
+      handNo,
+      startedAt: this._handStartedAt,
+      config: {
+        smallBlind: this.config.smallBlind,
+        bigBlind: this.config.bigBlind,
+        straddle: this.config.straddle ?? false,
+        runItTwice: this.config.runItTwice ?? false
+      },
+      buttonSeat: button,
+      deck,
+      players: players.map((p) => {
+        const s = this.seats.get(p.seat);
+        return { seat: p.seat, stack: p.stack, userId: s?.userId ?? null, name: s?.name ?? null };
+      })
+    }, this.now);
+
     // Clear the previous result window now that a new hand is starting.
     this.result = null;
     this.resultBoard = null;
@@ -573,7 +602,7 @@ export class LiveTable {
     const action =
       menu.actions.find((a) => a.type === "check") || { type: "fold" };
     try {
-      this._commitAction(seatNo, action);
+      this._commitAction(seatNo, action, true);
     } catch {
       return;
     }
@@ -581,7 +610,7 @@ export class LiveTable {
   }
 
   // Apply one action to the engine and mirror it onto seats. May throw.
-  _commitAction(seatNo, action) {
+  _commitAction(seatNo, action, auto = false) {
     // Spread the action so engine-specific fields (e.g. Five-Card Draw's
     // `discards`) pass through; seat is forced to the authenticated seat.
     const { state } = applyAction(this.hand, {
@@ -589,6 +618,7 @@ export class LiveTable {
       seat: seatNo
     });
     this.hand = state;
+    this.recorder?.action(seatNo, action, auto);
     this.syncSeatsFromHand();
     // Re-push privates: cards may have changed (draw / stud streets). Idempotent
     // for flop games where hole cards are static.
@@ -742,6 +772,41 @@ export class LiveTable {
       }
     }
 
+    // 3b. Persist the universal replay (ALL contexts — cash, tournament and
+    // Sprint hands alike; match_replay has no poker_table FK). Skipped when no
+    // human was dealt in (bot-only hands are nobody's history). Never let a DB
+    // error break gameplay.
+    if (this.recorder) {
+      try {
+        const isBot = (uid) => !!this.hub?.botManager?.isBotUser?.(uid);
+        const hasHuman = persistSeats.some((s) => s.userId != null && !isBot(s.userId));
+        if (hasHuman) {
+          await this.store.persistReplay?.({
+            mode: "holdem",
+            variant: this.variantKey,
+            context: this.recorder.meta.context,
+            tableId: this.id,
+            tableName: this.config.name,
+            handNo: this.handNo,
+            startedAt: this._handStartedAt,
+            endedAt: this.now(),
+            potTotal,
+            replay: this.recorder.payload({
+              result: this.result,
+              nets: persistSeats.map((s) => ({ seat: s.seat, net: s.net }))
+            }),
+            players: persistSeats.map((s) => ({
+              userId: s.userId, seat: s.seat, displayName: s.displayName,
+              role: "player", net: s.net
+            }))
+          });
+        }
+      } catch {
+        /* swallow persistence errors */
+      }
+      this.recorder = null;
+    }
+
     // Retention: award any hand-based achievements for the human seats. Fire-and-
     // forget (NOT awaited) so it never adds latency to the op-lock or breaks the
     // hand; the hub handles its own errors. Skipped for tournaments (T-chip pots
@@ -814,6 +879,7 @@ export class LiveTable {
     this.clearActionTimer();
     this.clearStartTimer();
     this.hand = null;
+    this.recorder = null; // aborted hand — nothing to persist
     for (const s of [...this.seats.values()]) {
       this.clearVacateTimer(s);
       this.seats.delete(s.seat);

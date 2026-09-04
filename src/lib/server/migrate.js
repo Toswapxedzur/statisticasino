@@ -154,15 +154,31 @@ export async function ensureMigrated() {
   // CREATE TABLE IF NOT EXISTS (applied above) — no ALTERs, so no migrateToV20.
   // v21 (progression): the `quest_progress` table is created by schema.sql's
   // CREATE TABLE IF NOT EXISTS (applied above) — no ALTERs, so no migrateToV21.
+  await migrateToV22();
 
   // Stamp the version row (idempotent — schema.sql also INSERT IGNOREs
   // it, but we want to be defensive).
   await execute(
-    "INSERT INTO meta(meta_key, meta_value) VALUES ('schema_version', '21') "
+    "INSERT INTO meta(meta_key, meta_value) VALUES ('schema_version', '22') "
     + "ON DUPLICATE KEY UPDATE meta_value = VALUES(meta_value)"
   );
 
   _migrated = true;
+}
+
+// v21 -> v22 upgrade (replays): add the play-history exposure window to `user`.
+// The match_replay / match_replay_player tables are created by schema.sql's
+// CREATE TABLE IF NOT EXISTS (applied above); only the column needs a gated ALTER.
+async function migrateToV22() {
+  const cols = await query(
+    "SELECT COLUMN_NAME FROM information_schema.COLUMNS "
+    + "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = 'history_window'"
+  );
+  if (cols.length === 0) {
+    await execute(
+      "ALTER TABLE user ADD COLUMN history_window VARCHAR(16) NOT NULL DEFAULT 'private' AFTER profile_visibility"
+    );
+  }
 }
 
 // v13 -> v14 upgrade (retention): add the login-streak columns to `user`. The
