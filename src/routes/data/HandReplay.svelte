@@ -1,5 +1,8 @@
 <script>
   import { onMount, tick } from "svelte";
+  import { renderCard, renderEmpty } from "$lib/poker/composer.js";
+  import { coinSvg } from "$lib/poker/chips.js";
+  import { PARTS } from "$lib/poker/deck-parts.js";
 
   let { handKey } = $props();
 
@@ -30,7 +33,10 @@
   // ---------------------------------------------------------- module load
 
   async function ensureEngine() {
-    if (window.CasinoReplay && window.CasinoCards && window.CasinoTableize) return;
+    // Cards are OUR composer deck (no casino.org art) — install the old
+    // window.CasinoCards API as a shim before the engine scripts load.
+    window.CasinoCards = { render: renderCard, empty: (o) => renderEmpty(o && o.width) };
+    if (window.CasinoReplay && window.CasinoTableize) return;
     async function loadScript(src) {
       return new Promise((resolve, reject) => {
         if (document.querySelector(`script[src="${src}"]`)) return resolve();
@@ -44,7 +50,6 @@
     // tableize first — replay.js reads CasinoTableize.AUTHORITATIVE_ACTIONS
     // at module-init time.
     await loadScript("/replay-engine/tableize.js");
-    await loadScript("/replay-engine/cards.js");
     await loadScript("/replay-engine/users.js");
     await loadScript("/replay-engine/replay.js");
   }
@@ -54,7 +59,7 @@
   // The extension's renderer code references a handful of globals from
   // history.js. We provide trimmed-down equivalents here.
   //
-  //   Cards     -> window.CasinoCards (from cards.js)
+  //   Cards     -> window.CasinoCards (our composer shim, set in ensureEngine)
   //   ReplayMod -> window.CasinoReplay (from replay.js)
   //
   // The extension also reads from `Users` (users.js) and a `state.userIndex`
@@ -150,10 +155,8 @@
     return name;
   }
 
-  // From history.js — verbatim except for the chip image path: the
-  // extension serves `assets/chipN.png` relative to the page; we serve it
-  // from `/replay-engine/assets/chipN.png` (absolute) so the URL resolves
-  // the same way regardless of which route is hosting the panel.
+  // From history.js — except chips are now OUR metal coins (chips.js
+  // coinSvg), not the extension's chip PNGs.
   const CHIP_DENOMS = [25000, 5000, 1000, 500, 100, 25, 5, 1];
   const CHIP_STACK_CAP = 8;
   function chipBreakdown(amount) {
@@ -176,8 +179,7 @@
       const overflow = b.count - visible;
       const chips = [];
       for (let k = 0; k < visible; k++) {
-        const src = `/replay-engine/assets/chip${b.denom}.png`;
-        chips.push(`<img class="chip" src="${escapeHtml(src)}" alt="" style="--k:${k};" draggable="false"/>`);
+        chips.push(`<span class="chip" style="--k:${k};">${coinSvg(b.denom, 18, { fillBox: true })}</span>`);
       }
       const overflowBadge = overflow > 0
         ? `<span class="chip-stack-overflow">+${overflow}</span>`
@@ -715,7 +717,7 @@
     <div class="replay-felt-wrap">
       <div class="replay-felt">
         <div class="felt-watermark" aria-hidden="true">
-          <img src="/replay-engine/assets/holdem.png" alt="" />
+          {@html `<svg viewBox="${PARTS["suit-spade"].vb.join(" ")}" style="width:100%;height:auto;opacity:.9">${PARTS["suit-spade"].body.replace(/fill="[^"]*"/g, 'fill=\"#0c1526\"')}</svg>`}
         </div>
         <div class="felt-pot replay-pot"></div>
         <div class="felt-board replay-board"></div>

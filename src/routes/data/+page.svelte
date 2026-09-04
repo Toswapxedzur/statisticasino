@@ -297,7 +297,6 @@
       });
     }
     await loadScript("/replay-engine/tableize.js");
-    await loadScript("/replay-engine/cards.js");
     await loadScript("/replay-engine/users.js");
     await loadScript("/replay-engine/replay.js");
     await loadScript("/replay-engine/readable.js");

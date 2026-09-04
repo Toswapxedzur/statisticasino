@@ -204,7 +204,7 @@ sendChat`). Match the site look (dark; classes in `src/app.css`;
 Components (each its own file, disjoint):
 - `Card.svelte` — props `{card?: string, faceDown?: bool, size?: 'sm'|'md'}`.
   Render rank + suit glyph (♥♦ red `#e0555f`, ♠♣ near-white on dark); back
-  uses `/replay-engine/assets/X.png`. Rounded, crisp, legible small.
+  uses our own composed back (composer.js `renderBack`). Rounded, crisp, legible small.
 - `Seat.svelte` — props `{seat, me, isMine, canSit, onSit}`. Empty seat →
   "Sit here" button (calls onSit). Occupied → name, stack, dealer/SB/BB
   badge, face-down or (mine/revealed) face-up cards, bet-chip amount in

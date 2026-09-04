@@ -94,13 +94,53 @@ function svgWrap(inner, width) {
 }
 
 // ---- #3: OUR OWN Replay-style board card ----------------------------------
+function boardInner(rank, suit, color) {
+  // corner index (number + its own suit size) top-left; bigger asymmetric pips.
+  return frame() + cornerLabel(rank, suit, color, 18, 13) + centre(rank, suit, color);
+}
 export function renderBoard(card, width) {
   if (!card || card.length < 2) return "";
   const rank = card[0].toUpperCase(), suit = card[1].toLowerCase();
   if (!RANK_OK.has(rank) || !SUITNAME[suit]) return "";
-  const color = colorOf(suit);
-  // corner index (number + its own suit size) top-left; bigger asymmetric pips.
-  return svgWrap(frame() + cornerLabel(rank, suit, color, 18, 13) + centre(rank, suit, color), width);
+  return svgWrap(boardInner(rank, suit, colorOf(suit)), width);
+}
+
+// ---- OUR ORIGINAL card back + empty slot (no casino.org art) ---------------
+// Deep-navy back with a thin keyline and the centred two-tone rhombus — the
+// same motif as the coin currency, so cards and money share one identity.
+function backInner() {
+  return (
+    `<rect x="0.5" y="0.5" width="59" height="77" rx="6" fill="#1a2742" stroke="rgba(0,0,0,0.35)"/>` +
+    `<rect x="4.5" y="4.5" width="51" height="69" rx="4" fill="none" stroke="#31456e" stroke-width="1.2"/>` +
+    `<polygon points="30,25 16,39 30,53" fill="#2c3f66"/>` +
+    `<polygon points="30,25 44,39 30,53" fill="#16223c"/>`
+  );
+}
+export function renderBack(width = 60) {
+  return svgWrap(backInner(), width);
+}
+export function renderEmpty(width = 60) {
+  const w = Math.round(width), h = Math.round((width * H) / W);
+  return `<span class="card-wrap empty" aria-hidden="true"><svg class="card-svg" width="${w}" height="${h}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="58" height="76" rx="6" fill="none" stroke="rgba(255,255,255,0.15)" stroke-dasharray="3 3"/></svg></span>`;
+}
+
+// ---- compat shim for the /data replayer (old window.CasinoCards API) -------
+// render(face, {width, hidden, peekable, dataAttrs}) — "X"/null = back.
+export function renderCard(face, opts = {}) {
+  const width = Math.round(opts.width || 64);
+  const height = Math.round((width * H) / W);
+  const hidden = opts.hidden === true || face === "X" || face == null;
+  const classes = ["card-wrap"];
+  if (hidden) classes.push("hidden");
+  if (opts.peekable) classes.push("peekable");
+  const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+  const dataAttrs = (opts.dataAttrs || []).map((a) => `${esc(a.name)}="${esc(a.value)}"`).join(" ");
+  let inner = backInner();
+  if (!hidden) {
+    const rank = String(face)[0]?.toUpperCase(), suit = String(face)[1]?.toLowerCase();
+    if (RANK_OK.has(rank) && SUITNAME[suit]) inner = boardInner(rank, suit, colorOf(suit));
+  }
+  return `<span class="${classes.join(" ")}" ${dataAttrs}><svg class="card-svg" width="${width}" height="${height}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${inner}</svg></span>`;
 }
 
 // ---- small / hole card (#1) — Replay's simplified deck (cards@2x.png) -------
