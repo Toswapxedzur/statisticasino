@@ -52,18 +52,25 @@ try {
 // other process still holds live — and we do NOT attach the poker gateway. The
 // rest of the site (data/blog/account) still serves.
 let pokerEnabled = false;
-try {
-  // Fail-stop if we ever lose the lease connection: exiting lets systemd
-  // restart us clean and prevents a split brain (another process reconciling
-  // our live escrow). Guard so the drain can finish if a shutdown is underway.
-  pokerEnabled = await acquireInstanceLease((e) => {
-    if (shuttingDown) return;
-    console.error("[riverside] lost the poker singleton lease — exiting to avoid split-brain; supervisor will restart:", e?.message || e);
-    process.exit(1);
-  });
-  if (!pokerEnabled) {
-    console.error("[riverside] another poker instance holds the DB lease — serving HTTP only (poker + escrow reconcile DISABLED). Stop the other process and restart.");
-  } else {
+
+// Fail-stop if we ever lose the lease connection: exiting lets systemd
+// restart us clean and prevents a split brain (another process reconciling
+// our live escrow). Guard so the drain can finish if a shutdown is underway.
+function onLeaseLost(e) {
+  if (shuttingDown) return;
+  console.error("[riverside] lost the poker singleton lease — exiting to avoid split-brain; supervisor will restart:", e?.message || e);
+  process.exit(1);
+}
+
+// Try to become the sole poker instance and run crash recovery. Returns true
+// when poker may be enabled. Never throws.
+async function tryEnablePoker() {
+  try {
+    const got = await acquireInstanceLease(onLeaseLost);
+    if (!got) {
+      console.error("[riverside] another poker instance holds the DB lease — serving HTTP only for now (poker + escrow reconcile disabled); will retry.");
+      return false;
+    }
     // Crash recovery: refund on-table escrow left by an unclean prior exit
     // (SIGKILL/OOM/power loss; a graceful stop drains seats itself).
     const r = await reconcileEscrowOnBoot();
@@ -73,11 +80,16 @@ try {
       if (r.seats > 0) console.log(`[riverside] escrow reconcile: refunded ${r.chips} chips across ${r.seats} seat(s)`);
       if (r.failed > 0) console.error(`[riverside] escrow reconcile: ${r.failed} row(s) could not be refunded and remain pending — will retry next boot`);
     }
+    return true;
+  } catch (err) {
+    // e.g. MySQL is mid-restart (unattended-upgrades bounces it and systemd
+    // relaunches us 2s later, often before the DB is back). Retry below.
+    console.error("[riverside] instance lease / escrow reconcile error — serving HTTP only for now; will retry:", err?.message || err);
+    return false;
   }
-} catch (err) {
-  console.error("[riverside] instance lease / escrow reconcile error — serving HTTP only:", err?.message || err);
-  pokerEnabled = false;
 }
+
+pokerEnabled = await tryEnablePoker();
 
 const port = Number(process.env.PORT || 3000);
 const host = process.env.HOST || "0.0.0.0";
@@ -88,6 +100,24 @@ if (pokerEnabled) attachPokerGateway(server);
 server.listen(port, host, () => {
   console.log(`[riverside] ${pokerEnabled ? "http + ws" : "http only (poker disabled)"} listening on ${host}:${port}`);
 });
+
+// Self-heal a degraded boot: if the lease wasn't acquired (DB mid-restart, or a
+// previous holder still draining), keep retrying and attach the poker gateway
+// once we win it. Before this, one bad race at boot meant "http only" FOREVER
+// (seen 2026-09-01 → 09-03 in prod).
+if (!pokerEnabled) {
+  const RETRY_MS = 30_000;
+  const retry = setInterval(async () => {
+    if (shuttingDown || pokerEnabled) { clearInterval(retry); return; }
+    if (await tryEnablePoker()) {
+      pokerEnabled = true;
+      clearInterval(retry);
+      attachPokerGateway(server);
+      console.log("[riverside] poker singleton lease acquired on retry — ws gateway attached (http + ws now live)");
+    }
+  }, RETRY_MS);
+  retry.unref?.();
+}
 
 let shuttingDown = false;
 for (const sig of ["SIGINT", "SIGTERM"]) {
