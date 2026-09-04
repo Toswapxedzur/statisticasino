@@ -26,6 +26,10 @@
   const CATS = [["volume", "Volume"], ["skill", "Skill"], ["dedication", "Dedication"], ["event", "Events"]];
   const unlockedCount = achievements.filter((a) => a.unlocked).length;
   const apct = (a) => Math.min(100, Math.round((a.progress.value / a.progress.target) * 100));
+  // Difficulty → a coin from the metal ladder (copper < brass < silver < gold):
+  // the coin at the front of a locked badge IS its difficulty marker.
+  const TIER_COIN = { bronze: 5, silver: 25, gold: 100 };
+  const tierCoin = (a) => TIER_COIN[a.tier] ?? 1;
   const pct = (q) => Math.min(100, Math.round((q.progress / q.target) * 100));
 
   function claimHandler(id) {
@@ -103,7 +107,7 @@
                 <div class="q-main">
                   <div class="q-top">
                     <span class="q-title">
-                      <span class="ach-ico" aria-hidden="true">{a.unlocked ? "🏅" : "🔒"}</span>
+                      {#if a.unlocked}<span class="ach-ico" aria-hidden="true">🏅</span>{:else}<span class="ach-coin"><Chip value={tierCoin(a)} size={18} /></span>{/if}
                       {a.name}
                       {#if a.tier}<span class="tier t-{a.tier}">{a.tier}</span>{/if}
                     </span>
@@ -164,6 +168,7 @@
   .ach-cat { font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); margin: 14px 0 8px; }
   .ach-list { margin-bottom: 4px; }
   .ach-ico { margin-right: 2px; }
+  .ach-coin { display: inline-flex; vertical-align: -3px; margin-right: 4px; }
   .ach-desc { margin-bottom: 8px; }
   .tier { font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase;
     padding: 2px 8px; border-radius: var(--r-pill); margin-left: 6px; vertical-align: 1px; }
