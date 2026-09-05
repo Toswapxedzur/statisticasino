@@ -26,6 +26,8 @@
   import Select from "$lib/components/Select.svelte";
   import { fade, fly, scale } from "svelte/transition";
   import { d, DUR } from "$lib/motion.js";
+  import { play, playBurst, soundEnabled, setSoundEnabled } from "$lib/sfx.js";
+  import { tableSoundCues } from "$lib/poker/table-sfx.js";
 
   let { data } = $props();
   // Reactive: a River Sprint fold-teleport navigates /table/A -> /table/B on the
@@ -155,6 +157,51 @@
   function leaveWaitlist() { poker.leaveWaitlist(tableId); onWaitlist = false; }
   $effect(() => { if (isSeated) onWaitlist = false; });
 
+  // --- sound effects (see $lib/sfx.js) ---
+  let sfxOn = $state(true);
+  onMount(() => { sfxOn = soundEnabled(); });
+  function toggleSfx() { sfxOn = !sfxOn; setSoundEnabled(sfxOn); }
+  let _prevView = null;
+  $effect(() => {
+    const v = view;
+    const prev = _prevView; _prevView = v;
+    if (!v || !prev || prev.id !== v.id) return;
+    for (const c of tableSoundCues(prev, v, me?.id ?? null)) {
+      if (c.count) playBurst(c.name, c.count, c.gap, { delay: c.delay, volume: c.volume });
+      else play(c.name, { delay: c.delay, volume: c.volume });
+    }
+  });
+  // Your turn: the server sends TABLE_TURN only to the acting player.
+  let _prevTurnDeadline = null;
+  $effect(() => {
+    const t = poker.turns[tableId] || null;
+    const dl = t?.deadline ?? null;
+    if (dl && dl !== _prevTurnDeadline) play("turn");
+    _prevTurnDeadline = dl;
+  });
+  // Last five seconds of my clock: one tick per second.
+  $effect(() => {
+    const dl = poker.turns[tableId]?.deadline ?? null;
+    if (!dl) return;
+    let last = -1;
+    const iv = setInterval(() => {
+      const left = Math.ceil((dl - Date.now()) / 1000);
+      if (left <= 5 && left > 0 && left !== last) { last = left; play("tick"); }
+      if (left <= 0) clearInterval(iv);
+    }, 200);
+    return () => clearInterval(iv);
+  });
+  // Chat from someone else.
+  let _prevChatLen = null;
+  $effect(() => {
+    const n = (chat || []).length;
+    if (_prevChatLen != null && n > _prevChatLen) {
+      const last = chat[n - 1];
+      if (last && last.from !== me?.name) play("chat");
+    }
+    _prevChatLen = n;
+  });
+
   // --- transient toast ---
   let toastMsg = $state(null);
   let _toastTimer = null;
@@ -218,6 +265,7 @@
   {#if !me}
     <span class="signin">Watching — <a href="/account/login">Sign in to play</a></span>
   {/if}
+  <button type="button" class="sfx-btn" class:off={!sfxOn} onclick={toggleSfx} title={sfxOn ? "Mute table sounds" : "Unmute table sounds"} aria-pressed={sfxOn}>{sfxOn ? "🔊" : "🔇"}</button>
 </section>
 
 {#if toastMsg}
@@ -381,6 +429,8 @@
   .signin { color: var(--muted, #9aa); font-size: 13px; margin-left: auto; }
   .signin a { color: var(--hero, #6cf); }
 
+  .sfx-btn { margin-left: auto; appearance: none; border: 0; background: var(--surface-2); color: var(--text); border-radius: 999px; width: 34px; height: 34px; cursor: pointer; font-size: 15px; }
+  .sfx-btn.off { opacity: 0.55; }
   .toast {
     max-width: 520px; margin: 0 auto 12px; padding: 11px 15px; border-radius: var(--r-card);
     text-align: center; font-size: 14px; box-shadow: var(--shadow-card);

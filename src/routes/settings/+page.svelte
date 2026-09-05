@@ -3,6 +3,7 @@
   import { enhance } from "$app/forms";
   import Select from "$lib/components/Select.svelte";
   import Checkbox from "$lib/components/Checkbox.svelte";
+  import { soundEnabled, setSoundEnabled } from "$lib/sfx.js";
   let { data, form } = $props();
 
   // --- Appearance (client-side theme) ---
@@ -16,6 +17,11 @@
       else { root.setAttribute("data-theme", t); localStorage.setItem("rv-theme", t); }
     } catch { /* ignore */ }
   }
+
+  // --- Sound (client-side) ---
+  let sound = $state(true);
+  onMount(() => { sound = soundEnabled(); });
+  $effect(() => { if (typeof window !== "undefined" && sound !== soundEnabled()) setSoundEnabled(sound); });
 
   // --- Privacy (form) ---
   let visibility = $state(data.visibility);
@@ -50,6 +56,8 @@
       {/each}
     </div>
     <p class="muted small">System follows your device's light/dark setting.</p>
+    <div class="toggle-row" style="margin-top:14px"><Checkbox bind:checked={sound} label="Table sound effects (cards, chips, your turn)" /></div>
+    <p class="muted small">Stored on this device. There is also a 🔊 button on every table.</p>
   </section>
 
   <section class="card">

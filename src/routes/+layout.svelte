@@ -5,6 +5,7 @@
   import { onNavigate, goto } from "$app/navigation";
   import { SITE_NAME } from "$lib/config.js";
   import { poker } from "$lib/poker/client.svelte.js";
+  import { initSfx } from "$lib/sfx.js";
   import { slidingIndicator } from "$lib/actions/slider.js";
   import { reducedMotion, d, DUR } from "$lib/motion.js";
   import Chip from "$lib/poker/components/Chip.svelte";
@@ -69,6 +70,7 @@
   let menuOpen = $state(false);
 
   onMount(() => {
+    initSfx();
     theme = document.documentElement.getAttribute("data-theme") || "dark";
     const onChips = (e) => { if (typeof e.detail === "number") chips = e.detail; };
     window.addEventListener("chips", onChips);

@@ -8,6 +8,7 @@
 
 import { browser } from "$app/environment";
 import { C2S, S2C, encode, decode } from "./protocol.js";
+import { play } from "$lib/sfx.js";
 
 class PokerClient {
   ws = null;
@@ -253,7 +254,7 @@ class PokerClient {
         const n = msg.notification;
         if (n) {
           this.notifications = [n, ...this.notifications.filter((x) => x.id !== n.id)].slice(0, 50);
-          if (!n.readAt) this.notifUnread = this.notifUnread + 1;
+          if (!n.readAt) { this.notifUnread = this.notifUnread + 1; play("notify"); }
         }
         break;
       }
