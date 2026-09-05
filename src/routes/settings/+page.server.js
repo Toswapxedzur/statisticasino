@@ -30,7 +30,7 @@ export const actions = {
     const pol = ["everyone", "fof", "nobody"].includes(policy) ? policy : "everyone";
     const vis = ["public", "friends", "private"].includes(visibility) ? visibility : "public";
     const historyWindow = String(fd.get("historyWindow") || "private");
-    const hw = ["private", "7d", "30d", "90d", "all"].includes(historyWindow) ? historyWindow : "private";
+    const hw = ["private", "7d"].includes(historyWindow) ? historyWindow : "private";
     await execute("UPDATE user SET friend_req_policy = ?, profile_visibility = ?, history_window = ? WHERE id = ?", [pol, vis, hw, locals.user.id]);
     return { privacyOk: true };
   },

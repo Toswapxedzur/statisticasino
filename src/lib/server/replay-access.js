@@ -12,20 +12,27 @@
 
 import { query, queryOne } from "./db.js";
 
-const WINDOW_MS = {
-  "7d": 7 * 86_400_000,
-  "30d": 30 * 86_400_000,
-  "90d": 90 * 86_400_000
-};
+// HARD HORIZON (owner policy, 2026-09-05): the server keeps 7 days of history;
+// everything older is OWNER-ONLY — not even the player themself can reach it.
+// Older replay documents live on the home archive and are fetched only for
+// the site owner (admin).
+export const HOT_WINDOW_MS = 7 * 86_400_000;
 
-export const HISTORY_WINDOWS = ["private", "7d", "30d", "90d", "all"];
+// Public exposure can never exceed the hot window.
+export const HISTORY_WINDOWS = ["private", "7d"];
 
 // Earliest ended_at (ms) this user exposes publicly, or null when private.
+// Legacy values (30d/90d/all) clamp to the 7-day horizon.
 export function windowStartFor(historyWindow, now = Date.now()) {
   const w = historyWindow || "private";
-  if (w === "all") return 0;
-  if (WINDOW_MS[w]) return now - WINDOW_MS[w];
-  return null;
+  if (w === "private") return null;
+  return now - HOT_WINDOW_MS;
+}
+
+// Earliest ended_at (ms) a signed-in viewer may see of ANY history — their own
+// included. The owner sees everything; everyone else only the hot window.
+export function historySinceFor(user, now = Date.now()) {
+  return user?.isAdmin ? 0 : now - HOT_WINDOW_MS;
 }
 
 // The exposure window for a user id (null = private). Missing user = private.
@@ -35,11 +42,15 @@ export async function windowStartForUser(userId, now = Date.now()) {
   return row ? windowStartFor(row.history_window, now) : null;
 }
 
-// How `viewerUserId` may see the replay:
+// How `viewer` ({id, isAdmin} | null) may see the replay:
+//   'owner'       — the site owner; the only access past the 7-day horizon;
 //   'participant' — they were dealt in (full per-seat view of their own cards);
 //   'public'      — some participant exposes it (showdown-public view only);
 //   null          — not viewable.
-export async function replayAccess(replayRow, participants, viewerUserId, now = Date.now()) {
+export async function replayAccess(replayRow, participants, viewer, now = Date.now()) {
+  if (viewer?.isAdmin) return "owner";
+  if (now - Number(replayRow.ended_at) > HOT_WINDOW_MS) return null; // past the horizon: owner only
+  const viewerUserId = viewer?.id ?? null;
   if (viewerUserId && participants.some((p) => p.user_id === viewerUserId)) return "participant";
   const ids = participants.map((p) => p.user_id).filter(Boolean);
   if (ids.length === 0) return null;

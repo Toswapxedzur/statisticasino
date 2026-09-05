@@ -44,7 +44,7 @@ export async function load({ params, locals }) {
   if (!row) throw error(404, "Not found");
 
   const viewerId = locals.user?.id ?? null;
-  const access = await replayAccess(row, row.players, viewerId);
+  const access = await replayAccess(row, row.players, locals.user ?? null);
   if (!access) throw error(404, "Not found");
 
   const { doc, archived, offline } = await loadDocument(row);
@@ -53,10 +53,14 @@ export async function load({ params, locals }) {
   // Redact hole cards down to what this viewer could have seen at the table.
   let holes = null;
   if (expanded?.kind === "poker" && expanded.holes) {
-    const visible = visibleHoleSeats(doc, row.players, access === "participant" ? viewerId : null);
-    holes = {};
-    for (const seat of visible) {
-      if (expanded.holes[seat]) holes[seat] = expanded.holes[seat];
+    if (access === "owner") {
+      holes = expanded.holes; // the owner's own archive — nothing to hide from him
+    } else {
+      const visible = visibleHoleSeats(doc, row.players, access === "participant" ? viewerId : null);
+      holes = {};
+      for (const seat of visible) {
+        if (expanded.holes[seat]) holes[seat] = expanded.holes[seat];
+      }
     }
   }
 

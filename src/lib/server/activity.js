@@ -28,8 +28,10 @@ const MONEY = {
   sprint_prize: { label: "River Sprint prize", icon: "⚡" },
 };
 
-export async function recentActivity(userId, { limit = 200, filter = "all" } = {}) {
-  const since = Date.now() - NINETY_DAYS;
+export async function recentActivity(userId, { limit = 200, filter = "all", sinceMs = null } = {}) {
+  // sinceMs (ms epoch) overrides the default look-back; the 7-day horizon is
+  // applied by callers via replay-access.historySinceFor.
+  const since = sinceMs != null ? Math.max(sinceMs, Date.now() - NINETY_DAYS) : Date.now() - NINETY_DAYS;
   const events = [];
   const nameIds = new Set();
 
