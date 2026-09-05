@@ -29,6 +29,10 @@ const SOUNDS = {
   notify:   { files: ["notify"], gain: 0.6 },
   reward:   { files: ["reward"], gain: 0.7 },
   click:    { files: ["click"], gain: 0.4 },
+  dice:     { files: ["dice-1", "dice-2", "dice-3"], gain: 0.9 },
+  shake:    { files: ["shake-1", "shake-2"], gain: 0.7 },
+  reel:     { files: ["reel-1", "reel-2", "reel-3"], gain: 0.7 },
+  lose:     { files: ["lose"], gain: 0.7 },
   error:    { files: ["error"], gain: 0.6 }
 };
 
