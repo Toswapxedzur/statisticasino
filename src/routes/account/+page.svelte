@@ -190,6 +190,7 @@
   </form>
 </section>
 
+{#if data.user.isAdmin}
 <section class="card">
   <div class="card-head"><h3>Your uploads ({data.myUploads.length})</h3></div>
   {#if data.myUploads.length === 0}
@@ -226,6 +227,7 @@
     {/if}
   </p>
 </section>
+{/if}
 
 {#if data.user.isAdmin && data.reports}
   <section class="card">

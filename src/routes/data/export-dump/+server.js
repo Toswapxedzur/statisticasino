@@ -13,11 +13,13 @@
 import { error } from "@sveltejs/kit";
 import { gunzipSync, gzipSync } from "node:zlib";
 import { loadHandsForExport } from "$lib/server/tables.js";
+import { ownerOnly } from "$lib/server/owner-only.js";
 
 const SCHEMA_VERSION = 1;
 const EXPORT_FORMAT = "casino-export";
 
-export async function POST({ request }) {
+export async function POST({ request, locals }) {
+  ownerOnly(locals);
   let body;
   try { body = await request.json(); }
   catch { throw error(400, "Body must be JSON"); }

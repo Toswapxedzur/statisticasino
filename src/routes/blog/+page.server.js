@@ -1,6 +1,8 @@
 import { listPosts } from "$lib/server/blog.js";
+import { ownerOnly } from "$lib/server/owner-only.js";
 
 export async function load({ locals }) {
+  ownerOnly(locals);
   // Admins see drafts in the listing.
   const includeDrafts = !!(locals.user && locals.user.isAdmin);
   const posts = listPosts({ includeDrafts });

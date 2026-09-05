@@ -23,6 +23,7 @@ import { existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { decodeContainer, ingestContainer } from "$lib/server/ingest.js";
 import { verifyAdminFlushToken } from "$lib/server/auth.js";
+import { ownerOnly } from "$lib/server/owner-only.js";
 
 const MAX_BYTES = 50 * 1024 * 1024;  // 50 MB hard cap on a single upload
 
@@ -51,6 +52,7 @@ function readZipMeta() {
 }
 
 export async function load({ locals }) {
+  ownerOnly(locals);
   return {
     user: locals.user,
     extensionZip: readZipMeta()
@@ -59,6 +61,7 @@ export async function load({ locals }) {
 
 export const actions = {
   default: async ({ request, locals }) => {
+    ownerOnly(locals);
     const data = await request.formData().catch(() => null);
     if (!data) return fail(400, { error: "Could not parse form data." });
 

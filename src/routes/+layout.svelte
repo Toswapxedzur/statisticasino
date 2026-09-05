@@ -106,9 +106,10 @@
     { href: "/quests", label: "Quests", show: !!data.user },
     { href: "/sprint", label: "Sprint", show: true },
     { href: "/leaderboards", label: "Ranks", show: true },
-    { href: "/data", label: "Data", show: true },
-    { href: "/blog", label: "Blog", show: true },
-    { href: "/contribute", label: "Contribute", show: true },
+    // Owner-only sections (hidden 2026-09-05): casino.org data tooling + blog.
+    { href: "/data", label: "Data", show: !!data.user?.isAdmin },
+    { href: "/blog", label: "Blog", show: !!data.user?.isAdmin },
+    { href: "/contribute", label: "Contribute", show: !!data.user?.isAdmin },
   ]);
 </script>
 

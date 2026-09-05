@@ -22,8 +22,10 @@ import { fail } from "@sveltejs/kit";
 import { execute, tx } from "$lib/server/db.js";
 import { listPlayers } from "$lib/server/tables.js";
 import { recentActivity } from "$lib/server/activity.js";
+import { ownerOnly } from "$lib/server/owner-only.js";
 
 export async function load({ locals }) {
+  ownerOnly(locals);
   const players = await listPlayers();
   // The signed-in user's own Riverside history, shown as a section on this page.
   const activity = locals.user ? await recentActivity(locals.user.id, { limit: 60 }) : [];
@@ -56,6 +58,7 @@ async function deleteByHandKeys(keys) {
 
 export const actions = {
   deleteHands: async ({ request, locals }) => {
+    ownerOnly(locals);
     const denied = requireAdmin(locals); if (denied) return denied;
     const form = await request.formData();
     const keys = form.getAll("handKey").map(String).filter(Boolean);
@@ -65,6 +68,7 @@ export const actions = {
   },
 
   deleteTable: async ({ request, locals }) => {
+    ownerOnly(locals);
     const denied = requireAdmin(locals); if (denied) return denied;
     const form = await request.formData();
     const playerId = String(form.get("playerId") || "");
@@ -80,6 +84,7 @@ export const actions = {
   },
 
   deletePlayer: async ({ request, locals }) => {
+    ownerOnly(locals);
     const denied = requireAdmin(locals); if (denied) return denied;
     const form = await request.formData();
     const playerId = String(form.get("playerId") || "");

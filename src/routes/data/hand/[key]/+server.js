@@ -8,8 +8,10 @@
 import { json, error } from "@sveltejs/kit";
 import { gunzipSync } from "node:zlib";
 import { loadHand } from "$lib/server/tables.js";
+import { ownerOnly } from "$lib/server/owner-only.js";
 
-export async function GET({ params }) {
+export async function GET({ params, locals }) {
+  ownerOnly(locals);
   const hand = await loadHand(params.key);
   if (!hand) throw error(404, "Hand not found");
 

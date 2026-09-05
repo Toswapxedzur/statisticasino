@@ -22,6 +22,7 @@ import { Buffer } from "node:buffer";
 import { ZipArchive } from "archiver";
 import { loadHandsForExport } from "$lib/server/tables.js";
 import { buildCsvBundle } from "$lib/server/export-csv.js";
+import { ownerOnly } from "$lib/server/owner-only.js";
 
 // Plain-text doc bundled into every export. Shipped alongside the
 // three CSVs so an analyst opening the zip first sees the schema +
@@ -207,7 +208,8 @@ Caveats
     (hand_key, casino_user_id).
 `;
 
-export async function POST({ request }) {
+export async function POST({ request, locals }) {
+  ownerOnly(locals);
   let body;
   try { body = await request.json(); }
   catch { throw error(400, "Body must be JSON"); }
