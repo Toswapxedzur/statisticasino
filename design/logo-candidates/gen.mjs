@@ -37,29 +37,29 @@ function plane(alpha, beta) {
 const mat = (m, x, y) => `matrix(${m.map(f).join(" ")} ${f(x)} ${f(y)})`;
 
 // A glyph (suit / rank part) in its local plane, centred at origin, height h.
-function glyphLocal(name, h, color, rot = 0, bold = 0) {
+function glyphLocal(name, h, color, rot = 0, bold = 0, sx = 1) {
   const p = PARTS[name];
   const [vx, vy, vw, vh] = p.vb;
   const s = h / vh;
   const body = p.body.replace(/fill="[^"]*"/g, `fill="${color}"`);
   const st = bold ? ` stroke="${color}" stroke-width="${f(bold / s)}" stroke-linejoin="round"` : "";
-  return `<g transform="rotate(${rot}) scale(${f(s)}) translate(${f(-(vx + vw / 2))} ${f(-(vy + vh / 2))})"${st}>${body}</g>`;
+  return `<g transform="rotate(${rot}) scale(${f(s * sx)} ${f(s)}) translate(${f(-(vx + vw / 2))} ${f(-(vy + vh / 2))})"${st}>${body}</g>`;
 }
 
 // Extruded glyph at (x,y): plane tilt (alpha,beta), depth d (px), in-plane rot.
-function glyph3d(name, x, y, h, pal, { alpha = 0, beta = 0, depth = 10, rot = 0, bold = 0, lit = true } = {}) {
+function glyph3d(name, x, y, h, pal, { alpha = 0, beta = 0, depth = 10, rot = 0, bold = 0, lit = true, sx = 1 } = {}) {
   const P = plane(alpha, beta);
   const steps = Math.max(1, Math.round(depth));
   let out = "";
   for (let k = steps; k >= 1; k--) {
     const ox = -P.n[0] * k, oy = -P.n[1] * k;
-    out += `<g transform="${mat(P.m, x + ox, y + oy)}">${glyphLocal(name, h, pal.lo, rot, bold)}</g>`;
+    out += `<g transform="${mat(P.m, x + ox, y + oy)}">${glyphLocal(name, h, pal.lo, rot, bold, sx)}</g>`;
   }
   const id = `lit${uid++}`;
-  out += `<g transform="${mat(P.m, x, y)}">${glyphLocal(name, h, pal.base, rot, bold)}`;
+  out += `<g transform="${mat(P.m, x, y)}">${glyphLocal(name, h, pal.base, rot, bold, sx)}`;
   if (lit) {
     out += `<clipPath id="${id}"><circle cx="${f(-h * 0.55)}" cy="${f(-h * 0.55)}" r="${f(h * 0.72)}"/></clipPath>`
-      + `<g clip-path="url(#${id})">${glyphLocal(name, h, pal.hi, rot, bold)}</g>`;
+      + `<g clip-path="url(#${id})">${glyphLocal(name, h, pal.hi, rot, bold, sx)}</g>`;
   }
   return out + `</g>`;
 }
@@ -182,14 +182,33 @@ const weave = (A, B, region) => A + B + clipG(region, A);
 }
 
 
-// PICKED (2026-09-05): Q left, spade right, both facing IN (turned toward the centre),
-// obsidian coin lying down below. Cyan Q, white spade, light-blue tile; thick extrusion.
+// PICKED (2026-09-05): Q full height left (thinner strokes); club upper right (+30%);
+// coin below it (−10%). ONE shared thickness (DEPTH px) for all three pieces.
+// Background: three light-blue strips, light → dark left to right, tilted 20° from vertical.
+function wrapStrips(inner, colors, tiltDeg = 20, fit = 1, rx = 72) {
+  const t = Math.tan(rad(tiltDeg)) * 512;            // horizontal run of a strip edge over the tile height
+  const w = (512 + t) / colors.length;                // equal widths, measured along the top edge; covers the tile with the shear
+  const strips = colors.map((c, i) => {
+    const x0 = i * w - t, x1 = (i + 1) * w - t;       // at the bottom edge (y = 512)
+    return "<polygon points=\"" + (x0 + t) + ",0 " + (x1 + t) + ",0 " + x1 + ",512 " + x0 + ",512\" fill=\"" + c + "\"/>";
+  }).join("");
+  const id = "tile" + uid++;
+  return "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"512\" height=\"512\" viewBox=\"0 0 512 512\">"
+    + "<clipPath id=\"" + id + "\"><rect width=\"512\" height=\"512\" rx=\"" + rx + "\"/></clipPath>"
+    + "<g clip-path=\"url(#" + id + ")\"><rect width=\"512\" height=\"512\" fill=\"" + colors[0] + "\"/>" + strips + "</g>"
+    + "<g clip-path=\"url(#" + id + ")\"><g id=\"content\" data-fit=\"" + fit + "\">" + inner + "</g></g></svg>";
+}
 {
-  const LIGHT_BLUE = "#b7dcf7";
-  const Q = glyph3d("rank-Q", 150, 200, 400, T.riverstone, { alpha: 8, beta: 38, depth: 50, rot: 0, bold: 15 });
-  const spade = glyph3d("suit-spade", 385, 205, 350, T.ivory, { alpha: 8, beta: -38, depth: 34, rot: 0 });
-  const c = coin(262, 440, 140, T.obsidian, { tilt: 0.42, rot: 0, form: 3, t: 0.5 });
-  C.push(["q-spade-final", wrap(c + Q + spade, LIGHT_BLUE)]);
+  const STRIPS = ["#d3e8fb", "#a9d2f4", "#7db7e7"];
+  const DEPTH = 36;
+  const R = 94;
+  const Q = glyph3d("rank-A", 170, 250, 624, T.riverstone, { alpha: 4, beta: 40, depth: DEPTH, rot: 0, bold: 9, sx: 1.35 });
+  const club = glyph3d("suit-club", 400, 150, 468, T.ivory, { alpha: 34, beta: -22, depth: DEPTH, rot: -8 });
+  const c = coin(410, 420, R * 1.2, T.rose, { tilt: 0.5, rot: 32, form: 3, t: DEPTH / (R * 1.2) });
+  C.push(["a-club-final", wrapStrips(Q + club, STRIPS, 20, 1)]);
+  // export variants: square (iOS applies its own mask) and maskable (content inside the 80% safe zone)
+  C.push(["a-club-square", wrapStrips(Q + club, STRIPS, 20, 1, 0)]);
+  C.push(["a-club-maskable", wrapStrips(Q + club, STRIPS, 20, 0.8, 0)]);
 }
 for (const [name, svg] of C) writeFileSync(`${name}.svg`, svg);
 console.log("raw candidates written");

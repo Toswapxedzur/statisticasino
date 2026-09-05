@@ -17,9 +17,10 @@ for (const n of names) {
   await send("Page.navigate", { url: "file://" + process.cwd() + "/" + n + ".svg" }); await sleep(400);
   const r = await send("Runtime.evaluate", { expression: "JSON.stringify((()=>{const b=document.getElementById('content').getBBox();return [b.x,b.y,b.width,b.height]})())", returnByValue: true });
   const [x, y, w, h] = JSON.parse(r.result.result.value);
-  const k = Math.min((512 - 2 * PAD) / w, (512 - 2 * PAD) / h);
+  const fitAttr = (raw.match(/data-fit="([\d.]+)"/) || [])[1];
+  const k = Math.min((512 - 2 * PAD) / w, (512 - 2 * PAD) / h) * (fitAttr ? parseFloat(fitAttr) : 1);
   const tx = 256 - k * (x + w / 2), ty = 256 - k * (y + h / 2);
-  const svg = raw.replace('<g id="content">', '<g id="content" transform="translate(' + tx.toFixed(2) + ' ' + ty.toFixed(2) + ') scale(' + k.toFixed(4) + ')">');
+  const svg = raw.replace(/<g id="content"[^>]*>/, '<g id="content" transform="translate(' + tx.toFixed(2) + ' ' + ty.toFixed(2) + ') scale(' + k.toFixed(4) + ')">');
   writeFileSync("fit-" + n + ".svg", svg); fitted.push([n, svg]);
   console.log(n, "bbox", [x, y, w, h].map(Math.round).join(","), "scale", k.toFixed(2));
 }

@@ -15,7 +15,7 @@ import { build, files, version } from "$service-worker";
 
 const CACHE = `riverside-${version}`;
 const SHELL_STATIC = files.filter((f) =>
-  f.startsWith("/icons/") || f.startsWith("/favicon") || f === "/manifest.webmanifest" || f === "/offline.html"
+  f.startsWith("/icons/") || f.startsWith("/favicon") || f === "/brand.svg" || f === "/manifest.webmanifest" || f === "/offline.html"
 );
 const PRECACHE = [...build, ...SHELL_STATIC];
 const PRECACHE_SET = new Set(PRECACHE);

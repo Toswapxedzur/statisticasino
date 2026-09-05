@@ -181,10 +181,9 @@ a:hover { text-decoration: underline; }
   letter-spacing: -0.01em;
   color: var(--text);
 }
-.brand .dot {
-  width: 30px; height: 30px; border-radius: 9px;
-  display: grid; place-items: center;
-  background: linear-gradient(150deg, var(--accent), var(--accent-ink));
+.brand .mark {
+  width: 30px; height: 30px; border-radius: 8px;
+  display: block;
   box-shadow: var(--shadow-card);
 }
 .nav-tabs { position: relative; display: inline-flex; gap: 2px; margin-left: 8px; }

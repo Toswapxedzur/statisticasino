@@ -119,7 +119,7 @@
     <span class="bars"></span>
   </button>
 
-  <a class="brand" href="/"><span class="dot"></span> {SITE_NAME}</a>
+  <a class="brand" href="/"><img class="mark" src="/brand.svg" alt="" width="30" height="30" /> {SITE_NAME}</a>
 
   <nav class="nav-tabs desk" aria-label="Sections" use:slidingIndicator>
     {#each links as l}
