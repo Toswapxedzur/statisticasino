@@ -743,3 +743,29 @@ through Cloudflare's HTTP proxy.
 advisory-lock ("instance lease") connection idle-times-out (RDS wait_timeout), and
 systemd restarts it — dropping live tables/connections. Fix: a periodic keepalive
 `SELECT 1` on the lease connection in bank.js#acquireInstanceLease.
+
+## Replay archive (tiering to the home Mac mini)
+
+Matches older than **7 days** have their big `match_replay.replay_json` moved to
+**mini2** (`~/riverside-archive/replays/YYYY/MM/DD/<id>.json.gz`); the VPS keeps
+metadata + participants + `final_json`, so stats/history/access never depend on
+home — only the step-through of an old replay does.
+
+**mini2 pulls, the VPS never reaches home.** Three LaunchDaemons on mini2
+(`/Library/LaunchDaemons/com.johnzhu.riverside-archive-{pull,serve,tunnel}.plist`,
+user `john.zhu`, no dev tools needed — Ruby stdlib only):
+- `pull` — hourly `~/riverside-archive/bin/pull.sh`: SSH to hk → `node
+  scripts/replay-archive.mjs export` → rsync → verify every sha256 → move files
+  read-only → `mark` (VPS re-hashes the live row, then NULLs it) → `cleanup` →
+  `prune-legacy` (NULLs dead `poker_hand.state_json`). Log
+  `~/riverside-archive/logs/pull.log` (self-capped 3000 lines).
+- `serve` — `ruby -run -e httpd ~/riverside-archive -p 8790 --bind-address=127.0.0.1`.
+- `tunnel` — `ssh -N -R 127.0.0.1:8790:127.0.0.1:8790 admin@47.243.163.51`
+  (KeepAlive); the VPS reads archived files at `REPLAY_ARCHIVE_URL=http://127.0.0.1:8790`
+  (in `/opt/riverside/.env`), 2.5 s timeout, summary fallback when home is offline.
+
+Ops: `ssh mini2 'tail ~/riverside-archive/logs/pull.log'`; run a pull now with
+`ssh mini2 'sudo launchctl kickstart -k system/com.johnzhu.riverside-archive-pull'`;
+check the tunnel from the VPS with `ssh hk 'curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8790/replays/'`.
+**Teardown (mini2):** `for n in pull serve tunnel; do sudo launchctl bootout system/com.johnzhu.riverside-archive-$n; sudo rm /Library/LaunchDaemons/com.johnzhu.riverside-archive-$n.plist; done`
+(keep `~/riverside-archive/replays` — it is the ONLY copy of archived replays).
