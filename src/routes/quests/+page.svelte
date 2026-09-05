@@ -109,7 +109,6 @@
                     <span class="q-title">
                       {#if a.unlocked}<span class="ach-ico" aria-hidden="true">🏅</span>{:else}<span class="ach-coin"><Chip value={tierCoin(a)} size={18} /></span>{/if}
                       {a.name}
-                      {#if a.tier}<span class="tier t-{a.tier}">{a.tier}</span>{/if}
                     </span>
                     <span class="q-reward" class:muted={a.unlocked}>
                       {#if a.unlocked}Earned{:else if a.reward}<Chip value={a.reward} size={15} /> {fmt(a.reward)}{/if}
@@ -170,9 +169,4 @@
   .ach-ico { margin-right: 2px; }
   .ach-coin { display: inline-flex; vertical-align: -3px; margin-right: 4px; }
   .ach-desc { margin-bottom: 8px; }
-  .tier { font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase;
-    padding: 2px 8px; border-radius: var(--r-pill); margin-left: 6px; vertical-align: 1px; }
-  .t-bronze { background: #c1691f; color: #2a1608; }
-  .t-silver { background: #c6cdda; color: #242a3a; }
-  .t-gold { background: #f5b60d; color: #2a2206; }
 </style>
