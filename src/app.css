@@ -250,7 +250,11 @@ main {
   will-change: transform, width;
   pointer-events: none;
 }
+/* Choices sit above the indicator. The indicator itself must stay out of
+   flow — `.slider > *` used to clobber its `position: absolute`, which
+   pushed the choices sideways and drew the pill off the active item. */
 .slider > * { position: relative; z-index: 1; }
+.slider > .sel-ind { position: absolute; z-index: 0; }
 
 /* ------- eyebrow ------- */
 .eyebrow { font-weight: 700; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent-ink); }

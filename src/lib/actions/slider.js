@@ -19,6 +19,18 @@ export function slidingIndicator(node, options = {}) {
     node.prepend(ind);
   }
 
+  // The nearest horizontally-scrolling ancestor (the strip's viewport), if any.
+  function scroller() {
+    let el = node;
+    while (el && el !== document.body) {
+      const ox = getComputedStyle(el).overflowX;
+      if ((ox === "auto" || ox === "scroll") && el.scrollWidth > el.clientWidth + 1) return el;
+      el = el.parentElement;
+    }
+    return null;
+  }
+
+  let lastActive = null;
   function move() {
     const active = node.querySelector(activeSel);
     if (!active || active === ind) {
@@ -29,7 +41,32 @@ export function slidingIndicator(node, options = {}) {
     ind.style.width = active.offsetWidth + "px";
     ind.style.height = active.offsetHeight + "px";
     ind.style.transform = `translate(${active.offsetLeft}px, ${active.offsetTop}px)`;
+    // Keep the active choice visible inside a scrolling strip.
+    if (active !== lastActive) {
+      lastActive = active;
+      const sc = scroller();
+      if (sc) {
+        const left = active.offsetLeft - (sc.clientWidth - active.offsetWidth) / 2;
+        sc.scrollTo({ left: Math.max(0, left), behavior: "smooth" });
+      }
+    }
   }
+
+  // Mouse wheel over a horizontal strip scrolls it sideways (a vertical wheel
+  // otherwise does nothing useful there). Only intercept when the strip can
+  // actually move in that direction, so the page keeps scrolling at the ends.
+  function onWheel(e) {
+    const sc = scroller();
+    if (!sc) return;
+    const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    if (!delta) return;
+    const max = sc.scrollWidth - sc.clientWidth;
+    const can = delta > 0 ? sc.scrollLeft < max - 1 : sc.scrollLeft > 1;
+    if (!can) return;
+    e.preventDefault();
+    sc.scrollLeft += delta;
+  }
+  node.addEventListener("wheel", onWheel, { passive: false });
 
   const ro = new ResizeObserver(move);
   ro.observe(node);
@@ -50,6 +87,7 @@ export function slidingIndicator(node, options = {}) {
       ro.disconnect();
       mo.disconnect();
       window.removeEventListener("resize", onResize);
+      node.removeEventListener("wheel", onWheel);
     },
   };
 }
