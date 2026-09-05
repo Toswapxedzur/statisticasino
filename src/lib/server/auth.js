@@ -236,3 +236,14 @@ export async function updateDisplayName(userId, newName) {
   try { await syncTrigrams(userId, trimmed || userId); } catch { /* best effort */ }
   return trimmed;
 }
+
+// Forgot-password: set a new scrypt hash and revoke EVERY existing session for
+// the user (a reset is the moment to evict whoever held the old credential).
+// Refuses the hardcoded admin (its credential lives in code, not the DB) and
+// bot shells (no human owns their inbox).
+export async function resetPassword(userId, newPassword) {
+  if (userId === HARDCODED_ADMIN_USER_ID) throw new Error("admin password is not DB-managed");
+  const hash = hashPassword(newPassword);
+  await execute("UPDATE user SET password_hash = ? WHERE id = ?", [hash, userId]);
+  await execute("DELETE FROM session WHERE user_id = ?", [userId]);
+}

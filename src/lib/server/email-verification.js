@@ -27,6 +27,7 @@
 import { createHash, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import { execute, query, queryOne } from "./db.js";
 import { sendEmail } from "./email.js";
+import { SITE_NAME } from "$lib/config.js";
 
 const CODE_TTL_MS = 10 * 60 * 1000;           // 10 minutes
 const RESEND_COOLDOWN_MS = 30 * 1000;         // 30 seconds between sends
@@ -45,7 +46,7 @@ const HOUR_MS = 60 * 60 * 1000;
  *   retryAfterMs?: number
  * }>}
  */
-export async function issueAndSendCode(email) {
+export async function issueAndSendCode(email, { purpose = "signup" } = {}) {
   const normalized = email.toLowerCase().trim();
   const now = Date.now();
 
@@ -95,17 +96,23 @@ export async function issueAndSendCode(email) {
     [id, normalized, codeHash, now, now + CODE_TTL_MS]
   );
 
-  const subject = "Your Statisticasino verification code";
+  // purpose: "signup" (legacy verification) | "reset" (forgot-password).
+  const reset = purpose === "reset";
+  const subject = reset
+    ? `${SITE_NAME} password reset code`
+    : `Your ${SITE_NAME} verification code`;
+  const what = reset ? "password reset code" : "verification code";
+  const tail = reset
+    ? "If you did not ask to reset your password, ignore this message — your password is unchanged."
+    : "If you did not request this, you can safely ignore this message.";
   const text =
-    `Your verification code is: ${code}\n\n`
-    + `It expires in 10 minutes. If you did not request this, you can `
-    + `safely ignore this message.\n`;
+    `Your ${what} is: ${code}\n\n`
+    + `It expires in 10 minutes. ${tail}\n`;
   const html =
-    `<p>Your verification code is:</p>`
+    `<p>Your ${what} is:</p>`
     + `<p style="font-size:1.6em;font-family:ui-monospace,monospace;letter-spacing:.2em;">`
     + `<strong>${code}</strong></p>`
-    + `<p>It expires in 10 minutes. If you did not request this, you `
-    + `can safely ignore this message.</p>`;
+    + `<p>It expires in 10 minutes. ${tail}</p>`;
 
   const send = await sendEmail({ to: normalized, subject, text, html });
   if (!send.ok) {

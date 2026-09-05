@@ -17,6 +17,7 @@
     {#if form?.error}<p class="form-error">{form.error}</p>{/if}
   </form>
   <p class="muted" style="margin-top:12px;font-size:12.5px">
-    No account? <a href="/account/signup">Create one</a>. You can also browse and upload without one.
+    No account? <a href="/account/signup">Create one</a>.
+    <br /><a href="/account/forgot">Forgot password?</a>
   </p>
 </section>
