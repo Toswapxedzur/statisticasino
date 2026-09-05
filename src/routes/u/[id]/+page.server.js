@@ -8,6 +8,7 @@ import { block, unblock, hasBlocked, report } from "$lib/server/moderation.js";
 import { hub } from "$lib/server/poker/hub.js";
 import { windowStartForUser } from "$lib/server/replay-access.js";
 import { modeBreakdown, overviewStats } from "$lib/server/stats.js";
+import { recentReplaysForUser } from "$lib/server/poker/store.js";
 
 export async function load({ params, locals }) {
   const viewerId = locals.user?.id || null;
@@ -34,10 +35,13 @@ export async function load({ params, locals }) {
     ]);
     publicStats = { overview, modes, sinceMs: historySince };
   }
+  // Exposed in-game history (the same window as the stats).
+  const recentMatches = publicStats ? await recentReplaysForUser(params.id, { sinceMs: historySince, limit: 30 }) : [];
   return {
     profile,
     transferable,
     publicStats,
+    recentMatches,
     historyPrivate: historySince === null,
     presence: { online, tableId: table?.id || null, tableName: table?.config?.name || null }
   };

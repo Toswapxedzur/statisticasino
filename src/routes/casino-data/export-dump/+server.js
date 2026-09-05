@@ -1,4 +1,4 @@
-// POST /data/export-dump
+// POST /casino-data/export-dump
 //
 // Body: { handKeys: string[] }
 // Response: application/octet-stream — the same .casinodump format

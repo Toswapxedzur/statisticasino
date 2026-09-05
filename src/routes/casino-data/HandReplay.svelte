@@ -540,7 +540,7 @@
       loading = true;
       error = null;
       await ensureEngine();
-      const res = await fetch(`/data/hand/${encodeURIComponent(handKey)}`);
+      const res = await fetch(`/casino-data/hand/${encodeURIComponent(handKey)}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       payload = await res.json();
 

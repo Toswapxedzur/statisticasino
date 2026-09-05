@@ -106,9 +106,10 @@
     { href: "/quests", label: "Quests", show: !!data.user },
     { href: "/sprint", label: "Sprint", show: true },
     { href: "/leaderboards", label: "Ranks", show: true },
-    // Hidden from everyone incl. the owner (2026-09-05): casino.org data tooling + blog.
-    // Routes 404 too — see $lib/server/owner-only.js (flip HIDDEN to restore).
-    { href: "/data", label: "Data", show: false },
+    // /data = Riverside's own data hub (your history, others' in-game history, player search).
+    { href: "/data", label: "Data", show: true },
+    // Hidden from everyone incl. the owner (2026-09-05): blog + casino.org tooling
+    // (/casino-data, /contribute). Routes 404 too — see $lib/server/owner-only.js.
     { href: "/blog", label: "Blog", show: false },
     { href: "/contribute", label: "Contribute", show: false },
   ]);
