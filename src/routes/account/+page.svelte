@@ -36,6 +36,8 @@
     return new Date(ts).toLocaleString();
   }
   function chips(n) { return Number(n).toLocaleString("en-US"); }
+  // casino.org data tooling is hidden from everyone incl. the owner (2026-09-05).
+  const SHOW_DATA_TOOLING = false;
   const REASON_LABEL = {
     signup_grant: "Welcome grant",
     daily_bonus: "Daily bonus",
@@ -190,7 +192,7 @@
   </form>
 </section>
 
-{#if data.user.isAdmin}
+{#if SHOW_DATA_TOOLING}
 <section class="card">
   <div class="card-head"><h3>Your uploads ({data.myUploads.length})</h3></div>
   {#if data.myUploads.length === 0}

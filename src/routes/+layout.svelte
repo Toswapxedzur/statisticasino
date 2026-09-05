@@ -106,10 +106,11 @@
     { href: "/quests", label: "Quests", show: !!data.user },
     { href: "/sprint", label: "Sprint", show: true },
     { href: "/leaderboards", label: "Ranks", show: true },
-    // Owner-only sections (hidden 2026-09-05): casino.org data tooling + blog.
-    { href: "/data", label: "Data", show: !!data.user?.isAdmin },
-    { href: "/blog", label: "Blog", show: !!data.user?.isAdmin },
-    { href: "/contribute", label: "Contribute", show: !!data.user?.isAdmin },
+    // Hidden from everyone incl. the owner (2026-09-05): casino.org data tooling + blog.
+    // Routes 404 too — see $lib/server/owner-only.js (flip HIDDEN to restore).
+    { href: "/data", label: "Data", show: false },
+    { href: "/blog", label: "Blog", show: false },
+    { href: "/contribute", label: "Contribute", show: false },
   ]);
 </script>
 
