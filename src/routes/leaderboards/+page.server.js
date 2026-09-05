@@ -1,10 +1,8 @@
-import { getLeaderboard } from "$lib/server/leaderboards.js";
+// Ranks merged into the Data hub (2026-09-05). Old links keep working.
+import { redirect } from "@sveltejs/kit";
 
-export async function load({ url, locals }) {
-  const metric = url.searchParams.get("metric") || "chips";
-  const timeframe = url.searchParams.get("tf") || "all";
-  let scope = url.searchParams.get("scope") || "global";
-  if (scope === "friends" && !locals.user) scope = "global";
-  const rows = await getLeaderboard({ metric, timeframe, scope, viewerId: locals.user?.id || null });
-  return { rows, metric, timeframe, scope, signedIn: !!locals.user };
+export function load({ url }) {
+  const p = new URLSearchParams(url.searchParams);
+  p.set("view", "ranks");
+  throw redirect(301, `/data?${p}`);
 }

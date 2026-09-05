@@ -72,7 +72,7 @@
   <section class="section">
     <div class="card-head">
       <h3>Leaderboard</h3>
-      <a class="lb-all" href="/leaderboards">See all →</a>
+      <a class="lb-all" href="/data?view=ranks">See all →</a>
     </div>
 
     <div class="board">

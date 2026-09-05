@@ -5,10 +5,23 @@
 import { recentReplaysForUser } from "$lib/server/poker/store.js";
 import { historySinceFor, windowStartForUser } from "$lib/server/replay-access.js";
 import { getProfile } from "$lib/server/profiles.js";
+import { getLeaderboard } from "$lib/server/leaderboards.js";
 
 export async function load({ locals, url }) {
   const me = locals.user ?? null;
   const horizon = historySinceFor(me); // 0 for the owner, now-7d otherwise
+
+  // Ranks (the former /leaderboards) live here as a view.
+  const view = url.searchParams.get("view") === "ranks" ? "ranks" : "history";
+  let ranks = null;
+  if (view === "ranks") {
+    const metric = url.searchParams.get("metric") || "chips";
+    const timeframe = url.searchParams.get("tf") || "all";
+    let scope = url.searchParams.get("scope") || "global";
+    if (scope === "friends" && !me) scope = "global";
+    const rows = await getLeaderboard({ metric, timeframe, scope, viewerId: me?.id || null });
+    ranks = { rows, metric, timeframe, scope };
+  }
 
   const myMatches = me ? await recentReplaysForUser(me.id, { sinceMs: horizon, limit: 100 }) : null;
 
@@ -39,6 +52,8 @@ export async function load({ locals, url }) {
   }
 
   return {
+    view,
+    ranks,
     signedIn: !!me,
     isOwner: !!me?.isAdmin,
     horizonDays: me?.isAdmin ? null : 7,

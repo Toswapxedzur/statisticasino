@@ -105,7 +105,6 @@
     { href: "/social", label: "Social", show: !!data.user, badge: socialUnread },
     { href: "/quests", label: "Quests", show: !!data.user },
     { href: "/sprint", label: "Sprint", show: true },
-    { href: "/leaderboards", label: "Ranks", show: true },
     // /data = Riverside's own data hub (your history, others' in-game history, player search).
     { href: "/data", label: "Data", show: true },
     // Hidden from everyone incl. the owner (2026-09-05): blog + casino.org tooling

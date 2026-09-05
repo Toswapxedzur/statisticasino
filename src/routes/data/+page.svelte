@@ -4,6 +4,7 @@
   import { goto } from "$app/navigation";
   import Avatar from "$lib/poker/components/Avatar.svelte";
   import MatchList from "$lib/components/MatchList.svelte";
+  import Leaderboard from "$lib/components/Leaderboard.svelte";
 
   let { data } = $props();
 
@@ -28,14 +29,22 @@
   function open(id) { results = []; q = ""; goto(`/data?u=${encodeURIComponent(id)}`); }
 </script>
 
-<svelte:head><title>Data — Riverside</title></svelte:head>
+<svelte:head><title>{data.view === "ranks" ? "Ranks" : "Data"} — Riverside</title></svelte:head>
 
 <div class="wrap">
   <div class="head">
     <h1>Data</h1>
-    {#if data.horizonDays}<span class="muted small">Last {data.horizonDays} days</span>{/if}
+    <div class="seg views">
+      <a class="sb" class:on={data.view === "history"} href="/data">History</a>
+      <a class="sb" class:on={data.view === "ranks"} href="/data?view=ranks">Ranks</a>
+    </div>
   </div>
-  <p class="muted intro">Your in-game history, other players' history, and every replay — recorded automatically as you play.</p>
+
+  {#if data.view === "ranks"}
+    <p class="muted intro">Who's on top — by chips held, or by net winnings at the tables.</p>
+    <Leaderboard rows={data.ranks.rows} metric={data.ranks.metric} timeframe={data.ranks.timeframe} scope={data.ranks.scope} signedIn={data.signedIn} basePath="/data" extra={{ view: "ranks" }} />
+  {:else}
+  <p class="muted intro">Your in-game history, other players' history, and every replay — recorded automatically as you play.{#if data.horizonDays} Showing the last {data.horizonDays} days.{/if}</p>
 
   <section class="card search">
     <label class="field"><span>Look up a player</span></label>
@@ -94,11 +103,17 @@
       <MatchList matches={data.myMatches} empty="You haven't played a recorded match in this window yet." />
     </section>
   {/if}
+  {/if}
 </div>
 
 <style>
   .wrap { max-width: 760px; margin: 0 auto; }
-  .head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .seg { display: inline-flex; background: var(--well); border-radius: var(--r-pill); padding: 3px; gap: 2px; }
+  .sb { color: var(--muted); font-weight: 600; font-size: 12.5px; padding: 7px 14px; border-radius: var(--r-pill); text-decoration: none;
+    transition: color var(--dur) var(--ease), background-color var(--dur) var(--ease); }
+  .sb:hover { color: var(--text); }
+  .sb.on { color: var(--text); background: var(--surface); box-shadow: var(--shadow-card); }
   h1 { margin: 0; font-size: 26px; }
   .intro { margin: 6px 0 18px; }
   .card { margin-bottom: 14px; }
