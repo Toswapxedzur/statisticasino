@@ -1,5 +1,5 @@
 /// <reference types="@sveltejs/kit" />
-// Riverside service worker — makes the site installable (PWA) and keeps the
+// Bluffing Valley service worker — makes the site installable (PWA) and keeps the
 // shell + immutable build assets available offline. Strategy:
 //   * build assets + app icons + manifest + offline page: precached at
 //     install, cache-first (build names are content-hashed; a deploy changes
@@ -13,7 +13,7 @@
 //     state, wallets and replays are always live.
 import { build, files, version } from "$service-worker";
 
-const CACHE = `riverside-${version}`;
+const CACHE = `bluffing-valley-${version}`;
 const SHELL_STATIC = files.filter((f) =>
   f.startsWith("/icons/") || f.startsWith("/favicon") || f === "/brand.svg" || f === "/manifest.webmanifest" || f === "/offline.html"
 );

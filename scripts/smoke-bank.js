@@ -127,7 +127,7 @@ try {
     const pool = await getPool();
     const other = await pool.getConnection();
     try {
-      const [[r]] = await other.query("SELECT GET_LOCK('riverside_poker_singleton', 0) AS ok");
+      const [[r]] = await other.query("SELECT GET_LOCK('bluffingvalley_poker_singleton', 0) AS ok");
       assert.equal(Number(r.ok), 0, "a second connection cannot acquire the lease while held");
     } finally {
       other.release();
@@ -136,9 +136,9 @@ try {
     assert.ok(!hasInstanceLease(), "lease released");
     const other2 = await pool.getConnection();
     try {
-      const [[r]] = await other2.query("SELECT GET_LOCK('riverside_poker_singleton', 0) AS ok");
+      const [[r]] = await other2.query("SELECT GET_LOCK('bluffingvalley_poker_singleton', 0) AS ok");
       assert.equal(Number(r.ok), 1, "lease acquirable again after release");
-      await other2.query("SELECT RELEASE_LOCK('riverside_poker_singleton')");
+      await other2.query("SELECT RELEASE_LOCK('bluffingvalley_poker_singleton')");
     } finally {
       other2.release();
     }

@@ -23,7 +23,7 @@
   const rel = $derived(p.relationship);
 </script>
 
-<svelte:head><title>{p.name} — Riverside</title></svelte:head>
+<svelte:head><title>{p.name} — Bluffing Valley</title></svelte:head>
 
 <div class="wrap">
   <a class="back" href="/social">‹ Social</a>

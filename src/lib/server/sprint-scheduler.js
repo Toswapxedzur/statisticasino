@@ -85,7 +85,7 @@ export function startScheduler(runner, { intervalMs = 30_000 } = {}) {
   const run = async () => {
     if (stopped) return;
     try { await tick(Date.now(), runner); }
-    catch (e) { console.error("[riverside] sprint scheduler tick error:", e?.message || e); }
+    catch (e) { console.error("[bluffing-valley] sprint scheduler tick error:", e?.message || e); }
   };
   run();
   const h = setInterval(run, intervalMs);

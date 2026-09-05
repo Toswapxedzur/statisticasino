@@ -1,4 +1,4 @@
-// Riverside logo candidates — coins + suits + rank glyphs in faux-3D.
+// Bluffing Valley logo candidates — coins + suits + rank glyphs in faux-3D.
 // Flat colours only (no gradients): depth = extruded offset copies in darker
 // tone, lit = a clipped brighter region. Glyphs = our Aguilar parts; coins =
 // our tier palette.

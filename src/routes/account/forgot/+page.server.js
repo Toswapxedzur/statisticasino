@@ -12,7 +12,7 @@
 //
 // Not resettable (silently treated as "no account"): the hardcoded admin (its
 // credential lives in code; the DB row has a NULL hash) and bot shells
-// (`…@bot.riverside.invalid`, nobody reads that inbox).
+// (`…@bot.bluffingvalley.invalid`, nobody reads that inbox).
 import { fail, redirect } from "@sveltejs/kit";
 import {
   findUserByEmail,
@@ -24,7 +24,7 @@ import { issueAndSendCode, verifyCode } from "$lib/server/email-verification.js"
 import { setSessionCookie } from "$lib/server/cookies.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const BOT_SUFFIX = "@bot.riverside.invalid";
+const BOT_SUFFIX = "@bot.bluffingvalley.invalid";
 
 async function resettableUser(email) {
   if (email === HARDCODED_ADMIN_EMAIL.toLowerCase()) return null;

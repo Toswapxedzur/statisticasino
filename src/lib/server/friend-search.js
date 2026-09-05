@@ -4,7 +4,7 @@
 import { query } from "./db.js";
 import { trigrams } from "./trigram.js";
 
-const BOTS = "u.email NOT LIKE '%@bot.riverside.invalid'";
+const BOTS = "u.email NOT LIKE '%@bot.bluffingvalley.invalid'";
 
 // Rank users by how many trigrams they share with the query. Excludes bots + self.
 export async function searchByTrigram(q, limit = 12, excludeId = null) {

@@ -82,7 +82,7 @@ export async function findUserByHandle(handle) {
   if (!h) return null;
   const row = await queryOne(
     "SELECT id, display_name, email FROM user "
-    + "WHERE (email = ? OR display_name = ?) AND email NOT LIKE '%@bot.riverside.invalid' LIMIT 1",
+    + "WHERE (email = ? OR display_name = ?) AND email NOT LIKE '%@bot.bluffingvalley.invalid' LIMIT 1",
     [h, h]
   );
   return row ? { id: row.id, name: row.display_name || row.email } : null;
@@ -96,7 +96,7 @@ export async function searchUsers(q, limit = 20, excludeId = null) {
   const like = `%${s.replace(/[%_]/g, "\\$&")}%`;
   const rows = await query(
     "SELECT id, display_name, email FROM user "
-    + "WHERE display_name LIKE ? AND email NOT LIKE '%@bot.riverside.invalid' "
+    + "WHERE display_name LIKE ? AND email NOT LIKE '%@bot.bluffingvalley.invalid' "
     + (excludeId ? "AND id <> ? " : "")
     + "ORDER BY CASE WHEN display_name = ? THEN 0 ELSE 1 END, display_name ASC LIMIT ?",
     excludeId ? [like, excludeId, s, limit] : [like, s, limit]
@@ -111,7 +111,7 @@ export async function leaderboard(limit = 10) {
   const rows = await query(
     `SELECT id, COALESCE(NULLIF(display_name, ''), email) AS name, chips, avatar_media_id
        FROM user
-      WHERE email NOT LIKE '%@bot.riverside.invalid'
+      WHERE email NOT LIKE '%@bot.bluffingvalley.invalid'
       ORDER BY chips DESC, name ASC
       LIMIT ?`,
     [limit]

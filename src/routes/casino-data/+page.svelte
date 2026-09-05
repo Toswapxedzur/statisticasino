@@ -330,7 +330,7 @@
   <section class="my-history">
     <button class="mh-head" onclick={() => (showHistory = !showHistory)} aria-expanded={showHistory}>
       <span class="mh-caret" class:open={showHistory}></span>
-      <h3>Your Riverside history</h3>
+      <h3>Your Bluffing Valley history</h3>
       <span class="muted mh-count">{data.activity.length} recent</span>
     </button>
     {#if showHistory}

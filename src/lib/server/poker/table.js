@@ -740,7 +740,7 @@ export class LiveTable {
       // Conservation still holds (cash-out is escrow-authoritative); the risk is
       // that a crash before the next sync would refund pre-hand splits. Surface
       // it rather than swallowing silently.
-      console.error(`[riverside] table ${this.id}: escrow syncStacks failed after retries; escrow mirror is stale until the next hand`);
+      console.error(`[bluffing-valley] table ${this.id}: escrow syncStacks failed after retries; escrow mirror is stale until the next hand`);
     }
 
     const potTotal = hand.players.reduce((sum, p) => sum + p.totalCommitted, 0);

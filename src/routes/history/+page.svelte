@@ -26,7 +26,7 @@
   }
 </script>
 
-<svelte:head><title>History — Riverside</title></svelte:head>
+<svelte:head><title>History — Bluffing Valley</title></svelte:head>
 
 <div class="wrap">
   <div class="head">

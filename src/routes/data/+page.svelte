@@ -29,7 +29,7 @@
   function open(id) { results = []; q = ""; goto(`/data?u=${encodeURIComponent(id)}`); }
 </script>
 
-<svelte:head><title>{data.view === "ranks" ? "Ranks" : "Data"} — Riverside</title></svelte:head>
+<svelte:head><title>{data.view === "ranks" ? "Ranks" : "Data"} — Bluffing Valley</title></svelte:head>
 
 <div class="wrap">
   <div class="head">

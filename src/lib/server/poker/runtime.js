@@ -187,7 +187,7 @@ export class GameTable extends LiveTable {
       try { await this.wallet.syncStacks(this.id, escrowSnaps); synced = true; } catch { /* retry */ }
     }
     if (!synced) {
-      console.error(`[riverside] ${this.game.key} table ${this.id}: escrow syncStacks failed; mirror stale until next round`);
+      console.error(`[bluffing-valley] ${this.game.key} table ${this.id}: escrow syncStacks failed; mirror stale until next round`);
     }
 
     this.result = this.game.publicView(round);

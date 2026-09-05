@@ -1,4 +1,4 @@
-// Riverside OWN deck — composed from the extracted glyphs (deck-parts.js +
+// Bluffing Valley OWN deck — composed from the extracted glyphs (deck-parts.js +
 // court-*.svg), styled after the Replay Poker deck but made from our parts so
 // we don't depend on the actual Replay art.
 //   · small cards (①/②) → big label + centre suit.

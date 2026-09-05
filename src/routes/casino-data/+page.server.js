@@ -27,7 +27,7 @@ import { ownerOnly } from "$lib/server/owner-only.js";
 export async function load({ locals }) {
   ownerOnly(locals);
   const players = await listPlayers();
-  // The signed-in user's own Riverside history, shown as a section on this page.
+  // The signed-in user's own Bluffing Valley history, shown as a section on this page.
   const activity = locals.user ? await recentActivity(locals.user.id, { limit: 60 }) : [];
   return { players, user: locals.user, activity };
 }

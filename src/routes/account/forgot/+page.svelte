@@ -3,7 +3,7 @@
   const step = $derived(form?.step === "reset" ? "reset" : "send");
 </script>
 
-<svelte:head><title>Reset password · Riverside</title></svelte:head>
+<svelte:head><title>Reset password · Bluffing Valley</title></svelte:head>
 
 <section class="card" style="max-width:420px;margin:24px auto">
   <div class="card-head"><h3>Reset password</h3></div>

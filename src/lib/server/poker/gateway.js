@@ -47,7 +47,7 @@ function startSprintSchedulerOnce() {
   if (_schedulerStarted) return;
   _schedulerStarted = true;
   try { startScheduler(makeSprintRunner(hub)); }
-  catch (e) { console.error("[riverside] sprint scheduler failed to start:", e?.message || e); }
+  catch (e) { console.error("[bluffing-valley] sprint scheduler failed to start:", e?.message || e); }
 }
 
 export function attachPokerGateway(httpServer, { path = WS_PATH } = {}) {

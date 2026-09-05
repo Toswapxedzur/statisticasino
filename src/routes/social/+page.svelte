@@ -140,7 +140,7 @@
   const reqCount = $derived(incoming.length);
 </script>
 
-<svelte:head><title>Social — Riverside</title></svelte:head>
+<svelte:head><title>Social — Bluffing Valley</title></svelte:head>
 
 <div class="social" class:show-thread={mobileThread}>
   <!-- LEFT: list pane -->

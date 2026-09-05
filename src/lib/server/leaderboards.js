@@ -3,7 +3,7 @@
 // SUM of per-hand results over the window.
 import { query } from "./db.js";
 
-const BOTS = "email NOT LIKE '%@bot.riverside.invalid'";
+const BOTS = "email NOT LIKE '%@bot.bluffingvalley.invalid'";
 function windowStart(tf) {
   const now = Date.now();
   if (tf === "week") return now - 7 * 86400000;

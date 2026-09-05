@@ -35,7 +35,7 @@ const { reconcileEscrowOnBoot, acquireInstanceLease, releaseInstanceLease } =
 
 // Schema first — the whole app needs it, and it's idempotent.
 try { await ensureMigrated(); } catch (err) {
-  console.error("[riverside] migration error:", err?.message || err);
+  console.error("[bluffing-valley] migration error:", err?.message || err);
 }
 
 // Media janitor: sweep expired chat attachments from OSS on a timer. No-op until
@@ -43,8 +43,8 @@ try { await ensureMigrated(); } catch (err) {
 try {
   const { startMediaJanitor, ossAvailable } = await import("./src/lib/server/media.js");
   startMediaJanitor();
-  if (ossAvailable()) console.log("[riverside] media (OSS) enabled");
-} catch (err) { console.error("[riverside] media janitor init:", err?.message || err); }
+  if (ossAvailable()) console.log("[bluffing-valley] media (OSS) enabled");
+} catch (err) { console.error("[bluffing-valley] media janitor init:", err?.message || err); }
 
 // Become the sole poker instance for this DB before touching escrow. If another
 // live process already holds the lease (a botched rolling deploy, or a dev
@@ -58,7 +58,7 @@ let pokerEnabled = false;
 // our live escrow). Guard so the drain can finish if a shutdown is underway.
 function onLeaseLost(e) {
   if (shuttingDown) return;
-  console.error("[riverside] lost the poker singleton lease — exiting to avoid split-brain; supervisor will restart:", e?.message || e);
+  console.error("[bluffing-valley] lost the poker singleton lease — exiting to avoid split-brain; supervisor will restart:", e?.message || e);
   process.exit(1);
 }
 
@@ -68,23 +68,23 @@ async function tryEnablePoker() {
   try {
     const got = await acquireInstanceLease(onLeaseLost);
     if (!got) {
-      console.error("[riverside] another poker instance holds the DB lease — serving HTTP only for now (poker + escrow reconcile disabled); will retry.");
+      console.error("[bluffing-valley] another poker instance holds the DB lease — serving HTTP only for now (poker + escrow reconcile disabled); will retry.");
       return false;
     }
     // Crash recovery: refund on-table escrow left by an unclean prior exit
     // (SIGKILL/OOM/power loss; a graceful stop drains seats itself).
     const r = await reconcileEscrowOnBoot();
     if (r.skipped) {
-      console.warn(`[riverside] escrow reconcile skipped: ${r.reason}`);
+      console.warn(`[bluffing-valley] escrow reconcile skipped: ${r.reason}`);
     } else {
-      if (r.seats > 0) console.log(`[riverside] escrow reconcile: refunded ${r.chips} chips across ${r.seats} seat(s)`);
-      if (r.failed > 0) console.error(`[riverside] escrow reconcile: ${r.failed} row(s) could not be refunded and remain pending — will retry next boot`);
+      if (r.seats > 0) console.log(`[bluffing-valley] escrow reconcile: refunded ${r.chips} chips across ${r.seats} seat(s)`);
+      if (r.failed > 0) console.error(`[bluffing-valley] escrow reconcile: ${r.failed} row(s) could not be refunded and remain pending — will retry next boot`);
     }
     return true;
   } catch (err) {
     // e.g. MySQL is mid-restart (unattended-upgrades bounces it and systemd
     // relaunches us 2s later, often before the DB is back). Retry below.
-    console.error("[riverside] instance lease / escrow reconcile error — serving HTTP only for now; will retry:", err?.message || err);
+    console.error("[bluffing-valley] instance lease / escrow reconcile error — serving HTTP only for now; will retry:", err?.message || err);
     return false;
   }
 }
@@ -98,7 +98,7 @@ const server = http.createServer((req, res) => handler(req, res));
 if (pokerEnabled) attachPokerGateway(server);
 
 server.listen(port, host, () => {
-  console.log(`[riverside] ${pokerEnabled ? "http + ws" : "http only (poker disabled)"} listening on ${host}:${port}`);
+  console.log(`[bluffing-valley] ${pokerEnabled ? "http + ws" : "http only (poker disabled)"} listening on ${host}:${port}`);
 });
 
 // Self-heal a degraded boot: if the lease wasn't acquired (DB mid-restart, or a
@@ -113,7 +113,7 @@ if (!pokerEnabled) {
       pokerEnabled = true;
       clearInterval(retry);
       attachPokerGateway(server);
-      console.log("[riverside] poker singleton lease acquired on retry — ws gateway attached (http + ws now live)");
+      console.log("[bluffing-valley] poker singleton lease acquired on retry — ws gateway attached (http + ws now live)");
     }
   }, RETRY_MS);
   retry.unref?.();

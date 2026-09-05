@@ -45,7 +45,7 @@ function pokerWebSocket() {
     const { attachPokerGateway } = await import("./src/lib/server/poker/gateway.js");
     attachPokerGateway(httpServer);
     _wsAttached = true;
-    console.log("[riverside] realtime ENABLED — /ws attached (poker + chat + presence live)");
+    console.log("[bluffing-valley] realtime ENABLED — /ws attached (poker + chat + presence live)");
   };
 
   // Try to become the poker singleton. Returns true once we hold the lease.
@@ -56,12 +56,12 @@ function pokerWebSocket() {
       // loudly and re-arm the retry so /ws re-attaches when we re-acquire.
       _devPokerEnabled = false;
       _wsAttached = false;
-      console.error("[riverside] ⚠ lost the poker lease — realtime authority gone:", e?.message || e);
+      console.error("[bluffing-valley] ⚠ lost the poker lease — realtime authority gone:", e?.message || e);
       scheduleLeaseRetry(httpServer);
     });
     if (!_devPokerEnabled) return false;
     const r = await bank.reconcileEscrowOnBoot();
-    if (!r.skipped && r.seats > 0) console.log(`[riverside] escrow reconcile: refunded ${r.chips} chips across ${r.seats} seat(s)`);
+    if (!r.skipped && r.seats > 0) console.log(`[bluffing-valley] escrow reconcile: refunded ${r.chips} chips across ${r.seats} seat(s)`);
     await attachGatewayOnce(httpServer);
     return true;
   };
@@ -73,13 +73,13 @@ function pokerWebSocket() {
       try {
         if (await tryAcquireLease(httpServer)) {
           clearInterval(_leaseRetryTimer); _leaseRetryTimer = null;
-          console.log(`[riverside] poker lease acquired after ${_leaseRetries} retr${_leaseRetries === 1 ? "y" : "ies"} — realtime is back up.`);
+          console.log(`[bluffing-valley] poker lease acquired after ${_leaseRetries} retr${_leaseRetries === 1 ? "y" : "ies"} — realtime is back up.`);
         } else if (++_leaseRetries % 6 === 0) {
           // Remind every ~30s so the operator knows why realtime is off.
-          console.warn(`[riverside] still waiting on the poker lease (${_leaseRetries} tries) — stop the other local process to enable realtime.`);
+          console.warn(`[bluffing-valley] still waiting on the poker lease (${_leaseRetries} tries) — stop the other local process to enable realtime.`);
         }
       } catch (err) {
-        console.error("[riverside] lease retry error:", err?.message || err);
+        console.error("[bluffing-valley] lease retry error:", err?.message || err);
       }
     }, LEASE_RETRY_MS);
     _leaseRetryTimer.unref?.();
@@ -103,7 +103,7 @@ function pokerWebSocket() {
     if (!isLocal) {
       // NEVER touch a non-local DB from a dev server: reconcile refunds/clears
       // escrow and closes ephemeral tables — that would corrupt a live prod room.
-      console.warn(`[riverside] realtime DISABLED — refusing to attach /ws against non-local DB host (${host || "unset"}).`);
+      console.warn(`[bluffing-valley] realtime DISABLED — refusing to attach /ws against non-local DB host (${host || "unset"}).`);
       return;
     }
     // Release the poker lease when THIS server closes. Vite restarts in-process
@@ -122,11 +122,11 @@ function pokerWebSocket() {
     }
     try {
       if (!(await tryAcquireLease(server.httpServer))) {
-        console.warn("[riverside] ⚠ realtime DISABLED — another local process holds the poker lease; /ws NOT attached (chat/presence/tables are off). Auto-retrying every 5s — stop the other process to recover.");
+        console.warn("[bluffing-valley] ⚠ realtime DISABLED — another local process holds the poker lease; /ws NOT attached (chat/presence/tables are off). Auto-retrying every 5s — stop the other process to recover.");
         scheduleLeaseRetry(server.httpServer);
       }
     } catch (err) {
-      console.error("[riverside] poker bootstrap error — /ws not attached, will retry:", err?.message || err);
+      console.error("[bluffing-valley] poker bootstrap error — /ws not attached, will retry:", err?.message || err);
       scheduleLeaseRetry(server.httpServer);
     }
   };

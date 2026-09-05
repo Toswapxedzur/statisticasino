@@ -59,7 +59,7 @@ const GAME_BRAINS = {
 
 // Reserved, non-routable domain (RFC 6761 `.invalid`) — guarantees no bot email
 // ever collides with a real signup, and gives the leaderboard a clean filter.
-export const BOT_EMAIL_DOMAIN = "bot.riverside.invalid";
+export const BOT_EMAIL_DOMAIN = "bot.bluffingvalley.invalid";
 
 // Staked-bot economy (see attach / _onBotIdle). A staked bot rebuys from the
 // inviter's wallet until its bankroll is spent OR it's clearly getting crushed.

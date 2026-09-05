@@ -36,7 +36,7 @@
   ];
 </script>
 
-<svelte:head><title>Settings — Riverside</title></svelte:head>
+<svelte:head><title>Settings — Bluffing Valley</title></svelte:head>
 
 <div class="wrap">
   <h1>Settings</h1>
@@ -67,7 +67,7 @@
           { value: "private", label: "Private (only me)" },
           { value: "7d", label: "Show the last 7 days" }
         ]} />
-      <p class="muted small">Riverside keeps 7 days of play history. Visitors to your profile can see your stats and step-through replays from that window; your hole cards in an exposed replay stay hidden unless they were revealed at showdown.</p>
+      <p class="muted small">Bluffing Valley keeps 7 days of play history. Visitors to your profile can see your stats and step-through replays from that window; your hole cards in an exposed replay stay hidden unless they were revealed at showdown.</p>
       <button class="btn" type="submit" style="margin-top:14px">Save privacy</button>
       {#if form?.privacyOk}<p class="form-success">Saved.</p>{/if}
     </form>

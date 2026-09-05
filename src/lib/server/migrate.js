@@ -156,15 +156,25 @@ export async function ensureMigrated() {
   // CREATE TABLE IF NOT EXISTS (applied above) — no ALTERs, so no migrateToV21.
   await migrateToV22();
   await migrateToV23();
+  await migrateToV24();
 
   // Stamp the version row (idempotent — schema.sql also INSERT IGNOREs
   // it, but we want to be defensive).
   await execute(
-    "INSERT INTO meta(meta_key, meta_value) VALUES ('schema_version', '23') "
+    "INSERT INTO meta(meta_key, meta_value) VALUES ('schema_version', '24') "
     + "ON DUPLICATE KEY UPDATE meta_value = VALUES(meta_value)"
   );
 
   _migrated = true;
+}
+
+// v23 -> v24 (rename: Riverside → Bluffing Valley): bot shell accounts carry the
+// site name in their synthetic email domain. Idempotent REPLACE.
+async function migrateToV24() {
+  await execute(
+    "UPDATE user SET email = REPLACE(email, '@bot.riverside.invalid', '@bot.bluffingvalley.invalid') "
+    + "WHERE email LIKE '%@bot.riverside.invalid'"
+  );
 }
 
 // v22 -> v23 upgrade (replay tiering): archive columns on match_replay and
@@ -323,7 +333,7 @@ async function migrateToV19() {
   const cnt = await query("SELECT COUNT(*) AS n FROM user_trigram");
   if (Number(cnt[0]?.n || 0) === 0) {
     const users = await query(
-      "SELECT id, COALESCE(NULLIF(display_name, ''), email) AS name FROM user WHERE email NOT LIKE '%@bot.riverside.invalid'"
+      "SELECT id, COALESCE(NULLIF(display_name, ''), email) AS name FROM user WHERE email NOT LIKE '%@bot.bluffingvalley.invalid'"
     );
     for (const u of users) {
       try { await syncTrigrams(u.id, u.name); } catch { /* best effort */ }

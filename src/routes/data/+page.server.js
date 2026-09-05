@@ -1,4 +1,4 @@
-// /data — Riverside's own data hub: your in-game history, another player's
+// /data — Bluffing Valley's own data hub: your in-game history, another player's
 // in-game history (within what they expose and the 7-day horizon), and
 // player search (client-side via /api/friends/find). Replaces the old
 // casino.org upload tool, which now lives hidden at /casino-data.

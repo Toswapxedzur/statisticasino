@@ -14,7 +14,7 @@
 //   prune-legacy — NULL the dead poker_hand.state_json blobs past the window.
 //   cleanup — remove the export dir once mini2 has everything.
 //
-// Usage (run from /opt/riverside):
+// Usage (run from /opt/bluffing-valley):
 //   node scripts/replay-archive.mjs export --older-than-hours 168 --out var/archive-export/run1
 //   node scripts/replay-archive.mjs mark < verified.json
 //   node scripts/replay-archive.mjs prune-legacy --older-than-hours 168

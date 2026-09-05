@@ -72,7 +72,7 @@
   const bankerModes = $derived(data.modes.filter((row) => row.role === "banker"));
 </script>
 
-<svelte:head><title>Your Statistics — Riverside</title></svelte:head>
+<svelte:head><title>Your Statistics — Bluffing Valley</title></svelte:head>
 
 <div class="wrap">
   <header class="page-head">

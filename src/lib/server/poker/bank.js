@@ -217,7 +217,7 @@ export async function reconcileEscrowOnBoot() {
   // deadlock against itself when MYSQL_POOL_LIMIT=1).
   const conn = await pool.getConnection();
   try {
-    const [[lock]] = await conn.query("SELECT GET_LOCK('riverside_escrow_reconcile', 0) AS ok");
+    const [[lock]] = await conn.query("SELECT GET_LOCK('bluffingvalley_escrow_reconcile', 0) AS ok");
     if (Number(lock.ok) !== 1) {
       return { skipped: true, reason: "another process holds the reconcile lock", seats: 0, chips: 0, failed: 0 };
     }
@@ -266,7 +266,7 @@ export async function reconcileEscrowOnBoot() {
       }
       return { skipped: false, seats, chips, failed };
     } finally {
-      await conn.query("SELECT RELEASE_LOCK('riverside_escrow_reconcile')");
+      await conn.query("SELECT RELEASE_LOCK('bluffingvalley_escrow_reconcile')");
     }
   } finally {
     conn.release();
@@ -311,7 +311,7 @@ export async function acquireInstanceLease(onLost = null) {
   const pool = await getPool();
   const conn = await pool.getConnection();
   try {
-    const [[r]] = await conn.query("SELECT GET_LOCK('riverside_poker_singleton', 0) AS ok");
+    const [[r]] = await conn.query("SELECT GET_LOCK('bluffingvalley_poker_singleton', 0) AS ok");
     if (Number(r.ok) !== 1) {
       conn.release();
       return false;
@@ -321,7 +321,7 @@ export async function acquireInstanceLease(onLost = null) {
       _leaseConn = null;
       _clearLeaseKeepalive();
       if (_leaseReleasing) return; // expected during releaseInstanceLease()
-      console.error("[riverside] instance-lease connection lost — poker singleton lock is gone:", e?.message || e);
+      console.error("[bluffing-valley] instance-lease connection lost — poker singleton lock is gone:", e?.message || e);
       if (onLost) onLost(e);
     });
     // Keep the connection from idling out (see LEASE_KEEPALIVE_MS). A failed ping
@@ -349,7 +349,7 @@ export async function releaseInstanceLease() {
   if (!conn) return;
   _leaseReleasing = true;
   _leaseConn = null;
-  try { await conn.query("SELECT RELEASE_LOCK('riverside_poker_singleton')"); } catch { /* noop */ }
+  try { await conn.query("SELECT RELEASE_LOCK('bluffingvalley_poker_singleton')"); } catch { /* noop */ }
   try { conn.release(); } catch { /* noop */ }
   _leaseReleasing = false;
 }
