@@ -1,3 +1,8 @@
+> **Renamed 2026-09-05: Riverside → Bluffing Valley.** Live host `bluffingvalley.blopybox.net`
+> (old host 301-redirects), app dir `/opt/bluffing-valley`, unit `bluffing-valley.service`.
+> Unchanged on purpose: OSS bucket `riverside-media` (buckets can't be renamed), MySQL user
+> `riverside`, and the mini2 archive names (`~/riverside-archive`, `com.johnzhu.riverside-archive-*`).
+
 # Deployment runbook
 
 How `statisticasino` actually runs in production today, and the steps to
@@ -698,8 +703,8 @@ causes:
 
 ## Voice chat + coturn (added 2026-08-25)
 
-The live box is now **Ubuntu 24.04** at `/opt/riverside` (systemd unit
-`riverside.service`, run as `admin`), public IP `47.243.163.51`. Table voice is a
+The live box is now **Ubuntu 24.04** at `/opt/bluffing-valley` (systemd unit
+`bluffing-valley.service`, run as `admin`), public IP `47.243.163.51`. Table voice is a
 WebRTC audio mesh; signaling rides the existing WebSocket, media is P2P with a
 self-hosted **coturn** TURN relay for the ~10–20% of peers that can't connect
 directly.
@@ -713,7 +718,7 @@ already owns 3478 on this box):
   `no-tls no-dtls` (plain UDP for v1), and `denied-peer-ip` ranges covering all
   RFC1918 / loopback / 169.254 (SSRF hardening — TURN must never relay into the
   VPC/RDS/metadata). Enable with `TURNSERVER_ENABLED=1` in `/etc/default/coturn`.
-- App `/opt/riverside/.env`: `TURN_URL=turn:47.243.163.51:3479?transport=udp`,
+- App `/opt/bluffing-valley/.env`: `TURN_URL=turn:47.243.163.51:3479?transport=udp`,
   `TURN_SECRET=<same secret>`, `TURN_TTL=3600`. The server hands the browser only a
   short-lived HMAC credential derived from the secret (see src/lib/server/voice.js).
 
@@ -739,7 +744,7 @@ Later hardening: a `turns:` (TLS) listener on 443 needs a cert (certbot) + a
 DNS-only (grey-cloud) record for a TURN subdomain, since TURN is UDP and can't go
 through Cloudflare's HTTP proxy.
 
-**Known issue (pre-existing):** `riverside.service` exits ~every 8h when the MySQL
+**Known issue (pre-existing):** `bluffing-valley.service` exits ~every 8h when the MySQL
 advisory-lock ("instance lease") connection idle-times-out (RDS wait_timeout), and
 systemd restarts it — dropping live tables/connections. Fix: a periodic keepalive
 `SELECT 1` on the lease connection in bank.js#acquireInstanceLease.
@@ -762,7 +767,7 @@ user `john.zhu`, no dev tools needed — Ruby stdlib only):
 - `serve` — `ruby -run -e httpd ~/riverside-archive -p 8790 --bind-address=127.0.0.1`.
 - `tunnel` — `ssh -N -R 127.0.0.1:8790:127.0.0.1:8790 admin@47.243.163.51`
   (KeepAlive); the VPS reads archived files at `REPLAY_ARCHIVE_URL=http://127.0.0.1:8790`
-  (in `/opt/riverside/.env`), 2.5 s timeout, summary fallback when home is offline.
+  (in `/opt/bluffing-valley/.env`), 2.5 s timeout, summary fallback when home is offline.
 
 Ops: `ssh mini2 'tail ~/riverside-archive/logs/pull.log'`; run a pull now with
 `ssh mini2 'sudo launchctl kickstart -k system/com.johnzhu.riverside-archive-pull'`;
