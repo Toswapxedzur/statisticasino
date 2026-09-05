@@ -11,7 +11,6 @@
   const pres = $derived(data.presence);
   let sendOpen = $state(false);
   let amount = $state("");
-  let reportOpen = $state(false);
 
   const AV = ["#c0674f", "#4f7bc0", "#59a06a", "#8a5fb0", "#b0824f", "#4fa3b0", "#c05f8a", "#6a8f3a"];
   function color(id) { let h = 0; for (const c of String(id || "")) h = (h * 31 + c.charCodeAt(0)) >>> 0; return AV[h % AV.length]; }
@@ -59,7 +58,6 @@
   {#if form?.transferOk}<p class="form-success">{form.transferOk}</p>{/if}
   {#if form?.transferError}<p class="form-error">{form.transferError}</p>{/if}
   {#if form?.ok === "blocked"}<p class="form-success">Blocked. They can no longer message or add you.</p>{/if}
-  {#if form?.ok === "reported"}<p class="form-success">Report submitted — thanks. Our team will review it.</p>{/if}
 
   {#if !p.isSelf}
     <div class="mod-row">
@@ -68,7 +66,6 @@
       {:else}
         <form method="POST" action="?/block" use:enhance><button class="btn btn-secondary btn-sm" type="submit">Block</button></form>
       {/if}
-      <button class="btn btn-secondary btn-sm" onclick={() => (reportOpen = true)}>Report</button>
     </div>
   {/if}
 
@@ -137,26 +134,9 @@
     </div>
   </div>
 {/if}
-
-{#if reportOpen}
-  <div class="modal-backdrop" role="presentation" onclick={() => (reportOpen = false)} transition:fade={{ duration: d(DUR.fast) }}>
-    <div class="modal card" role="dialog" aria-modal="true" onclick={(e) => e.stopPropagation()} transition:scale={{ start: 0.96, duration: d(DUR.base) }}>
-      <h3>Report {p.name}</h3>
-      <form method="POST" action="?/report" use:enhance={() => async ({ update }) => { await update(); reportOpen = false; }}>
-        <textarea class="report-input" name="reason" rows="4" maxlength="500" placeholder="What's the problem? (optional)"></textarea>
-        <div class="modal-actions">
-          <button type="button" class="btn btn-secondary" onclick={() => (reportOpen = false)}>Cancel</button>
-          <button class="btn btn-danger" type="submit">Submit report</button>
-        </div>
-      </form>
-    </div>
-  </div>
-{/if}
-
 <style>
   .mod-row { display: flex; gap: 8px; margin: 10px 0; }
   .mod-row form { display: inline-flex; }
-  .report-input { width: 100%; font: inherit; }
   .wrap { max-width: 760px; margin: 0 auto; }
   .back { color: var(--muted); font-size: 13px; text-decoration: none; display: inline-block; margin-bottom: 12px; }
   .back:hover { color: var(--text); }

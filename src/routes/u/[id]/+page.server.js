@@ -4,7 +4,7 @@ import { error, fail } from "@sveltejs/kit";
 import { getProfile } from "$lib/server/profiles.js";
 import { requestFriend, respondFriend, removeFriend, areFriends } from "$lib/server/friends.js";
 import { getTransferable, transfer } from "$lib/server/transfers.js";
-import { block, unblock, hasBlocked, report } from "$lib/server/moderation.js";
+import { block, unblock, hasBlocked } from "$lib/server/moderation.js";
 import { hub } from "$lib/server/poker/hub.js";
 import { windowStartForUser } from "$lib/server/replay-access.js";
 import { modeBreakdown, overviewStats } from "$lib/server/stats.js";
@@ -97,11 +97,5 @@ export const actions = {
     if (!locals.user) return fail(401, { error: "Sign in first." });
     await unblock(locals.user.id, params.id);
     return { ok: "unblocked" };
-  },
-  report: async ({ params, locals, request }) => {
-    if (!locals.user) return fail(401, { error: "Sign in first." });
-    const fd = await request.formData();
-    await report(locals.user.id, params.id, String(fd.get("reason") || ""));
-    return { ok: "reported" };
   },
 };
