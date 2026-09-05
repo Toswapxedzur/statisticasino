@@ -439,9 +439,17 @@ CREATE TABLE IF NOT EXISTS match_replay (
   started_at  BIGINT NOT NULL,
   ended_at    BIGINT NOT NULL,
   pot_total   BIGINT NOT NULL DEFAULT 0,
-  replay_json MEDIUMTEXT NOT NULL,
+  -- v23 (tiering): replay_json is the HOT copy. Once a match is older than the
+  -- archive window it moves to the home archive (mini2) and replay_json is
+  -- NULLed; archive_ref points at the archived file, final_json keeps the
+  -- outcome summary so the page still renders when the archive is offline.
+  replay_json MEDIUMTEXT NULL,
+  final_json  MEDIUMTEXT NULL,
+  archived_at BIGINT NULL,
+  archive_ref VARCHAR(160) NULL,
   KEY idx_mr_ended (ended_at),
-  KEY idx_mr_mode (mode, ended_at)
+  KEY idx_mr_mode (mode, ended_at),
+  KEY idx_mr_archive (archived_at, ended_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Per-participant row of a recorded match: who was in it and their net result.

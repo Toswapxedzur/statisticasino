@@ -179,7 +179,10 @@ export async function persistHand(hand) {
       hand.potTotal ?? 0,
       hand.startedAt,
       hand.endedAt,
-      hand.stateJson ?? null
+      // state_json (the full engine state) is no longer written: nothing reads
+      // it and the match_replay recording supersedes it. Old rows get pruned
+      // by the archive job (scripts/replay-archive.mjs prune-legacy).
+      null
     ]
   );
   for (const s of hand.seats || []) {

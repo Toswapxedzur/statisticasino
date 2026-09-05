@@ -155,15 +155,46 @@ export async function ensureMigrated() {
   // v21 (progression): the `quest_progress` table is created by schema.sql's
   // CREATE TABLE IF NOT EXISTS (applied above) — no ALTERs, so no migrateToV21.
   await migrateToV22();
+  await migrateToV23();
 
   // Stamp the version row (idempotent — schema.sql also INSERT IGNOREs
   // it, but we want to be defensive).
   await execute(
-    "INSERT INTO meta(meta_key, meta_value) VALUES ('schema_version', '22') "
+    "INSERT INTO meta(meta_key, meta_value) VALUES ('schema_version', '23') "
     + "ON DUPLICATE KEY UPDATE meta_value = VALUES(meta_value)"
   );
 
   _migrated = true;
+}
+
+// v22 -> v23 upgrade (replay tiering): archive columns on match_replay and
+// replay_json becomes nullable (it is NULLed once a match is archived to the
+// home archive). Gated on INFORMATION_SCHEMA so re-runs are no-ops.
+async function migrateToV23() {
+  for (const [col, ddl] of [
+    ["final_json",  "ALTER TABLE match_replay ADD COLUMN final_json MEDIUMTEXT NULL AFTER replay_json"],
+    ["archived_at", "ALTER TABLE match_replay ADD COLUMN archived_at BIGINT NULL AFTER final_json"],
+    ["archive_ref", "ALTER TABLE match_replay ADD COLUMN archive_ref VARCHAR(160) NULL AFTER archived_at"]
+  ]) {
+    const cols = await query(
+      "SELECT COLUMN_NAME FROM information_schema.COLUMNS "
+      + "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'match_replay' AND COLUMN_NAME = ?",
+      [col]
+    );
+    if (cols.length === 0) await execute(ddl);
+  }
+  const nullable = await query(
+    "SELECT IS_NULLABLE FROM information_schema.COLUMNS "
+    + "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'match_replay' AND COLUMN_NAME = 'replay_json'"
+  );
+  if (nullable.length && nullable[0].IS_NULLABLE === "NO") {
+    await execute("ALTER TABLE match_replay MODIFY replay_json MEDIUMTEXT NULL");
+  }
+  const idx = await query(
+    "SELECT INDEX_NAME FROM information_schema.STATISTICS "
+    + "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'match_replay' AND INDEX_NAME = 'idx_mr_archive'"
+  );
+  if (idx.length === 0) await execute("ALTER TABLE match_replay ADD KEY idx_mr_archive (archived_at, ended_at)");
 }
 
 // v21 -> v22 upgrade (replays): add the play-history exposure window to `user`.

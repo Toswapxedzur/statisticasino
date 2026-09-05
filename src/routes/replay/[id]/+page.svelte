@@ -77,7 +77,11 @@
   {#if !frames.length}
     <!-- Re-simulation unavailable (an old recording): summary only. -->
     <div class="panel">
-      <p class="muted">This match can't be re-simulated step by step any more; here is its outcome.</p>
+      {#if data.archiveOffline}
+        <p class="muted">This match is in the home archive, which is offline right now — here is its outcome. The step-through comes back when the archive does.</p>
+      {:else}
+        <p class="muted">This match can't be re-simulated step by step any more; here is its outcome.</p>
+      {/if}
       {#if data.final?.nets}
         {#each data.final.nets as n}
           <div class="row"><span>{nameOf(n.seat)}</span><span class={n.net >= 0 ? "pos" : "neg"}>{n.net >= 0 ? "+" : ""}{fmt(n.net)}</span></div>
