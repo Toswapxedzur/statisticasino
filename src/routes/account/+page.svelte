@@ -1,10 +1,12 @@
 <script>
+  import { play } from "$lib/sfx.js";
   import { enhance } from "$app/forms";
   import Avatar from "$lib/poker/components/Avatar.svelte";
   import Chip from "$lib/poker/components/Chip.svelte";
   import Select from "$lib/components/Select.svelte";
   import { uploadMedia } from "$lib/media.js";
   let { data, form } = $props();
+  $effect(() => { if (form?.bonusOk) play("reward"); });
 
   let visibility = $state(data.profile?.visibility || "public");
   let adjustUserId = $state("");

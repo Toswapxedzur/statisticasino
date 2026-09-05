@@ -209,6 +209,7 @@
     const t = poker.toast;
     if (!t) return;
     toastMsg = t;
+    if (t.level === "error") play("error");
     clearTimeout(_toastTimer);
     _toastTimer = setTimeout(() => { toastMsg = null; poker.toast = null; }, 3500);
   });

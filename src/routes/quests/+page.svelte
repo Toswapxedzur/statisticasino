@@ -1,4 +1,5 @@
 <script>
+  import { play } from "$lib/sfx.js";
   import { enhance } from "$app/forms";
   import { fly } from "svelte/transition";
   import { d, DUR } from "$lib/motion.js";

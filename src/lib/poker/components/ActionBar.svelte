@@ -18,6 +18,7 @@
 
   import { fly } from "svelte/transition";
   import { d, DUR } from "$lib/motion.js";
+  import { play } from "$lib/sfx.js";
 
   let { turn, config, potTotal, myStack, onAct } = $props();
 
@@ -102,11 +103,12 @@
 
   // ---- emit -----------------------------------------------------------
 
-  function fold()  { onAct?.({ type: "fold" }); }
-  function check() { onAct?.({ type: "check" }); }
-  function call()  { onAct?.({ type: "call" }); }
-  function allin() { onAct?.({ type: "allin" }); }
+  function fold()  { play("click"); onAct?.({ type: "fold" }); }
+  function check() { play("click"); onAct?.({ type: "check" }); }
+  function call()  { play("click"); onAct?.({ type: "call" }); }
+  function allin() { play("click"); onAct?.({ type: "allin" }); }
   function raise() {
+    play("click");
     if (!raiseAction) return;
     onAct?.({ type: raiseAction.type, amount: clampSnap(raiseTarget) });
   }
