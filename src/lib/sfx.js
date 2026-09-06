@@ -5,7 +5,7 @@
 // browser blocks playback until a user gesture, so play() silently no-ops until
 // the first click/keypress "unlocks" audio. Preference lives client-side in
 // localStorage ("bv-sound" = "on" | "off"), like the theme.
-import { browser } from "$app/environment";
+import { browser, version } from "$app/environment";
 
 const KEY = "bv-sound";
 const SOUNDS = {
@@ -106,7 +106,9 @@ export function initSfx() {
 function template(file) {
   let a = _cache.get(file);
   if (!a) {
-    a = new Audio(`/sfx/${file}.${ext()}`);
+    // Version query: browsers heuristically cache static files, so a re-cut clip at the same
+    // path would keep playing the old audio until the cache expired.
+    a = new Audio(`/sfx/${file}.${ext()}?v=${version}`);
     a.preload = "auto";
     _cache.set(file, a);
   }
