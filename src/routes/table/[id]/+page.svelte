@@ -191,15 +191,20 @@
     }, 200);
     return () => clearInterval(iv);
   });
-  // Chat from someone else.
-  let _prevChatLen = null;
+  // Tournament / Sprint round goes live: a short fanfare.
+  let _prevTnyStatus = null;
   $effect(() => {
-    const n = (chat || []).length;
-    if (_prevChatLen != null && n > _prevChatLen) {
-      const last = chat[n - 1];
-      if (last && last.from !== me?.name) play("chat");
-    }
-    _prevChatLen = n;
+    const st = view?.tournament?.status ?? null;
+    if (_prevTnyStatus && st === "running" && _prevTnyStatus !== "running") play("fanfare");
+    _prevTnyStatus = st;
+  });
+  // Idle on my turn: a quiet chip riffle every few seconds after the first 5 s.
+  $effect(() => {
+    const dl = poker.turns[tableId]?.deadline ?? null;
+    if (!dl) return;
+    const t0 = Date.now();
+    const iv = setInterval(() => { if (Date.now() - t0 >= 5000 && dl - Date.now() > 6000) play("think"); }, 7000);
+    return () => clearInterval(iv);
   });
 
   // --- transient toast ---
@@ -209,7 +214,6 @@
     const t = poker.toast;
     if (!t) return;
     toastMsg = t;
-    if (t.level === "error") play("error");
     clearTimeout(_toastTimer);
     _toastTimer = setTimeout(() => { toastMsg = null; poker.toast = null; }, 3500);
   });

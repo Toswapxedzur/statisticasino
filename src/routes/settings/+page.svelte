@@ -58,6 +58,7 @@
     <p class="muted small">System follows your device's light/dark setting.</p>
     <div class="toggle-row" style="margin-top:14px"><Checkbox bind:checked={sound} label="Table sound effects (cards, chips, your turn)" /></div>
     <p class="muted small">Stored on this device. There is also a 🔊 button on every table.</p>
+    <p class="muted small">Sound credits: chip, card and dice recordings by <a href="https://freesound.org/people/ArtOrDie/packs/10595/" rel="noopener">ArtOrDie</a> (Freesound, CC BY 4.0); interface sounds and jingles by <a href="https://kenney.nl" rel="noopener">Kenney</a> (CC0).</p>
   </section>
 
   <section class="card">

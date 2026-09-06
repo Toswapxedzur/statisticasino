@@ -2,10 +2,10 @@
   import "../app.css";
   import { page } from "$app/stores";
   import { onMount } from "svelte";
-  import { onNavigate, goto } from "$app/navigation";
+  import { onNavigate, afterNavigate, goto } from "$app/navigation";
   import { SITE_NAME } from "$lib/config.js";
   import { poker } from "$lib/poker/client.svelte.js";
-  import { initSfx } from "$lib/sfx.js";
+  import { initSfx, installUiSounds, play } from "$lib/sfx.js";
   import { slidingIndicator } from "$lib/actions/slider.js";
   import { reducedMotion, d, DUR } from "$lib/motion.js";
   import Chip from "$lib/poker/components/Chip.svelte";
@@ -69,8 +69,10 @@
   let theme = $state("dark");
   let menuOpen = $state(false);
 
+  afterNavigate(({ from }) => { if (from) play("nav"); });
   onMount(() => {
     initSfx();
+    installUiSounds();
     theme = document.documentElement.getAttribute("data-theme") || "dark";
     const onChips = (e) => { if (typeof e.detail === "number") chips = e.detail; };
     window.addEventListener("chips", onChips);
@@ -117,7 +119,7 @@
 </script>
 
 <header class="topbar">
-  <button class="menu-btn" aria-label="Menu" aria-expanded={menuOpen} onclick={() => (menuOpen = !menuOpen)}>
+  <button class="menu-btn" aria-label="Menu" aria-expanded={menuOpen} data-sfx={menuOpen ? "close" : "open"} onclick={() => (menuOpen = !menuOpen)}>
     <span class="bars"></span>
   </button>
 
@@ -134,7 +136,7 @@
   </nav>
 
   <div class="topbar-right">
-    <button class="theme-btn" aria-label="Toggle theme" title="Toggle light / dark" onclick={toggleTheme}>
+    <button class="theme-btn" aria-label="Toggle theme" title="Toggle light / dark" data-sfx="toggle" onclick={toggleTheme}>
       {theme === "dark" ? "☾" : "☀"}
     </button>
     {#if data.user}<NotifBell />{/if}

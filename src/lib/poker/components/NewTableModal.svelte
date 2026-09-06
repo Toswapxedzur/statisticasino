@@ -1,4 +1,7 @@
 <script>
+  import { onMount as _sfxMount } from "svelte";
+  import { play as _sfxPlay } from "$lib/sfx.js";
+  _sfxMount(() => { _sfxPlay("open"); return () => _sfxPlay("close"); });
   // New-table modal. Emits a cfg object matching `table.create`:
   //   poker:     { name?, variant, smallBlind, bigBlind, maxSeats, minBuyin, maxBuyin, buyin }
   //   blackjack: { name?, variant:"blackjack", beBanker, smallBlind(=minBet), maxSeats,

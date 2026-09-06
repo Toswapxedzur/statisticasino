@@ -8,7 +8,7 @@
 
 import { browser } from "$app/environment";
 import { C2S, S2C, encode, decode } from "./protocol.js";
-import { play } from "$lib/sfx.js";
+import { play, loop } from "$lib/sfx.js";
 
 class PokerClient {
   ws = null;
@@ -126,11 +126,13 @@ class PokerClient {
         break;
       case S2C.LOBBY_CHAT:
         this.lobbyChat = [...this.lobbyChat, { from: msg.from, text: msg.text, ts: msg.ts }].slice(-100);
+        play(this.me && msg.from === this.me.name ? "send" : "chat");
         break;
       case S2C.TABLE_CREATED:
         this.pendingNav = msg.tableId;
         break;
       case S2C.INVITE:
+        play("invite");
         this.invites = [
           ...this.invites.filter((i) => i.inviteId !== msg.inviteId),
           { inviteId: msg.inviteId, fromName: msg.fromName, fromUserId: msg.fromUserId, tableId: msg.tableId, tableName: msg.tableName }
@@ -169,11 +171,16 @@ class PokerClient {
       case S2C.CHIPS:
         // Wallet changed server-side; the topbar reads from server load
         // on navigation, but broadcast a custom event for live updates.
-        if (browser) window.dispatchEvent(new CustomEvent("chips", { detail: msg.chips }));
+        if (browser) {
+          window.dispatchEvent(new CustomEvent("chips", { detail: msg.chips }));
+          // Off the table the wallet only moves for bonuses / transfers / settlements — worth a coin clink.
+          if (!location.pathname.startsWith("/table/")) play("coins");
+        }
         break;
       case S2C.CHAT: {
         const list = this.chat[msg.tableId] || [];
         this.chat = { ...this.chat, [msg.tableId]: [...list, { from: msg.from, text: msg.text, ts: msg.ts }].slice(-100) };
+        play(this.me && msg.from === this.me.name ? "send" : "chat");
         break;
       }
       case S2C.DM: {
@@ -184,6 +191,7 @@ class PokerClient {
         this.dms = { ...this.dms, [other]: [...list, {
           id: msg.id, fromUserId: msg.fromUserId, fromName: msg.fromName, text: msg.text, ts: msg.ts, mine
         }].slice(-200) };
+        play(mine ? "send" : "receive");
         // Badge the sender unless I sent it or I'm actively viewing that thread.
         if (!mine && this._activeDm !== other) {
           this.dmUnread = { ...this.dmUnread, [other]: (this.dmUnread[other] || 0) + 1 };
@@ -203,6 +211,7 @@ class PokerClient {
         const m = msg.message;
         const isMine = this.me && m.senderId === this.me.id;
         const cid = msg.convId;
+        play(isMine ? "send" : "receive");
         // Append to the open thread if we have it loaded.
         if (this.convMessages[cid]) {
           this.convMessages = { ...this.convMessages, [cid]: [...this.convMessages[cid], { ...m, mine: isMine }].slice(-300) };
@@ -254,7 +263,15 @@ class PokerClient {
         const n = msg.notification;
         if (n) {
           this.notifications = [n, ...this.notifications.filter((x) => x.id !== n.id)].slice(0, 50);
-          if (!n.readAt) { this.notifUnread = this.notifUnread + 1; play("notify"); }
+          if (!n.readAt) {
+            this.notifUnread = this.notifUnread + 1;
+            // "message" notifications ride along with the MSG itself (already sounded above).
+            const k = n.kind;
+            if (k === "friend_request") play("friendReq");
+            else if (k === "friend_accept") play("friendOk");
+            else if (k === "transfer") play("transfer");
+            else if (k !== "message") play("notify");
+          }
         }
         break;
       }
@@ -267,18 +284,25 @@ class PokerClient {
         // Ignore a ring if I'm already busy; otherwise show the incoming prompt.
         if (!this.call && !this.incomingCall) {
           this.incomingCall = { callId: msg.callId, fromUserId: msg.fromUserId, fromName: msg.fromName };
+          this._startRing(1);
         } else {
           this._raw(encode(C2S.CALL_DECLINE, { callId: msg.callId }));
         }
         break;
       case S2C.CALL_STATE:
+        this._stopRing();
+        if (msg.state === "ringing") this._startRing(0.45);      // my outgoing call is ringing at them
+        else if (msg.state === "active") play("callOn");
+        else play("callOff");                                     // ended | declined | busy | unavailable
         this._callHandlers?.state?.(msg);
         break;
 
       case S2C.TOAST:
         this.toast = { level: msg.level, text: msg.text };
+        play(msg.level === "error" ? "error" : "notify");
         break;
       case S2C.ERROR:
+        play("error");
         this.lastError = msg.msg;
         this.toast = { level: "error", text: msg.msg };
         // A rejected money op won't produce a seating/state confirmation; drop
@@ -429,8 +453,13 @@ class PokerClient {
 
   setCallHandlers(h) { this._callHandlers = h; }
   startCall(toUserId) { this.connect(); this._raw(encode(C2S.CALL_INVITE, { toUserId })); }
-  acceptCall(callId) { this._raw(encode(C2S.CALL_ACCEPT, { callId })); }
-  declineCall(callId) { this._raw(encode(C2S.CALL_DECLINE, { callId })); }
+  acceptCall(callId) { this._stopRing(); this._raw(encode(C2S.CALL_ACCEPT, { callId })); }
+  declineCall(callId) { this._stopRing(); play("back"); this._raw(encode(C2S.CALL_DECLINE, { callId })); }
+
+  // Ring loop for incoming (full volume) / outgoing (quieter) calls.
+  _ring = null;
+  _startRing(volume) { this._stopRing(); this._ring = loop("ring", { volume }); }
+  _stopRing() { this._ring?.stop(); this._ring = null; }
   endCall(callId) { this._raw(encode(C2S.CALL_END, { callId })); }
 
   // Every table I'm currently SEATED at (I keep watching them across navigation),

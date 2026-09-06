@@ -1,4 +1,9 @@
-Sound effects in this folder are from Kenney (https://kenney.nl) — "Casino Audio",
-"Interface Sounds" and "Music Jingles" packs — released under Creative Commons CC0
-(public domain). Some clips are trimmed/faded. Attribution is not required but
-appreciated: https://kenney.nl. Downloaded 2026-09-05.
+Sound effects in this folder:
+
+* Chip, card and dice foley: cut from the "Poker and Dice" pack by ArtOrDie on Freesound
+  (https://freesound.org/people/ArtOrDie/packs/10595/, sounds 170293-170297), licensed
+  Creative Commons Attribution 4.0 (https://creativecommons.org/licenses/by/4.0/).
+  Clips are trimmed, loudness-normalised and re-encoded. Credit is shown in Settings.
+* Interface sounds, jingles and the ring pattern: Kenney (https://kenney.nl) — "Interface Sounds",
+  "Music Jingles", "Casino Audio" packs — Creative Commons CC0 (public domain).
+Downloaded 2026-09-05/06.

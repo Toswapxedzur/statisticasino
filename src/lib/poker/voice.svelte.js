@@ -9,6 +9,7 @@
 
 import { browser } from "$app/environment";
 import { poker } from "./client.svelte.js";
+import { play } from "$lib/sfx.js";
 
 const FALLBACK_ICE = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 
@@ -80,10 +81,10 @@ class Voice {
     const nameById = new Map((msg.users || []).map((u) => [u.userId, u.name]));
     // New peers: create a connection (the smaller-id side offers).
     for (const id of others) {
-      if (!this._pcs.has(id)) this._connectTo(id, nameById.get(id), this._myId < id);
+      if (!this._pcs.has(id)) { play("voiceIn"); this._connectTo(id, nameById.get(id), this._myId < id); }
     }
     // Departed peers: tear down.
-    for (const id of [...this._pcs.keys()]) if (!others.includes(id)) this._closePeer(id);
+    for (const id of [...this._pcs.keys()]) if (!others.includes(id)) { play("voiceOut"); this._closePeer(id); }
   }
 
   async _onSignal(msg) {
