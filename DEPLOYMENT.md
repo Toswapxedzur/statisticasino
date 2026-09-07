@@ -749,6 +749,22 @@ advisory-lock ("instance lease") connection idle-times-out (RDS wait_timeout), a
 systemd restarts it — dropping live tables/connections. Fix: a periodic keepalive
 `SELECT 1` on the lease connection in bank.js#acquireInstanceLease.
 
+## Database backups (nightly, NO play history)
+
+Owner policy (2026-09-07): play history is never backed up — not the replays, not the hand
+history, not the imported captures — only the account/economy/social state.
+
+* VPS: `/opt/bluffing-valley/scripts/db-backup.sh` runs from the `admin` crontab at 03:30 UTC
+  (`mysqldump --single-transaction` of the app DB **excluding** `match_replay`,
+  `match_replay_player`, `poker_hand`, `poker_hand_player`, `hand_canonical`, `hand_upload`)
+  → `/var/backups/bluffing-valley/db-YYYYMMDD-HHMM.sql.gz`, last 7 kept, log in `backup.log`.
+  The script fails loudly if the dump lacks mysqldump's "Dump completed" trailer.
+* mini2: the hourly archive puller (`~/riverside-archive/bin/pull.sh`) mirrors that folder to
+  `~/riverside-archive/db/` first and keeps 30 days.
+* Restore: `gzip -dc db-….sql.gz | sudo mysql <database>` (verified 2026-09-07 into a scratch DB:
+  24 tables restore cleanly). Recreate the history tables by booting the app: `ensureMigrated()`
+  applies `schema.sql` (`CREATE TABLE IF NOT EXISTS`) on start.
+
 ## Replay archive (tiering to the home Mac mini)
 
 Matches older than **7 days** have their big `match_replay.replay_json` moved to
