@@ -95,8 +95,8 @@
             <strong>{inv.tableName || "a table"}</strong>.
           </div>
           <div class="invite-actions">
-            <button class="btn btn-sm" data-sfx="confirm" onclick={() => poker.respondInvite(inv.inviteId, true)}>Accept</button>
-            <button class="btn btn-sm btn-secondary" data-sfx="back" onclick={() => poker.respondInvite(inv.inviteId, false)}>Decline</button>
+            <button class="btn btn-sm" onclick={() => poker.respondInvite(inv.inviteId, true)}>Accept</button>
+            <button class="btn btn-sm btn-secondary" onclick={() => poker.respondInvite(inv.inviteId, false)}>Decline</button>
           </div>
         </div>
       {/each}
@@ -132,7 +132,7 @@
         <h3>{isBanked ? modeLabel + " tables" : "Ring games"}</h3>
         <div class="toolbar">
           {#if !isBanked}
-            <button class="btn btn-sm" data-sfx="confirm" onclick={quickPlay} disabled={!signedIn}>Quick Play</button>
+            <button class="btn btn-sm" onclick={quickPlay} disabled={!signedIn}>Quick Play</button>
           {/if}
           <button class="btn btn-secondary btn-sm" onclick={openModal} disabled={!signedIn}>
             {isBanked ? "New table" : "New table"}
@@ -197,11 +197,11 @@
                   {#if t.status === "registering"}
                     {#if isRegistered(t)}
                       {#if t.createdBy === myId}
-                        <button class="btn btn-xs" data-sfx="confirm" onclick={() => poker.startTournament(t.id)} disabled={t.registered < 1}>Start</button>
+                        <button class="btn btn-xs" onclick={() => poker.startTournament(t.id)} disabled={t.registered < 1}>Start</button>
                       {/if}
-                      <button class="btn btn-xs btn-secondary" data-sfx="back" onclick={() => poker.unregisterTournament(t.id)}>Leave</button>
+                      <button class="btn btn-xs btn-secondary" onclick={() => poker.unregisterTournament(t.id)}>Leave</button>
                     {:else}
-                      <button class="btn btn-xs btn-gold" data-sfx="confirm" onclick={() => poker.registerTournament(t.id)} disabled={!signedIn}>Register</button>
+                      <button class="btn btn-xs btn-gold" onclick={() => poker.registerTournament(t.id)} disabled={!signedIn}>Register</button>
                     {/if}
                   {:else}
                     <button class="btn btn-xs" onclick={() => goto("/table/" + t.id)}>{isRegistered(t) ? "Resume" : "Watch"}</button>

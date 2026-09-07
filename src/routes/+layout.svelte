@@ -119,7 +119,7 @@
 </script>
 
 <header class="topbar">
-  <button class="menu-btn" aria-label="Menu" aria-expanded={menuOpen} data-sfx={menuOpen ? "close" : "open"} onclick={() => (menuOpen = !menuOpen)}>
+  <button class="menu-btn" aria-label="Menu" aria-expanded={menuOpen} onclick={() => (menuOpen = !menuOpen)}>
     <span class="bars"></span>
   </button>
 
@@ -136,7 +136,7 @@
   </nav>
 
   <div class="topbar-right">
-    <button class="theme-btn" aria-label="Toggle theme" title="Toggle light / dark" data-sfx="toggle" onclick={toggleTheme}>
+    <button class="theme-btn" aria-label="Toggle theme" title="Toggle light / dark" onclick={toggleTheme}>
       {theme === "dark" ? "☾" : "☀"}
     </button>
     {#if data.user}<NotifBell />{/if}

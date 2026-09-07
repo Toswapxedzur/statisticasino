@@ -161,27 +161,22 @@ export function loop(name, opts = {}) {
 //   <a href> clicks           → nothing here; navigation itself plays "nav" (see initSfx caller)
 export function installUiSounds() {
   if (!browser) return;
-  const nameFor = (el) => {
-    const tagged = el.closest("[data-sfx]");
-    if (tagged) { const n = tagged.getAttribute("data-sfx"); return n === "none" ? null : n; }
-    if (el.closest(".seg-btn, .nav-tab, [role=tab], .slider > *, .tab")) return "select";
-    if (el.closest("button, [role=button], summary")) return "click";
-    return null;
-  };
+  // ONE sound for every press (owner: "replace ALL button clicking sound with this"). Tabs,
+  // selectors, checkboxes, submits, cancels — all the same click. Only data-sfx="none" opts out.
+  let lastClickAt = 0;
+  const click = () => { const now = performance.now(); if (now - lastClickAt < 120) return; lastClickAt = now; play("click"); };
+  const pressable = (el) => el.closest("button, [role=button], [role=tab], summary, .seg-btn, .nav-tab, .slider > *, .tab, label:has(input[type=checkbox]), label:has(input[type=radio]), input[type=checkbox], input[type=radio]");
   document.addEventListener("click", (ev) => {
     const el = ev.target instanceof Element ? ev.target : null;
-    if (!el) return;
-    if (el.closest("input[type=checkbox], input[type=radio], label:has(input[type=checkbox]), label:has(input[type=radio])")) return; // handled on change
-    const n = nameFor(el);
-    if (n) play(n);
+    if (!el || !pressable(el)) return;
+    if (el.closest('[data-sfx="none"]')) return;
+    click();
   }, true);
   document.addEventListener("change", (ev) => {
     const el = ev.target;
-    if (!(el instanceof Element)) return;
-    if (el.matches("input[type=checkbox], input[type=radio]")) play("toggle");
-    else if (el.matches("select")) play("select");
+    if (el instanceof Element && el.matches("select")) click();
   }, true);
-  document.addEventListener("submit", () => play("confirm"), true);
+  document.addEventListener("submit", () => click(), true);   // Enter-key submits; button submits are deduped above
 }
 
 // Play `count` copies spaced `gap` ms apart (dealing round the table).

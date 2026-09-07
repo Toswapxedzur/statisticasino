@@ -454,7 +454,7 @@ class PokerClient {
   setCallHandlers(h) { this._callHandlers = h; }
   startCall(toUserId) { this.connect(); this._raw(encode(C2S.CALL_INVITE, { toUserId })); }
   acceptCall(callId) { this._stopRing(); this._raw(encode(C2S.CALL_ACCEPT, { callId })); }
-  declineCall(callId) { this._stopRing(); play("back"); this._raw(encode(C2S.CALL_DECLINE, { callId })); }
+  declineCall(callId) { this._stopRing(); this._raw(encode(C2S.CALL_DECLINE, { callId })); }
 
   // Ring loop for incoming (full volume) / outgoing (quieter) calls.
   _ring = null;
