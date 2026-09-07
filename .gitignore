@@ -38,3 +38,6 @@ target/
 .venv-*/
 __pycache__/
 .DS_Store
+
+# Sound-library audition set (hundreds of MB of candidate clips; picks get copied into static/sfx)
+design/sfx-library/

@@ -6,4 +6,6 @@ Sound effects in this folder:
   Clips are trimmed, loudness-normalised and re-encoded. Credit is shown in Settings.
 * Interface sounds, jingles and the ring pattern: Kenney (https://kenney.nl) — "Interface Sounds",
   "Music Jingles", "Casino Audio" packs — Creative Commons CC0 (public domain).
-Downloaded 2026-09-05/06.
+* click.ogg/.mp3: "Plastic bubble click" from Mixkit (https://mixkit.co/free-sound-effects/click/),
+  Mixkit Sound Effects Free License (free for commercial use, no attribution required).
+Downloaded 2026-09-05/07.
