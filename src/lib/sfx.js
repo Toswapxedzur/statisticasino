@@ -28,7 +28,7 @@ const SOUNDS = {
   chat:     { files: ["chat"], gain: 0.5 },
   notify:   { files: ["notify"], gain: 0.6 },
   reward:   { files: ["reward"], gain: 0.7 },
-  click:    { files: ["click"], gain: 0.4 },
+  click:    { files: ["click"], gain: 1 },        // owner: +300% (gain 0.4→1.0 = 2.5×, clip re-cut 1.2× louder = 3×)
   dice:     { files: ["dice-1", "dice-2", "dice-3"], gain: 0.9 },
   shake:    { files: ["shake-1", "shake-2"], gain: 0.7 },
   reel:     { files: ["reel-1", "reel-2", "reel-3"], gain: 0.7 },
