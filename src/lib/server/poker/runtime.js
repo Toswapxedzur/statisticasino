@@ -258,6 +258,7 @@ export class GameTable extends LiveTable {
         seat: seatNo,
         userId: s.userId,
         name: s.name,
+        avatar: s.avatar ?? null,
         stack: s.stack,
         sittingOut: !!s.sittingOut,
         connected: this.isConnected(s),

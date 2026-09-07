@@ -5,10 +5,10 @@
   // (corner label + pips / courts) — the board form also serves large sizes.
   import { renderSmall, renderBoard, renderBack, renderEmpty, formFor } from "$lib/poker/composer.js";
 
-  let { card = null, faceDown = false, size = "md" } = $props();
+  let { card = null, faceDown = false, size = "md", width: widthPx = null } = $props();
 
   const WIDTHS = { xs: 32, sm: 42, md: 62, lg: 82, xl: 108 };
-  let width = $derived(WIDTHS[size] ?? WIDTHS.md);
+  let width = $derived(widthPx || (WIDTHS[size] ?? WIDTHS.md));
 
   let html = $derived.by(() => {
     if (faceDown) return renderBack(width);

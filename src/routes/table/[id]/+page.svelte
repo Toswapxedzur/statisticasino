@@ -22,6 +22,8 @@
   import ShedBar from "$lib/poker/components/ShedBar.svelte";
   import BuyInModal from "$lib/poker/components/BuyInModal.svelte";
   import TableChat from "$lib/poker/components/TableChat.svelte";
+  import Chip from "$lib/poker/components/Chip.svelte";
+  import Num from "$lib/poker/components/Num.svelte";
   import { variantLabel, isBanked as isBankedGame, isShedding } from "$lib/poker/games.js";
   import Select from "$lib/components/Select.svelte";
   import { fade, fly, scale } from "svelte/transition";
@@ -109,6 +111,44 @@
     me && view ? (view.seats || []).find((s) => s.userId === me.id) || null : null
   );
   let isSeated = $derived(!!mySeat);
+
+  // ---- card picking: the cards live under my seat badge; the bars only hold buttons ----
+  // draw (Five-Card Draw discards) / hold (Video Poker) → indices; set (Pai Gow front) /
+  // shed (Crazy Eights, Big Two) → card strings. Reset whenever the turn changes.
+  let picked = $state([]);
+  let pendingEight = $state(null);
+  const pickMode = $derived(!turn ? null : isDrawTurn ? "draw" : holdGame ? "hold" : setGame ? "set" : shedGame ? "shed" : null);
+  const turnSig = $derived(turn ? [pickMode, turn.deadline, (turn.cards || turn.hand || []).join(",")].join("|") : "");
+  $effect(() => { turnSig; picked = []; pendingEight = null; });
+  const pick = $derived.by(() => {
+    if (!pickMode) return null;
+    const byIndex = pickMode === "draw" || pickMode === "hold";
+    const single = pickMode === "shed" && !turn.combo;
+    const legal = single ? new Set(turn.legal || []) : null;
+    const labels = { draw: "discard", hold: "held", set: "front", shed: "play" };
+    return {
+      selected: new Set(picked), legal,
+      keyOf: (i, c) => (byIndex ? i : c),
+      labelOf: () => labels[pickMode],
+      onSelect: (k) => {
+        if (single) {
+          if (!legal.has(k)) return;
+          if (k[0] === "8") { pendingEight = k; return; }
+          poker.act(tableId, { type: "play", card: k });
+          return;
+        }
+        if (picked.includes(k)) picked = picked.filter((x) => x !== k);
+        else if (pickMode === "set" && picked.length >= 2) return;
+        else picked = [...picked, k];
+      }
+    };
+  });
+  // Who we're waiting on (for the action column when it isn't my turn).
+  const actorName = $derived.by(() => {
+    const no = view?.toActSeat ?? view?.round?.toActSeat ?? null;
+    if (no == null) return null;
+    return (view?.seats || []).find((x) => x.seat === no)?.name ?? null;
+  });
   let myStack = $derived(mySeat ? mySeat.stack : 0);
 
   // Wallet balance: SSR value, kept live via the client's "chips" event so
@@ -255,135 +295,132 @@
 
 <svelte:head><title>{data.table.name} — {SITE_NAME}</title></svelte:head>
 
-<section class="table-top">
-  <a href="/" class="back">‹ Lobby</a>
-  <h2>{data.table.name}</h2>
-  <span class="stakes">
-    {#if shedding}
-      {variantLabel(gameKey)} · ante {config.smallBlind}
-    {:else if banked}
-      {variantLabel(gameKey)} · min bet {config.smallBlind}{#if rules && rules.blackjackPays} · {rules.blackjackPays} · {rules.decks} deck{rules.decks > 1 ? "s" : ""} · {rules.dealerHitsSoft17 ? "H17" : "S17"}{rules.surrender ? " · surrender" : ""}{rules.peek === false ? " · no-peek" : ""}{/if}
-    {:else}
-      {variantLabel(config.variant)} · {config.smallBlind}/{config.bigBlind}
-    {/if}
-    · buy-in {config.minBuyin.toLocaleString()}–{config.maxBuyin.toLocaleString()}</span>
-  {#if !me}
-    <span class="signin">Watching — <a href="/account/login">Sign in to play</a></span>
-  {/if}
-  <button type="button" class="sfx-btn" class:off={!sfxOn} onclick={toggleSfx} title={sfxOn ? "Mute table sounds" : "Unmute table sounds"} aria-pressed={sfxOn}>{sfxOn ? "🔊" : "🔇"}</button>
-</section>
+<div class="tablepage">
+  <!-- slim overlay strip: no site bar on a table -->
+  <div class="hud">
+    <a href="/" class="back" aria-label="Back to lobby" title="Lobby">‹</a>
+    <div class="title">
+      <b>{data.table.name}</b>
+      <span class="stakes">
+        {#if shedding}{variantLabel(gameKey)} · ante {config.smallBlind}
+        {:else if banked}{variantLabel(gameKey)} · min bet {config.smallBlind}{#if rules && rules.blackjackPays} · {rules.blackjackPays} · {rules.decks} deck{rules.decks > 1 ? "s" : ""} · {rules.dealerHitsSoft17 ? "H17" : "S17"}{rules.surrender ? " · surrender" : ""}{rules.peek === false ? " · no-peek" : ""}{/if}
+        {:else}{variantLabel(config.variant)} · {config.smallBlind}/{config.bigBlind}{/if}
+        · buy-in {config.minBuyin.toLocaleString()}–{config.maxBuyin.toLocaleString()}
+      </span>
+    </div>
+    {#if !me}<span class="signin">Watching — <a href="/account/login">Sign in to play</a></span>{/if}
+    <div class="hud-right">
+      {#if me}<a class="wallet" href="/account" title="Your chips"><Chip value={walletChips} size={14} /><Num value={walletChips} /></a>{/if}
+      <button type="button" class="sfx-btn" class:off={!sfxOn} onclick={toggleSfx} title={sfxOn ? "Mute table sounds" : "Unmute table sounds"} aria-pressed={sfxOn}>{sfxOn ? "🔊" : "🔇"}</button>
+    </div>
+  </div>
 
-{#if toastMsg}
-  <div class="toast {toastMsg.level}" role="status" in:fly={{ y: d(-12), duration: d(DUR.base) }} out:fade={{ duration: d(DUR.fast) }}>{toastMsg.text}</div>
-{/if}
-
-{#if view?.tournament}
-  {@const tny = view.tournament}
-  {@const isSprint = tny.kind === "sprint"}
-  <section class="tny-hud" transition:fly={{ y: d(-10), duration: d(DUR.base) }}>
-    <span class="tny-badge">{isSprint ? "⚡ River Sprint" : tny.status === "complete" ? "🏆 Finished" : tny.status === "running" ? "Level " + tny.level : "Registering"}</span>
-    {#if tny.blinds}<span>Blinds <b>{tny.blinds.sb}/{tny.blinds.bb}</b></span>{/if}
-    {#if !isSprint}<span>Prize pool <b>{(tny.prizePool ?? 0).toLocaleString()}</b></span>{/if}
-    <span>{tny.remaining} left{#if !isSprint} / {tny.registered}{/if}</span>
-    {#if !isSprint && tny.status === "running"}<span class="muted">next level in {tny.nextLevelInHands}</span>{/if}
-    {#if me && tny.places?.length}
-      {@const myPlace = tny.places.find((p) => p.userId === me.id)}
-      {#if myPlace}<span class="tny-place">You finished #{myPlace.place}</span>{/if}
-    {/if}
-  </section>
-{/if}
-
-{#if view}
-  {#if shedGame}
-    <ShedTable {view} {me} onSit={openBuyIn} />
-    {#if isSeated}
-      <ShedBar hand={privates?.holeCards || []} {turn} onAct={(a) => poker.act(tableId, a)} />
-    {/if}
-  {:else if holdGame}
-    <VideoPokerTable {view} {me} onSit={openBuyIn} />
-    {#if turn}
-      <VideoPokerBar {turn} onAct={(a) => poker.act(tableId, a)} />
-    {/if}
-  {:else if pickGame}
-    <KenoTable {view} {me} onSit={openBuyIn} />
-    {#if turn}
-      <KenoBar {turn} onAct={(a) => poker.act(tableId, a)} />
-    {/if}
-  {:else if setGame}
-    <PaiGowTable {view} {me} onSit={openBuyIn} />
-    {#if turn}
-      <PaiGowBar {turn} onAct={(a) => poker.act(tableId, a)} />
-    {/if}
-  {:else if betGame}
-    <BetGameTable {view} {me} onSit={openBuyIn} />
-    {#if turn}
-      <BankedBetBar {turn} onAct={(a) => poker.act(tableId, a)} />
-    {/if}
-  {:else if banked}
-    <BankedTable {view} {me} onSit={openBuyIn} />
-    {#if turn}
-      <BankedActionBar {turn} onAct={(a) => poker.act(tableId, a)} />
-    {/if}
-  {:else}
-    <PokerTable {view} {me} {privates} onSit={openBuyIn} />
-    {#if turn && isDrawTurn}
-      <DrawBar cards={privates?.holeCards || []} onAct={(a) => poker.act(tableId, a)} />
-    {:else if turn}
-      <ActionBar
-        {turn}
-        {config}
-        potTotal={view.potTotal}
-        {myStack}
-        onAct={(a) => poker.act(tableId, a)}
-      />
-    {/if}
+  {#if toastMsg}
+    <div class="toast {toastMsg.level}" role="status" in:fly={{ y: d(-12), duration: d(DUR.base) }} out:fade={{ duration: d(DUR.fast) }}>{toastMsg.text}</div>
   {/if}
 
-  {#if me}
-    <VoiceBar {tableId} />
-  {/if}
-
-  {#if isSeated}
-    <section class="seat-controls" transition:fly={{ y: d(10), duration: d(DUR.base) }}>
-      <button class="btn" onclick={stand}>Stand</button>
-      <button class="btn" onclick={toggleSitOut}>
-        {mySeat.sittingOut ? "Sit back in" : "Sit out"}
-      </button>
-      <button class="btn" onclick={openRebuy} disabled={rebuyMax <= 0}>Rebuy</button>
-    </section>
-
-    {#if hasOpenSeat}
-      <section class="bot-controls" transition:fly={{ y: d(10), duration: d(DUR.base) }}>
-        <span class="muted small">Add a bot:</span>
-        <Select bind:value={botTier} options={botTiers.map(([value, label]) => ({ value, label }))} ariaLabel="Bot difficulty" />
-        <button class="btn btn-secondary" onclick={addBot} disabled={!canAffordBot}>Add bot</button>
-        <span class="muted small" title="You stake the bot: its buy-in comes from your chips and returns to you when it leaves.">
-          stake {botStake.toLocaleString()}{#if !canAffordBot} · not enough chips{/if}
-        </span>
-      </section>
-    {/if}
-  {:else if me && !hasOpenSeat}
-    <section class="seat-controls" transition:fly={{ y: d(10), duration: d(DUR.base) }}>
-      {#if onWaitlist}
-        <span class="muted small">You're on the waitlist — we'll seat you the moment a spot opens.</span>
-        <button class="btn btn-secondary" onclick={leaveWaitlist}>Leave waitlist</button>
-      {:else}
-        <span class="muted small">Table's full.</span>
-        <button class="btn" onclick={joinWaitlist}>Join waitlist</button>
+  {#if view?.tournament}
+    {@const tny = view.tournament}
+    {@const isSprint = tny.kind === "sprint"}
+    <section class="tny-hud" transition:fly={{ y: d(-10), duration: d(DUR.base) }}>
+      <span class="tny-badge">{isSprint ? "⚡ River Sprint" : tny.status === "complete" ? "🏆 Finished" : tny.status === "running" ? "Level " + tny.level : "Registering"}</span>
+      {#if tny.blinds}<span>Blinds <b>{tny.blinds.sb}/{tny.blinds.bb}</b></span>{/if}
+      {#if !isSprint}<span>Prize pool <b>{(tny.prizePool ?? 0).toLocaleString()}</b></span>{/if}
+      <span>{tny.remaining} left{#if !isSprint} / {tny.registered}{/if}</span>
+      {#if !isSprint && tny.status === "running"}<span class="muted">next level in {tny.nextLevelInHands}</span>{/if}
+      {#if me && tny.places?.length}
+        {@const myPlace = tny.places.find((p) => p.userId === me.id)}
+        {#if myPlace}<span class="tny-place">You finished #{myPlace.place}</span>{/if}
       {/if}
     </section>
   {/if}
-{:else}
-  <section class="felt-shell">
-    <div class="felt">
-      <div class="felt-center">
-        <p class="muted">{poker.connected ? "Loading table…" : "Connecting…"}</p>
-      </div>
-    </div>
-  </section>
-{/if}
 
-<TableChat messages={chat || []} onSend={(t) => poker.sendChat(tableId, t)} />
+  <!-- the arena: seats around the ring, my seat + big cards at the bottom -->
+  <div class="arena-wrap">
+    {#if view}
+      {#if shedGame}
+        <ShedTable {view} {me} hand={privates?.holeCards || []} onSit={openBuyIn} {pick} />
+      {:else if holdGame}
+        <VideoPokerTable {view} {me} onSit={openBuyIn} {pick} />
+      {:else if pickGame}
+        <KenoTable {view} {me} onSit={openBuyIn} />
+      {:else if setGame}
+        <PaiGowTable {view} {me} onSit={openBuyIn} {pick} />
+      {:else if betGame}
+        <BetGameTable {view} {me} onSit={openBuyIn} />
+      {:else if banked}
+        <BankedTable {view} {me} onSit={openBuyIn} {pick} />
+      {:else}
+        <PokerTable {view} {me} {privates} onSit={openBuyIn} {pick} />
+      {/if}
+    {:else}
+      <div class="loading"><p class="muted">{poker.connected ? "Loading table…" : "Connecting…"}</p></div>
+    {/if}
+  </div>
+
+  <!-- the dock: chat | my actions | seat controls -->
+  <div class="dock">
+    <div class="dock-chat">
+      <TableChat messages={chat || []} onSend={(t) => poker.sendChat(tableId, t)} />
+    </div>
+
+    <div class="dock-actions">
+      {#if view && turn}
+        {#if shedGame}
+          <ShedBar {turn} selected={picked} {pendingEight} onAct={(a) => poker.act(tableId, a)} onCancelEight={() => (pendingEight = null)} />
+        {:else if holdGame}
+          <VideoPokerBar {turn} selected={picked} onAct={(a) => poker.act(tableId, a)} />
+        {:else if pickGame}
+          <KenoBar {turn} onAct={(a) => poker.act(tableId, a)} />
+        {:else if setGame}
+          <PaiGowBar selected={picked} onAct={(a) => poker.act(tableId, a)} />
+        {:else if betGame}
+          <BankedBetBar {turn} onAct={(a) => poker.act(tableId, a)} />
+        {:else if banked}
+          <BankedActionBar {turn} onAct={(a) => poker.act(tableId, a)} />
+        {:else if isDrawTurn}
+          <DrawBar selected={picked} onAct={(a) => poker.act(tableId, a)} />
+        {:else}
+          <ActionBar {turn} {config} potTotal={view.potTotal} {myStack} onAct={(a) => poker.act(tableId, a)} />
+        {/if}
+      {:else if view && isSeated}
+        <div class="waiting muted">{actorName ? `Waiting for ${actorName}…` : "Waiting for the next hand…"}</div>
+      {:else if view && me && hasOpenSeat}
+        <div class="waiting muted">Pick an empty seat to play.</div>
+      {/if}
+    </div>
+
+    <div class="dock-side">
+      {#if isSeated}
+        <div class="seat-controls">
+          <button class="btn" onclick={stand}>Stand</button>
+          <button class="btn" onclick={toggleSitOut}>{mySeat.sittingOut ? "Sit back in" : "Sit out"}</button>
+          <button class="btn" onclick={openRebuy} disabled={rebuyMax <= 0}>Rebuy</button>
+        </div>
+        {#if hasOpenSeat}
+          <div class="bot-controls">
+            <span class="muted small">Add a bot:</span>
+            <Select bind:value={botTier} options={botTiers.map(([value, label]) => ({ value, label }))} ariaLabel="Bot difficulty" />
+            <button class="btn btn-secondary" onclick={addBot} disabled={!canAffordBot}>Add bot</button>
+            <span class="muted small" title="You stake the bot: its buy-in comes from your chips and returns to you when it leaves.">stake {botStake.toLocaleString()}{#if !canAffordBot} · not enough chips{/if}</span>
+          </div>
+        {/if}
+      {:else if me && view && !hasOpenSeat}
+        <div class="seat-controls">
+          {#if onWaitlist}
+            <span class="muted small">On the waitlist — we'll seat you when a spot opens.</span>
+            <button class="btn btn-secondary" onclick={leaveWaitlist}>Leave waitlist</button>
+          {:else}
+            <span class="muted small">Table's full.</span>
+            <button class="btn" onclick={joinWaitlist}>Join waitlist</button>
+          {/if}
+        </div>
+      {/if}
+      {#if me}<VoiceBar {tableId} />{/if}
+    </div>
+  </div>
+</div>
+
 
 {#if buyInSeat != null}
   <BuyInModal
@@ -421,59 +458,56 @@
 {/if}
 
 <style>
-  .tny-hud { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 10px 0;
-    padding: 9px 15px; border-radius: var(--r-pill); font-size: 13px;
-    background: var(--accent-soft); }
+  .tablepage { position: relative; display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; }
+
+  .hud { position: absolute; top: 0; left: 0; right: 0; z-index: 6; display: flex; align-items: center; gap: 12px; padding: 10px 14px; pointer-events: none; }
+  .hud > * { pointer-events: auto; }
+  .back { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 999px; background: var(--surface); color: var(--text); text-decoration: none; font-size: 22px; line-height: 1; box-shadow: var(--shadow-card); }
+  .title { display: flex; flex-direction: column; line-height: 1.15; }
+  .title b { font-family: var(--f-display); font-size: 17px; }
+  .stakes { color: var(--muted); font-size: 12px; }
+  .signin { color: var(--muted); font-size: 13px; }
+  .signin a { color: var(--hero); }
+  .hud-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .wallet { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px 5px 8px; border-radius: 999px; background: var(--surface); color: var(--gold-ink); font-weight: 800; font-size: 13px; text-decoration: none; box-shadow: var(--shadow-card); font-variant-numeric: tabular-nums; }
+  .sfx-btn { appearance: none; border: 0; background: var(--surface); color: var(--text); border-radius: 999px; width: 34px; height: 34px; cursor: pointer; font-size: 15px; box-shadow: var(--shadow-card); }
+  .sfx-btn.off { opacity: 0.55; }
+
+  .toast { position: absolute; top: 56px; left: 50%; transform: translateX(-50%); z-index: 7; max-width: 520px; padding: 11px 15px; border-radius: var(--r-card); text-align: center; font-size: 14px; box-shadow: var(--shadow-card); background: var(--surface); color: var(--text); }
+  .toast.error { color: var(--danger); box-shadow: 0 0 0 2px var(--danger), var(--shadow-card); }
+  .tny-hud { position: absolute; top: 54px; left: 50%; transform: translateX(-50%); z-index: 5; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 7px 14px; border-radius: var(--r-pill); font-size: 13px; background: var(--accent-soft); }
   .tny-hud b { font-variant-numeric: tabular-nums; }
   .tny-badge { font-weight: 700; padding: 2px 10px; border-radius: var(--r-pill); background: var(--accent); color: var(--on-accent); }
   .tny-place { font-weight: 700; color: var(--ok); }
-  .table-top { display: flex; align-items: baseline; gap: 12px; margin: 16px 0; flex-wrap: wrap; }
-  .table-top h2 { margin: 0; }
-  .back { text-decoration: none; color: var(--muted, #9aa); font-size: 13px; }
-  .stakes { color: var(--muted, #9aa); font-size: 13px; }
-  .signin { color: var(--muted, #9aa); font-size: 13px; margin-left: auto; }
-  .signin a { color: var(--hero, #6cf); }
 
-  .sfx-btn { margin-left: auto; appearance: none; border: 0; background: var(--surface-2); color: var(--text); border-radius: 999px; width: 34px; height: 34px; cursor: pointer; font-size: 15px; }
-  .sfx-btn.off { opacity: 0.55; }
-  .toast {
-    max-width: 520px; margin: 0 auto 12px; padding: 11px 15px; border-radius: var(--r-card);
-    text-align: center; font-size: 14px; box-shadow: var(--shadow-card);
-    background: var(--surface); color: var(--text);
-  }
-  .toast.error { color: var(--danger); box-shadow: 0 0 0 2px var(--danger), var(--shadow-card); }
+  .arena-wrap { flex: 1; min-height: 0; position: relative; padding: 48px 8px 0; }
+  .loading { height: 100%; display: grid; place-items: center; }
 
-  .seat-controls {
-    display: flex; gap: 10px; justify-content: center; margin: 14px 0 6px; flex-wrap: wrap;
-  }
-  .bot-controls {
-    display: flex; gap: 8px; align-items: center; justify-content: center; margin: 6px 0 10px; flex-wrap: wrap;
-  }
-  .bot-controls select {
-    padding: 7px 10px; border-radius: var(--r-btn);
-    border: 0; background: var(--well); color: var(--text);
-  }
-  .bot-controls .small { font-size: 12.5px; }
-
-  .felt-shell { display: flex; justify-content: center; padding: 18px 0 30px; }
-  .felt {
-    width: min(820px, 96vw); aspect-ratio: 16 / 9;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .felt-center { text-align: center; color: var(--muted); }
+  .dock { flex: 0 0 auto; display: grid; grid-template-columns: minmax(240px, 1fr) minmax(360px, 2fr) minmax(240px, 1fr); gap: 12px; align-items: stretch; padding: 8px 14px 14px; height: 236px; }
+  .dock-chat { min-width: 0; display: flex; flex-direction: column; }
+  .dock-chat :global(.chat) { height: 100%; display: flex; flex-direction: column; min-height: 0; }
+  .dock-chat :global(.chat .messages) { flex: 1; max-height: none; min-height: 0; }
+  .dock-actions { display: flex; align-items: center; justify-content: center; min-width: 0; }
+  .dock-actions > :global(*) { width: 100%; max-width: 640px; margin: 0; }
+  .waiting { font-size: 14px; text-align: center; }
+  .dock-side { display: flex; flex-direction: column; gap: 10px; justify-content: center; align-items: flex-start; min-width: 0; }
+  .seat-controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .bot-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .bot-controls .small, .seat-controls .small { font-size: 12px; }
   .small { font-size: 12px; opacity: 0.8; }
 
-  .modal-backdrop {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
-    display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px;
+  @media (max-width: 960px) {
+    .tablepage { height: auto; min-height: 100vh; overflow: visible; }
+    .arena-wrap { flex: none; height: 72vh; }
+    .dock { grid-template-columns: 1fr; height: auto; }
+    .dock-chat :global(.chat .messages) { max-height: 180px; }
+    .dock-side { align-items: center; }
   }
+
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px; }
   .modal { width: min(420px, 94vw); padding: 20px; display: flex; flex-direction: column; gap: 12px; }
   .modal h3 { margin: 0; }
-  .modal .range { width: 100%; }
-  .modal .num {
-    width: 100%; padding: 9px 11px; border-radius: var(--r-btn);
-    border: 0; background: var(--well); color: var(--text);
-  }
+  .modal .num { width: 100%; padding: 9px 11px; border-radius: var(--r-btn); border: 0; background: var(--well); color: var(--text); }
   .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; }
   .btn.primary { background: var(--accent); color: var(--on-accent); }
   .btn.ghost { background: var(--well); box-shadow: none; }

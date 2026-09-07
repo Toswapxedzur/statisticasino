@@ -41,6 +41,8 @@
   });
 
   let { data, children } = $props();
+  // Table pages are the game: no site bar, no padding — the arena owns the viewport.
+  const onTable = $derived($page.url.pathname.startsWith("/table/"));
 
   // Signed-in users keep a live socket app-wide so private messages (and presence)
   // arrive on any page, and the nav can badge unread DMs.
@@ -118,6 +120,7 @@
   ]);
 </script>
 
+{#if !onTable}
 <header class="topbar">
   <button class="menu-btn" aria-label="Menu" aria-expanded={menuOpen} onclick={() => (menuOpen = !menuOpen)}>
     <span class="bars"></span>
@@ -170,7 +173,9 @@
   </nav>
 {/if}
 
-<main>
+{/if}
+
+<main class:table-mode={onTable}>
   {@render children()}
 </main>
 

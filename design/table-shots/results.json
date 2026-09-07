@@ -1,0 +1,22 @@
+[
+ {
+  "key": "holdem",
+  "id": "1f373364aa3c9700224455f2df23a3e5",
+  "file": "/Users/fengyue.john.zhu/Desktop/programme/web/casin/statisticasino/design/table-shots/holdem.png"
+ },
+ {
+  "key": "blackjack",
+  "id": "7784361168df52b7bb57dbb0fdbf2c35",
+  "file": "/Users/fengyue.john.zhu/Desktop/programme/web/casin/statisticasino/design/table-shots/blackjack.png"
+ },
+ {
+  "key": "baccarat",
+  "id": "d75cb15e64325a797de53bbc1c999cf9",
+  "file": "/Users/fengyue.john.zhu/Desktop/programme/web/casin/statisticasino/design/table-shots/baccarat.png"
+ },
+ {
+  "key": "big-two",
+  "id": "d89c071af722b3fc239aa247600e20e0",
+  "file": "/Users/fengyue.john.zhu/Desktop/programme/web/casin/statisticasino/design/table-shots/big-two.png"
+ }
+]

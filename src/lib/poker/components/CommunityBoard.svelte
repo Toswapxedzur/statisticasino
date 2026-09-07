@@ -11,7 +11,7 @@
   //  street    — current street label for context (optional).
   //  result    — null | { type, board, winners:[{seat,amount}], revealed:[] }.
   //              When present the pot pill shows the outcome briefly.
-  let { board = [], potTotal = 0, street = null, result = null } = $props();
+  let { board = [], potTotal = 0, street = null, result = null, size = "md" } = $props();
 
   // Always render five slots; fill from board, leave the rest as empty slots.
   let slots = $derived(Array.from({ length: 5 }, (_, i) => board[i] ?? null));
@@ -31,9 +31,9 @@
   <div class="slots">
     {#each slots as c, i}
       {#if c}
-        <span class="deal" in:scale={{ start: 0.6, duration: d(DUR.base), delay: d(i * 45) }}><Card card={c} size="md" /></span>
+        <span class="deal" in:scale={{ start: 0.6, duration: d(DUR.base), delay: d(i * 45) }}><Card card={c} {size} /></span>
       {:else}
-        <Card size="md" />
+        <Card {size} />
       {/if}
     {/each}
   </div>

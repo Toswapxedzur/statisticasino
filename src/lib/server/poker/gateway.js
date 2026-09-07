@@ -15,6 +15,7 @@
 
 import { WebSocketServer } from "ws";
 import { validateSessionToken } from "../auth.js";
+import { queryOne } from "../db.js";
 import { SESSION_COOKIE } from "../cookies.js";
 import { encode, S2C } from "../../poker/protocol.js";
 import { hub } from "./hub.js";
@@ -78,6 +79,11 @@ export function attachPokerGateway(httpServer, { path = WS_PATH } = {}) {
       if (token) {
         const res = await validateSessionToken(token);
         user = res.user; // null if invalid/expired
+        if (user) {
+          // Seats show a profile picture: look the avatar up once per socket.
+          try { const row = await queryOne("SELECT avatar_media_id FROM user WHERE id = ?", [user.id]); user.avatarMediaId = row?.avatar_media_id || null; }
+          catch { user.avatarMediaId = null; }
+        }
       }
     } catch {
       user = null;
