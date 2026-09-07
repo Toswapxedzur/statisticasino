@@ -16,6 +16,8 @@
   const results = $derived(round.results || null);
   const winner = $derived(round.winner ?? null);
   const seatNos = $derived(Array.from({ length: maxSeats }, (_, i) => i));
+  // One card size for the whole table: 82 px up to 6 seats, smaller when the ring is crowded.
+  const cardW = $derived(seatNos.length <= 6 ? 82 : seatNos.length <= 8 ? 70 : 60);
   const iAmSeated = $derived(mySeatNo != null);
   const pileCards = $derived(round.pile && round.pile.length ? round.pile : (round.top ? [round.top] : []));
   const SUIT = { c: "♣", d: "♦", h: "♥", s: "♠" };
@@ -34,7 +36,7 @@
   {#snippet center()}
     <div class="pile">
       {#if pileCards.length}
-        <HandFan cards={pileCards.slice(-5)} width={62} fan="row" />
+        <HandFan cards={pileCards.slice(-5)} width={cardW} fan="row" />
         <div class="pilenote">
           {#if round.currentSuit}suit <span class:red={isRed(round.currentSuit)}>{SUIT[round.currentSuit]}</span>{/if}
           {#if round.drawCount != null}{round.currentSuit ? " · " : ""}{round.drawCount} in stock{/if}
@@ -47,7 +49,7 @@
     {@const pl = playerByNo.get(seatNo)}
     {@const mine = !!s && s.userId === me?.id}
     {@const ln = s ? lineFor(seatNo, pl) : null}
-    <SeatBadge
+    <SeatBadge cardWidth={cardW}
       seat={s ? { ...s, isToAct: round.toActSeat === seatNo } : null} {seatNo} {me} isMine={mine}
       cards={mine && hand.length ? hand : null}
       cardCount={!mine && pl ? Math.min(pl.cardCount, 13) : 0}

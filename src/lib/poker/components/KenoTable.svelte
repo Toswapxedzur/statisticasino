@@ -18,6 +18,8 @@
   const ticketBySeat = $derived(new Map((round.tickets || []).map((t) => [t.seat, t])));
   const mySeatNo = $derived(me ? (view?.seats || []).find((s) => s.userId === me.id)?.seat ?? null : null);
   const seatNos = $derived(Array.from({ length: maxSeats }, (_, i) => i));
+  // One card size for the whole table: 82 px up to 6 seats, smaller when the ring is crowded.
+  const cardW = $derived(seatNos.length <= 6 ? 82 : seatNos.length <= 8 ? 70 : 60);
   const banker = $derived(bankerSeat != null ? seatByNo.get(bankerSeat) : null);
   const iAmSeated = $derived(mySeatNo != null);
   const outcomeOf = (seat) => (results ? results.find((r) => r.seat === seat) || null : null);
@@ -33,7 +35,7 @@
 
 <SeatRing {seatNos} {mySeatNo} houseSeat={bankerSeat}>
   {#snippet top()}
-    <SeatBadge seat={banker ? { ...banker, name: "House" } : { userId: "house", name: "House", stack: 0, connected: true }} house line="" />
+    <SeatBadge cardWidth={cardW} seat={banker ? { ...banker, name: "House" } : { userId: "house", name: "House", stack: 0, connected: true }} house line="" />
   {/snippet}
   {#snippet center()}
     <div class="drawn">
@@ -46,7 +48,7 @@
     {@const s = seatByNo.get(seatNo) ?? null}
     {@const t = ticketBySeat.get(seatNo)}
     {@const ln = s ? lineFor(seatNo) : null}
-    <SeatBadge
+    <SeatBadge cardWidth={cardW}
       seat={s ? { ...s, isToAct: round.toActSeat === seatNo } : null} {seatNo} {me} isMine={!!s && s.userId === me?.id}
       line={ln?.text ?? ""} lineKind={ln?.kind ?? "muted"}
       canSit={!!me && !iAmSeated && !s}

@@ -28,7 +28,8 @@
     deadline = null, winner = false, won = 0,
     canSit = false, onSit = () => {}, seatNo = 0,
     selectable = null, onSelect = () => {}, labelOf = null,
-    house = false, size = "sm", children = null
+    house = false, size = "sm", children = null,
+    cardWidth = 82          // the table's card size (my hand + centre); shrinks on crowded tables
   } = $props();
 
   const RING_MAX_MS = 25_000;
@@ -54,7 +55,20 @@
   // The blind markers already show as chips next to the name; don't repeat them as status.
   let statusText = $derived(line != null ? line : allin ? "ALL-IN" : sittingOut ? "sitting out" : (seat?.lastAction && seat.lastAction !== "SB" && seat.lastAction !== "BB" ? seat.lastAction : ""));
   let statusKind = $derived(line != null ? lineKind : allin ? "allin" : sittingOut ? "muted" : "muted");
-  let cardW = $derived(isMine ? (size === "lg" ? 96 : 82) : house ? 56 : 42);
+  // Same card size as my hand and the centre (82 px). Opponents / the House keep it too unless
+  // their fan would be wider than an opponent badge can afford; then it shrinks to fit.
+  const MIN_W = 34;
+  let cardW = $derived.by(() => {
+    const base = cardWidth;
+    if (isMine) return base;
+    // Opponents: same size as my hand, or smaller when their fan would not fit an
+    // opponent badge (≈2.6 card widths). Never larger than mine.
+    const n = (cards && cards.length) || cardCount || 0;
+    if (n <= 0) return base;
+    const cap = base * 2.6;
+    const total = n > 2 ? base * (1 + 0.38 * (n - 1)) : n * base + (n - 1) * 5;
+    return total <= cap ? base : Math.max(MIN_W, Math.floor(base * cap / total));
+  });
   let avSize = $derived(isMine ? 44 : 34);
 </script>
 

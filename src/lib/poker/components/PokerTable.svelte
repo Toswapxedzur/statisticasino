@@ -14,6 +14,8 @@
 
   let maxSeats = $derived(view?.config?.maxSeats ?? 0);
   let seatNos = $derived(Array.from({ length: maxSeats }, (_, i) => i));
+  // One card size for the whole table: 82 px up to 6 seats, smaller when the ring is crowded.
+  const cardW = $derived(seatNos.length <= 6 ? 82 : seatNos.length <= 8 ? 70 : 60);
   let seatByNo = $derived(new Map((view?.seats || []).map((s) => [s.seat, s])));
   let mySeatNo = $derived(me ? (view?.seats || []).find((s) => s.userId === me.id)?.seat ?? null : null);
   let revealedByNo = $derived(new Map((view?.result?.revealed || []).map((r) => [r.seat, r.holeCards])));
@@ -68,7 +70,7 @@
   <SeatRing {seatNos} {mySeatNo}>
     {#snippet center()}
       {#if view}
-        <CommunityBoard board={view.board || []} potTotal={view.potTotal || 0} street={view.street} result={view.result} size="lg" />
+        <CommunityBoard board={view.board || []} potTotal={view.potTotal || 0} street={view.street} result={view.result} width={cardW} />
       {:else}
         <p class="muted">Loading table…</p>
       {/if}
@@ -77,7 +79,7 @@
       {@const s = seatByNo.get(seatNo) ?? null}
       {@const mine = !!s && s.userId === me?.id}
       {@const cards = s ? cardsFor(seatNo, s) : null}
-      <SeatBadge
+      <SeatBadge cardWidth={cardW}
         seat={s} {seatNo} {me} isMine={mine}
         cards={cards}
         cardCount={s && !cards && s.hasCards ? holeCount : 0}

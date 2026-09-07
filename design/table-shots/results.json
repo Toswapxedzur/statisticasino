@@ -1,22 +1,32 @@
 [
  {
   "key": "holdem",
-  "id": "1f373364aa3c9700224455f2df23a3e5",
+  "id": "e65f6244c5052111a53fb38820eadf96",
   "file": "/Users/fengyue.john.zhu/Desktop/programme/web/casin/statisticasino/design/table-shots/holdem.png"
  },
  {
+  "key": "plo5",
+  "id": "4f63c1ee6c8cb96d9832831bce3bc32b",
+  "file": "/Users/fengyue.john.zhu/Desktop/programme/web/casin/statisticasino/design/table-shots/plo5.png"
+ },
+ {
+  "key": "seven-card-stud",
+  "id": "e92408934f7109d148a474f9052ef029",
+  "file": "/Users/fengyue.john.zhu/Desktop/programme/web/casin/statisticasino/design/table-shots/seven-card-stud.png"
+ },
+ {
   "key": "blackjack",
-  "id": "7784361168df52b7bb57dbb0fdbf2c35",
+  "id": "81bf138520a5b2313309695bc676964a",
   "file": "/Users/fengyue.john.zhu/Desktop/programme/web/casin/statisticasino/design/table-shots/blackjack.png"
  },
  {
   "key": "baccarat",
-  "id": "d75cb15e64325a797de53bbc1c999cf9",
+  "id": "25a495bc7237bcf073beda4727e2cb69",
   "file": "/Users/fengyue.john.zhu/Desktop/programme/web/casin/statisticasino/design/table-shots/baccarat.png"
  },
  {
   "key": "big-two",
-  "id": "d89c071af722b3fc239aa247600e20e0",
+  "id": "5e9ddb2af01b48133a00ab70bf3a34ac",
   "file": "/Users/fengyue.john.zhu/Desktop/programme/web/casin/statisticasino/design/table-shots/big-two.png"
  }
 ]
