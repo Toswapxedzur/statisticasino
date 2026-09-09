@@ -13,6 +13,25 @@ import { play } from "$lib/sfx.js";
 
 const FALLBACK_ICE = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 
+// Map the browser's getUserMedia failure to something a player can act on.
+export function micErrorText(e) {
+  switch (e?.name) {
+    case "NotAllowedError":
+    case "PermissionDeniedError":
+      return "Microphone blocked. Allow it for this site in your browser settings (the lock icon by the address bar).";
+    case "NotFoundError":
+    case "DevicesNotFoundError":
+      return "No microphone found on this device.";
+    case "NotReadableError":
+    case "TrackStartError":
+      return "Microphone is in use by another app or blocked by the system.";
+    case "SecurityError":
+      return "This browser won't allow the microphone here. Open the site in Safari or Chrome.";
+    default:
+      return "Microphone access failed" + (e?.name ? " (" + e.name + ")" : "") + ".";
+  }
+}
+
 class Voice {
   active = $state(false);
   muted = $state(false);
@@ -41,10 +60,17 @@ class Voice {
     if (!browser || this.active) return;
     this._myId = poker.me?.id;
     if (!this._myId) { this.error = "Sign in to use voice."; return; }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      // In-app browsers (WeChat, QQ, links opened inside another app) and http pages have no mic API.
+      this.error = window.isSecureContext
+        ? "This browser can't use the microphone. Open the site in Safari or Chrome."
+        : "Voice needs a secure (https) page.";
+      return;
+    }
     try {
       this._localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-    } catch {
-      this.error = "Microphone access was blocked.";
+    } catch (e) {
+      this.error = micErrorText(e);
       return;
     }
     this.error = null;
