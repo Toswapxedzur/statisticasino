@@ -5,7 +5,7 @@
   import { d, DUR } from "$lib/motion.js";
   let { tableId } = $props();
   function toggle() { if (voice.active) voice.leave(); else voice.join(tableId); }
-  const label = (s) => (s === "connected" ? "" : s === "connecting" ? " · connecting…" : " · " + s);
+  const label = (s) => (s === "connected" ? "" : s === "connecting" ? " · connecting…" : s === "reconnecting" ? " · reconnecting…" : s === "failed" ? " · couldn't connect" : " · " + s);
 </script>
 
 <div class="voice-bar">
