@@ -1,7 +1,4 @@
 <script>
-  import { onMount as _sfxMount } from "svelte";
-  import { play as _sfxPlay } from "$lib/sfx.js";
-  _sfxMount(() => { _sfxPlay("open"); return () => _sfxPlay("close"); });
   import { fade, scale } from "svelte/transition";
   import { d, DUR } from "$lib/motion.js";
   // Buy-in modal (DESIGN.md §3). Pick an amount via slider between

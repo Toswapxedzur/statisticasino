@@ -1,7 +1,4 @@
 <script>
-  import { onMount as _sfxMount } from "svelte";
-  import { play as _sfxPlay } from "$lib/sfx.js";
-  _sfxMount(() => { _sfxPlay("open"); });
   // The single app-wide profile popover. Mounted once in the root layout; opens
   // when any avatar calls profilePop.open(userId, rect). Fetches a mini-profile
   // and lets you add/accept/message without leaving the page.
