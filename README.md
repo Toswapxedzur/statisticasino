@@ -195,16 +195,19 @@ HTTP; `server.js` wraps it and attaches the poker gateway (`/ws`) on the
 same port. It requires `src/` to be present alongside `build/` at runtime.
 
 ```bash
-MYSQL_HOST=rm-XXXX.mysql.cn-shenzhen.rds.aliyuncs.com \
+MYSQL_HOST=127.0.0.1 \
 MYSQL_PORT=3306 \
-MYSQL_USER=root \
+MYSQL_USER=riverside \
 MYSQL_PASSWORD=... \
 MYSQL_DATABASE=statisticasino \
 GMAIL_USER=you@gmail.com \
 GMAIL_APP_PASSWORD='abcd efgh ijkl mnop' \
-ORIGIN=https://stats.example.org \
+ORIGIN=https://your-host.example.org \
 npm start          # node server.js — HTTP + poker WebSocket on one port
 ```
+
+Production today runs against a **local MySQL on the box** (not a remote RDS) and
+is fronted by **Caddy** (auto-TLS). See `DEPLOYMENT.md` for the concrete live setup.
 
 `server.js` also drains poker tables on `SIGTERM`/`SIGINT` (refunds seated
 chips to wallets) before exiting, so a graceful restart conserves chips; a
