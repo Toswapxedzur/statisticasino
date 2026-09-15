@@ -620,7 +620,7 @@ Reproduces every numerical result and figure used in the blog post
 "Does table size drive pot size? A LINER-checked walk through three
 tests on 1238 hands":
 
-    https://www.sinostatistica.net/blog/pot-vs-seats-bootstrap
+    https://bluffingvalley.blopybox.net/blog/pot-vs-seats-bootstrap
 
 Tests run, in order:
     A.  Chi-square test of independence on a 4 x 4 contingency table.

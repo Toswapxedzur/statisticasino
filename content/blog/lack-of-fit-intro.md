@@ -513,7 +513,7 @@ Lack-of-fit F-test introduction — full pipeline.
 Companion script to the blog post
 "Beyond 'is the slope significant?': An introduction to the lack-of-fit F-test"
 
-    https://www.sinostatistica.net/blog/lack-of-fit-intro
+    https://bluffingvalley.blopybox.net/blog/lack-of-fit-intro
 
 Walks through the lack-of-fit F-test on a synthetic spring-extension
 dataset: 8 distinct mass levels (100, 200, ..., 800 g), 10 replicate

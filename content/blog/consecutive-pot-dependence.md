@@ -608,7 +608,7 @@ Reproduces every numerical result and figure used in the blog post
 "Are consecutive pots independent? A LINER-checked walk through three
 tests on within-table lag-1 pairs":
 
-    https://www.sinostatistica.net/blog/consecutive-pot-dependence
+    https://bluffingvalley.blopybox.net/blog/consecutive-pot-dependence
 
 Tests run, in order:
     A.  Chi-square test of independence on a 4 x 4 contingency table
