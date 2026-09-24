@@ -12,4 +12,6 @@ Sound effects in this folder:
 * call-off.ogg/.mp3: "Power button click - A51 Phone sounds" by Sadiquecat on Freesound
   (https://freesound.org/s/751902/), Creative Commons CC0.
 * error.ogg/.mp3: a double hit from the ArtOrDie dice take above (CC BY 4.0, already credited).
+* turn.ogg/.mp3: "Gear fast lock tap" from Mixkit, Mixkit licence (no attribution required).
+  Replaced the Kenney rising jingle 2026-09-25.
 Downloaded 2026-09-05/07; seat/call/error clips replaced 2026-09-24 (unpitched, no zips).

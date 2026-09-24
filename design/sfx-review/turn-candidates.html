@@ -1,0 +1,210 @@
+<title>Your Turn Cue</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=Hanken+Grotesk:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #f5efe2; --surface: #fffaf0; --well: #ebe3d1; --text: #14203b; --muted: #5b6784;
+    --faint: #8a93a8; --accent: #1f6fa8; --accent-soft: #dcebf6; --gold: #b07a00; --gold-bg: #f7e7b8;
+    --ring: #b07a00; --shadow: 0 1px 2px rgba(20,32,59,.06), 0 6px 18px rgba(20,32,59,.07);
+    --f-display: "Fraunces", Georgia, "Times New Roman", serif;
+    --f-body: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #0f172a; --surface: #16213a; --well: #0b1222; --text: #e5ecff; --muted: #93a3c6;
+      --faint: #62708f; --accent: #5ec8e5; --accent-soft: #173049; --gold: #f5b60d; --gold-bg: #3a2d0c;
+      --ring: #f5b60d; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.28);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0f172a; --surface: #16213a; --well: #0b1222; --text: #e5ecff; --muted: #93a3c6;
+    --faint: #62708f; --accent: #5ec8e5; --accent-soft: #173049; --gold: #f5b60d; --gold-bg: #3a2d0c;
+    --ring: #f5b60d; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.28);
+  }
+
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font: 15px/1.55 var(--f-body); }
+  .wrap { max-width: 780px; margin: 0 auto; padding-inline: 20px; padding-block: 36px 120px; display: grid; gap: 40px; }
+
+  header { display: grid; gap: 10px; }
+  .eyebrow { font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  h1 { font: 650 clamp(28px, 5vw, 38px)/1.1 var(--f-display); margin: 0; text-wrap: balance; }
+  h2 { font: 600 22px/1.2 var(--f-display); margin: 0; text-wrap: balance; }
+  .lede { color: var(--muted); max-width: 62ch; margin: 0; }
+  .lede b { color: var(--text); font-weight: 600; }
+
+  section { display: grid; gap: 14px; }
+  .sec-head { display: grid; gap: 4px; }
+  .sec-head p { margin: 0; color: var(--muted); font-size: 14px; max-width: 62ch; }
+  .where { font-size: 13px; color: var(--faint); }
+  code { font: 500 12.5px/1 ui-monospace, "SF Mono", Menlo, monospace; background: var(--well); padding: 2px 6px; border-radius: 5px; color: var(--text); }
+
+  .list { display: grid; gap: 8px; }
+  .row {
+    display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 14px;
+    background: var(--surface); border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow);
+    cursor: pointer; transition: box-shadow .15s ease, transform .15s ease;
+  }
+  .row:hover { transform: translateY(-1px); }
+  .row.now { background: var(--well); box-shadow: none; cursor: default; }
+  .row.now:hover { transform: none; }
+  .row input { position: absolute; opacity: 0; pointer-events: none; }
+  .row:has(input:checked) { box-shadow: 0 0 0 2px var(--ring), var(--shadow); }
+  .row:has(input:focus-visible) { box-shadow: 0 0 0 2px var(--accent), var(--shadow); }
+  .key {
+    width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+    font: 650 15px/1 var(--f-display); background: var(--well); color: var(--muted);
+  }
+  .row:has(input:checked) .key { background: var(--gold-bg); color: var(--gold); }
+  .row.now .key { background: transparent; font: 600 10px/1 var(--f-body); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+  .meta { display: grid; gap: 2px; min-width: 0; }
+  .name { font-weight: 600; }
+  .src { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--gold); margin-left: 6px; }
+  .warn { color: var(--faint); font-size: 12.5px; }
+
+  .plays { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .play {
+    font: 600 13px/1 var(--f-body); color: var(--accent); background: var(--accent-soft);
+    border: 0; border-radius: 999px; padding: 8px 12px 8px 10px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 7px; white-space: nowrap;
+  }
+  .play::before { content: ""; width: 0; height: 0; border-left: 8px solid currentColor; border-top: 5px solid transparent; border-bottom: 5px solid transparent; }
+  .play:hover { filter: brightness(1.08); }
+  .play:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .play.on { background: var(--accent); color: var(--surface); }
+
+  .note { background: var(--well); border-radius: 12px; padding: 14px 16px; font-size: 14px; color: var(--muted); margin: 0; }
+  .note b { color: var(--text); }
+
+  .bar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+    padding: 12px 20px calc(12px + env(safe-area-inset-bottom, 0px));
+    background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(10px);
+    box-shadow: 0 -8px 24px rgba(0,0,0,.12);
+  }
+  .bar-in { max-width: 780px; margin: 0 auto; display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+  #reply { font-weight: 600; font-variant-numeric: tabular-nums; user-select: all; }
+  #reply.empty { color: var(--faint); font-weight: 400; }
+  #copy { font: 600 14px/1 var(--f-body); border: 0; border-radius: 999px; padding: 10px 16px; background: var(--gold); color: #1a1405; cursor: pointer; }
+  #copy:disabled { opacity: .4; cursor: default; }
+  #copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  @media (max-width: 560px) {
+    .row { grid-template-columns: 34px 1fr; }
+    .plays { grid-column: 1 / -1; justify-content: flex-start; }
+  }
+  @media (prefers-reduced-motion: reduce) { .row { transition: none; } .row:hover { transform: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Bluffing Valley · table sounds · round 3</div>
+    <h1>“Your turn” without the jingle</h1>
+    <p class="lede">The cue you hear when the game starts is <code>turn</code>: four notes rising (G4 → D5 → G5 → D6). It plays the moment action reaches you. In the banked games that's the instant a round opens for betting; in poker it's right after the deal. Every option below is <b>unpitched</b> and passed the pitch test (current cue: 0.98, options: 0.10–0.37) and the zip test. None of them sounds too close to a sound already in the game. Clips are loudness-matched.</p>
+  </header>
+
+  <section aria-labelledby="h-turn">
+    <div class="sec-head">
+      <h2 id="h-turn">It's your turn</h2>
+      <p>This one has to get your attention without a tone, so the options lean on a sharp attack or a two-beat rhythm.</p>
+      <div class="where">Cue <code>turn</code> · plays once per decision you face, so it's the most frequent alert</div>
+    </div>
+    <div class="list" data-cue="turn">
+      <div class="row now"><span class="key">Now</span><div class="meta"><span class="name">Current rising four-note jingle</span><span class="src">Kenney UI · what you hear today</span></div>
+        <div class="plays"><button class="play" data-a="turn/now-turn.mp3">Play</button></div></div>
+      <label class="row"><input type="radio" name="turn" value="1" id="turn-1"><span class="key">1</span><div class="meta"><span class="name">Card flick<span class="tag">Suggested</span></span><span class="src">Mixkit “Poker card flick” · 0.26 s</span><span class="warn">A dealer flicking a card toward you; nothing else in the game sounds like it</span></div>
+        <div class="plays"><button type="button" class="play" data-a="turn/turn-1.mp3">Play</button></div></label>
+      <label class="row"><input type="radio" name="turn" value="2" id="turn-2"><span class="key">2</span><div class="meta"><span class="name">Double card flick</span><span class="src">The same flick twice, 90 ms apart · 0.59 s</span><span class="warn">More urgent; the two beats read as “hey — you”</span></div>
+        <div class="plays"><button type="button" class="play" data-a="turn/turn-2.mp3">Play</button></div></label>
+      <label class="row"><input type="radio" name="turn" value="3" id="turn-3"><span class="key">3</span><div class="meta"><span class="name">Camera shutter</span><span class="src">Mixkit “Camera shutter click” · 0.13 s · a crisp mechanical ka-chick</span></div>
+        <div class="plays"><button type="button" class="play" data-a="turn/turn-3.mp3">Play</button></div></label>
+      <label class="row"><input type="radio" name="turn" value="4" id="turn-4"><span class="key">4</span><div class="meta"><span class="name">Stapler clunk</span><span class="src">Mixkit “Stapling paper” · 0.16 s</span></div>
+        <div class="plays"><button type="button" class="play" data-a="turn/turn-4.mp3">Play</button></div></label>
+      <label class="row"><input type="radio" name="turn" value="5" id="turn-5"><span class="key">5</span><div class="meta"><span class="name">Gear-lock tap</span><span class="src">Mixkit “Gear fast lock tap” · 0.21 s · a short ratchet-like catch</span></div>
+        <div class="plays"><button type="button" class="play" data-a="turn/turn-5.mp3">Play</button></div></label>
+      <label class="row"><input type="radio" name="turn" value="6" id="turn-6"><span class="key">6</span><div class="meta"><span class="name">Bang-snap pop</span><span class="src">BigSoundBank “bang snaps” · 0.11 s · the sharpest attack here</span></div>
+        <div class="plays"><button type="button" class="play" data-a="turn/turn-6.mp3">Play</button></div></label>
+    </div>
+  </section>
+
+  <p class="note"><b>Left out on purpose:</b> a typewriter key and single chip taps sounded too close to the dice-tick error and the bet chips; a snap click, hand drums and a woodpecker knock all carried a tone. <b>Licences:</b> Mixkit (no credit needed) and CC0; the Settings credit line doesn't change.</p>
+</div>
+
+<div class="bar" role="region" aria-label="Your picks">
+  <div class="bar-in">
+    <span id="reply" class="empty">Pick one</span>
+    <button id="copy" type="button" disabled>Copy reply</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const PAIRS = {};
+  let current = null, timer = null, activeBtn = null;
+
+  function stop() {
+    clearTimeout(timer);
+    if (current) { try { current.pause(); } catch {} current = null; }
+    if (activeBtn) { activeBtn.classList.remove("on"); activeBtn = null; }
+  }
+  function playSeq(files, btn) {
+    stop();
+    activeBtn = btn; btn.classList.add("on");
+    let i = 0;
+    const next = () => {
+      if (i >= files.length) { if (activeBtn === btn) { btn.classList.remove("on"); activeBtn = null; } return; }
+      const a = new Audio(files[i++]);
+      current = a;
+      a.addEventListener("ended", () => { if (current === a) timer = setTimeout(next, 450); }, { once: true });
+      a.addEventListener("error", () => { if (current === a) next(); }, { once: true });
+      a.play().catch(() => next());
+    };
+    next();
+  }
+
+  document.addEventListener("click", (ev) => {
+    const btn = ev.target.closest(".play");
+    if (!btn) return;
+    ev.preventDefault();          // inside a <label>: play without toggling the radio twice
+    const row = btn.closest("label.row");
+    if (row) { const r = row.querySelector("input"); r.checked = true; r.dispatchEvent(new Event("change", { bubbles: true })); }
+    const files = btn.dataset.pair ? PAIRS[btn.dataset.pair].map((f) => `turn/${f}.mp3`) : [btn.dataset.a];
+    playSeq(files, btn);
+  });
+
+  const KEY = "turn-picks";
+  const labels = { turn: "turn" };
+  const reply = document.getElementById("reply"), copy = document.getElementById("copy");
+
+  function picks() {
+    const out = {};
+    for (const k of Object.keys(labels)) { const c = document.querySelector(`input[name="${k}"]:checked`); if (c) out[k] = c.value; }
+    return out;
+  }
+  function render() {
+    const p = picks();
+    const parts = Object.keys(labels).filter((k) => p[k]).map((k) => `${labels[k]} ${p[k]}`);
+    if (!parts.length) { reply.textContent = "Pick one"; reply.classList.add("empty"); copy.disabled = true; }
+    else { reply.textContent = "Use " + parts.join(", "); reply.classList.remove("empty"); copy.disabled = false; }
+    try { localStorage.setItem(KEY, JSON.stringify(p)); } catch {}
+  }
+  document.addEventListener("change", (ev) => { if (ev.target.matches('input[type="radio"]')) render(); });
+
+  try {
+    const saved = JSON.parse(localStorage.getItem(KEY) || "{}");
+    for (const [k, v] of Object.entries(saved)) { const el = document.querySelector(`input[name="${k}"][value="${v}"]`); if (el) el.checked = true; }
+  } catch {}
+  render();
+
+  copy.addEventListener("click", () => {
+    const text = reply.textContent;
+    const done = () => { copy.textContent = "Copied"; setTimeout(() => (copy.textContent = "Copy reply"), 1600); };
+    const fallback = () => { const r = document.createRange(); r.selectNodeContents(reply); const s = getSelection(); s.removeAllRanges(); s.addRange(r); copy.textContent = "Selected — copy it"; setTimeout(() => (copy.textContent = "Copy reply"), 2200); };
+    try { navigator.clipboard.writeText(text).then(done, fallback); } catch { fallback(); }
+  });
+})();
+</script>

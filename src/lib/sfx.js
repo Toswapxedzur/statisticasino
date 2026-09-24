@@ -21,7 +21,7 @@ const SOUNDS = {
   pot:      { files: ["pot"], gain: 0.8 },
   win:      { files: ["win"], gain: 0.6 },
   winChips: { files: ["win-chips"], gain: 0.9 },
-  turn:     { files: ["turn"], gain: 0.8 },
+  turn:     { files: ["turn"], gain: 1 },            // gear-lock tap (unpitched); ~4 dB over a bet so it still cuts through
   tick:     { files: ["tick"], gain: 0.6 },
   // join/leave/callOff/error: unpitched transients (owner: no zips, no pitch). They sit ~10 dB
   // below the old noise sweeps at the same peak, so full gain lands them level with a bet.

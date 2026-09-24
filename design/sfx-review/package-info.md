@@ -15,6 +15,9 @@ none of this ships with the app. The shipped clips live in `static/sfx/`, named 
     call ended 4 (phone power button), error 3 (dry dice double tick); those are now
     `static/sfx/{join,leave,call-off,error}`.
   - `now-*.mp3` in each round = the replaced zips, kept for comparison.
+- `turn-candidates.html` + `turn/` — 2026-09-24 round for the "your turn" cue (was a rising
+  four-note Kenney jingle). Unpitched only; owner picked 5 (Mixkit gear-lock tap), now
+  `static/sfx/turn`. `now-turn.mp3` = the replaced jingle.
 
 The candidate library these rounds draw from is `../sfx-library/` (1,591 licensed clips,
 metadata in `rows.json`).
