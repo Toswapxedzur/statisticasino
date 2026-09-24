@@ -23,8 +23,10 @@ const SOUNDS = {
   winChips: { files: ["win-chips"], gain: 0.9 },
   turn:     { files: ["turn"], gain: 0.8 },
   tick:     { files: ["tick"], gain: 0.6 },
-  join:     { files: ["join"], gain: 0.5 },
-  leave:    { files: ["leave"], gain: 0.5 },
+  // join/leave/callOff/error: unpitched transients (owner: no zips, no pitch). They sit ~10 dB
+  // below the old noise sweeps at the same peak, so full gain lands them level with a bet.
+  join:     { files: ["join"], gain: 1 },            // card deck set on the table
+  leave:    { files: ["leave"], gain: 1 },           // lighter deck tap (clip is 3 dB under join)
   chat:     { files: ["chat"], gain: 0.5 },
   notify:   { files: ["notify"], gain: 0.6 },
   reward:   { files: ["reward"], gain: 0.7 },
@@ -33,7 +35,7 @@ const SOUNDS = {
   shake:    { files: ["shake-1", "shake-2"], gain: 0.7 },
   reel:     { files: ["reel-1", "reel-2", "reel-3"], gain: 0.7 },
   lose:     { files: ["lose"], gain: 0.7 },
-  error:    { files: ["error"], gain: 0.6 },
+  error:    { files: ["error"], gain: 1 },           // dry double dice tick
   // --- app-wide UI ---
   select:   { files: ["select"], gain: 0.4 },        // tab / segmented selector change
   toggle:   { files: ["toggle"], gain: 0.5 },        // checkbox / switch / theme
@@ -53,7 +55,7 @@ const SOUNDS = {
   // --- voice / calls ---
   ring:     { files: ["ring"], gain: 0.7, loop: true },
   callOn:   { files: ["call-on"], gain: 0.6 },
-  callOff:  { files: ["call-off"], gain: 0.6 },
+  callOff:  { files: ["call-off"], gain: 1 },        // phone power-button click
   voiceIn:  { files: ["voice-in"], gain: 0.5 },
   voiceOut: { files: ["voice-out"], gain: 0.5 },
   // --- events ---

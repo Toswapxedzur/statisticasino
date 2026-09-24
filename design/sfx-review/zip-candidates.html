@@ -1,0 +1,246 @@
+<title>Zip Sound Replacements</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=Hanken+Grotesk:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #f5efe2; --surface: #fffaf0; --well: #ebe3d1; --text: #14203b; --muted: #5b6784;
+    --faint: #8a93a8; --accent: #1f6fa8; --accent-soft: #dcebf6; --gold: #b07a00; --gold-bg: #f7e7b8;
+    --ring: #b07a00; --shadow: 0 1px 2px rgba(20,32,59,.06), 0 6px 18px rgba(20,32,59,.07);
+    --f-display: "Fraunces", Georgia, "Times New Roman", serif;
+    --f-body: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #0f172a; --surface: #16213a; --well: #0b1222; --text: #e5ecff; --muted: #93a3c6;
+      --faint: #62708f; --accent: #5ec8e5; --accent-soft: #173049; --gold: #f5b60d; --gold-bg: #3a2d0c;
+      --ring: #f5b60d; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.28);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0f172a; --surface: #16213a; --well: #0b1222; --text: #e5ecff; --muted: #93a3c6;
+    --faint: #62708f; --accent: #5ec8e5; --accent-soft: #173049; --gold: #f5b60d; --gold-bg: #3a2d0c;
+    --ring: #f5b60d; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.28);
+  }
+
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font: 15px/1.55 var(--f-body); }
+  .wrap { max-width: 780px; margin: 0 auto; padding-inline: 20px; padding-block: 36px 120px; display: grid; gap: 40px; }
+
+  header { display: grid; gap: 10px; }
+  .eyebrow { font-size: 12px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  h1 { font: 650 clamp(28px, 5vw, 38px)/1.1 var(--f-display); margin: 0; text-wrap: balance; }
+  h2 { font: 600 22px/1.2 var(--f-display); margin: 0; text-wrap: balance; }
+  .lede { color: var(--muted); max-width: 62ch; margin: 0; }
+  .lede b { color: var(--text); font-weight: 600; }
+
+  section { display: grid; gap: 14px; }
+  .sec-head { display: grid; gap: 4px; }
+  .sec-head p { margin: 0; color: var(--muted); font-size: 14px; max-width: 62ch; }
+  .where { font-size: 13px; color: var(--faint); }
+  code { font: 500 12.5px/1 ui-monospace, "SF Mono", Menlo, monospace; background: var(--well); padding: 2px 6px; border-radius: 5px; color: var(--text); }
+
+  .list { display: grid; gap: 8px; }
+  .row {
+    display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 14px;
+    background: var(--surface); border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow);
+    cursor: pointer; transition: box-shadow .15s ease, transform .15s ease;
+  }
+  .row:hover { transform: translateY(-1px); }
+  .row.now { background: var(--well); box-shadow: none; cursor: default; }
+  .row.now:hover { transform: none; }
+  .row input { position: absolute; opacity: 0; pointer-events: none; }
+  .row:has(input:checked) { box-shadow: 0 0 0 2px var(--ring), var(--shadow); }
+  .row:has(input:focus-visible) { box-shadow: 0 0 0 2px var(--accent), var(--shadow); }
+  .key {
+    width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+    font: 650 15px/1 var(--f-display); background: var(--well); color: var(--muted);
+  }
+  .row:has(input:checked) .key { background: var(--gold-bg); color: var(--gold); }
+  .row.now .key { background: transparent; font: 600 10px/1 var(--f-body); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+  .meta { display: grid; gap: 2px; min-width: 0; }
+  .name { font-weight: 600; }
+  .src { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--gold); margin-left: 6px; }
+  .warn { color: var(--faint); font-size: 12.5px; }
+
+  .plays { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .play {
+    font: 600 13px/1 var(--f-body); color: var(--accent); background: var(--accent-soft);
+    border: 0; border-radius: 999px; padding: 8px 12px 8px 10px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 7px; white-space: nowrap;
+  }
+  .play::before { content: ""; width: 0; height: 0; border-left: 8px solid currentColor; border-top: 5px solid transparent; border-bottom: 5px solid transparent; }
+  .play:hover { filter: brightness(1.08); }
+  .play:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .play.on { background: var(--accent); color: var(--surface); }
+
+  .note { background: var(--well); border-radius: 12px; padding: 14px 16px; font-size: 14px; color: var(--muted); margin: 0; }
+  .note b { color: var(--text); }
+
+  .bar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+    padding: 12px 20px calc(12px + env(safe-area-inset-bottom, 0px));
+    background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(10px);
+    box-shadow: 0 -8px 24px rgba(0,0,0,.12);
+  }
+  .bar-in { max-width: 780px; margin: 0 auto; display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+  #reply { font-weight: 600; font-variant-numeric: tabular-nums; user-select: all; }
+  #reply.empty { color: var(--faint); font-weight: 400; }
+  #copy { font: 600 14px/1 var(--f-body); border: 0; border-radius: 999px; padding: 10px 16px; background: var(--gold); color: #1a1405; cursor: pointer; }
+  #copy:disabled { opacity: .4; cursor: default; }
+  #copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  @media (max-width: 560px) {
+    .row { grid-template-columns: 34px 1fr; }
+    .plays { grid-column: 1 / -1; justify-content: flex-start; }
+  }
+  @media (prefers-reduced-motion: reduce) { .row { transition: none; } .row:hover { transform: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Bluffing Valley · table sounds · round 2</div>
+    <h1>Replacing the zip sounds — no pitch</h1>
+    <p class="lede">Every option is now <b>unpitched</b>: a tap, thump, click or knock, with no tone. Each one passed two checks: a pitch test (the tonal clips from round 1 all failed it) and a zip test (no noisy sweep that holds for more than a few milliseconds). Clips are loudness-matched; in each sit/stand pair, the stand-up sound is 3&nbsp;dB lighter so the pair reads as <i>set down</i> then <i>lift off</i>. Pick one per section.</p>
+  </header>
+
+  <section aria-labelledby="h-seat">
+    <div class="sec-head">
+      <h2 id="h-seat">Someone sits down / stands up</h2>
+      <p>One sound when a player or bot takes a seat, its partner when they leave. <b>Play pair</b> runs sit-down then stand-up.</p>
+      <div class="where">Cues <code>join</code> + <code>leave</code> · fire on every seat change, so they play often</div>
+    </div>
+    <div class="list" data-cue="seat">
+      <div class="row now"><span class="key">Now</span><div class="meta"><span class="name">Current zip up / zip down</span><span class="src">what you hear today</span></div>
+        <div class="plays"><button class="play" data-a="zip2/now-join.mp3">Sit</button><button class="play" data-a="zip2/now-leave.mp3">Stand</button></div></div>
+      <label class="row"><input type="radio" name="seat" value="A" id="seat-A"><span class="key">A</span><div class="meta"><span class="name">Card deck set on the table<span class="tag">Suggested</span></span><span class="src">Mixkit “Cards deck hits” · two soft thumps · 0.07 / 0.05 s</span><span class="warn">Short and low; doesn't sound like a bet or a deal</span></div>
+        <div class="plays"><button type="button" class="play" data-pair="A">Play pair</button></div></label>
+      <label class="row"><input type="radio" name="seat" value="B" id="seat-B"><span class="key">B</span><div class="meta"><span class="name">Chip stack set down / chips laid</span><span class="src">Kenney chips stack 1 / chip lay 2 · 0.12 / 0.23 s</span><span class="warn">Different chips from the bet sounds, but still chips</span></div>
+        <div class="plays"><button type="button" class="play" data-pair="B">Play pair</button></div></label>
+      <label class="row"><input type="radio" name="seat" value="C" id="seat-C"><span class="key">C</span><div class="meta"><span class="name">Cards knocked on the table / one card placed</span><span class="src">Freesound “Pounding Cards On Table” / Mixkit “Poker card placement” · 0.20 / 0.10 s</span></div>
+        <div class="plays"><button type="button" class="play" data-pair="C">Play pair</button></div></label>
+      <label class="row"><input type="radio" name="seat" value="D" id="seat-D"><span class="key">D</span><div class="meta"><span class="name">Desk-lamp switch on / off</span><span class="src">BigSoundBank “switch desk lamp” · 0.22 / 0.16 s · mechanical click-clack</span></div>
+        <div class="plays"><button type="button" class="play" data-pair="D">Play pair</button></div></label>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-call">
+    <div class="sec-head">
+      <h2 id="h-call">Call ended or declined</h2>
+      <p>Plays when a friend voice call hangs up, is declined, or can't connect. The call-start tone isn't changing.</p>
+      <div class="where">Cue <code>callOff</code></div>
+    </div>
+    <div class="list" data-cue="call">
+      <div class="row now"><span class="key">Now</span><div class="meta"><span class="name">Current zip</span><span class="src">what you hear today</span></div>
+        <div class="plays"><button class="play" data-a="zip2/now-call-off.mp3">Play</button></div></div>
+      <label class="row"><input type="radio" name="call" value="1" id="call-1"><span class="key">1</span><div class="meta"><span class="name">Lamp switched off<span class="tag">Suggested</span></span><span class="src">BigSoundBank “switch desk lamp” · 0.21 s</span></div>
+        <div class="plays"><button type="button" class="play" data-a="zip2/call-1.mp3">Play</button></div></label>
+      <label class="row"><input type="radio" name="call" value="2" id="call-2"><span class="key">2</span><div class="meta"><span class="name">Small hard switch</span><span class="src">BigSoundBank “switch 5” · 0.07 s</span></div>
+        <div class="plays"><button type="button" class="play" data-a="zip2/call-2.mp3">Play</button></div></label>
+      <label class="row"><input type="radio" name="call" value="3" id="call-3"><span class="key">3</span><div class="meta"><span class="name">Wall switch</span><span class="src">BigSoundBank “switch” · 0.11 s</span></div>
+        <div class="plays"><button type="button" class="play" data-a="zip2/call-3.mp3">Play</button></div></label>
+      <label class="row"><input type="radio" name="call" value="4" id="call-4"><span class="key">4</span><div class="meta"><span class="name">Phone power button</span><span class="src">Freesound “Power button click – A51 Phone sounds” · 0.31 s</span></div>
+        <div class="plays"><button type="button" class="play" data-a="zip2/call-4.mp3">Play</button></div></label>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-err">
+    <div class="sec-head">
+      <h2 id="h-err">Something went wrong</h2>
+      <p>Plays with a red error toast: a failed action, a rejected move, a lost connection. The current one turned out to be slightly pitched as well as zippy.</p>
+      <div class="where">Cue <code>error</code></div>
+    </div>
+    <div class="list" data-cue="err">
+      <div class="row now"><span class="key">Now</span><div class="meta"><span class="name">Current error</span><span class="src">Kenney error 001 · what you hear today</span></div>
+        <div class="plays"><button class="play" data-a="zip2/now-error.mp3">Play</button></div></div>
+      <label class="row"><input type="radio" name="err" value="1" id="err-1"><span class="key">1</span><div class="meta"><span class="name">Double thump</span><span class="src">Two “Cards deck hits”, 70 ms apart · 0.18 s</span><span class="warn">Same deck as seat option A. Skip it if you pick A.</span></div>
+        <div class="plays"><button type="button" class="play" data-a="zip2/err-1.mp3">Play</button></div></label>
+      <label class="row"><input type="radio" name="err" value="2" id="err-2"><span class="key">2</span><div class="meta"><span class="name">Heavy old switch clunk</span><span class="src">BigSoundBank “old switch” · 0.16 s</span></div>
+        <div class="plays"><button type="button" class="play" data-a="zip2/err-2.mp3">Play</button></div></label>
+      <label class="row"><input type="radio" name="err" value="3" id="err-3"><span class="key">3</span><div class="meta"><span class="name">Dry double tick<span class="tag">Suggested</span></span><span class="src">ArtOrDie dice segment 07 · two quick hits · 0.11 s</span></div>
+        <div class="plays"><button type="button" class="play" data-a="zip2/err-3.mp3">Play</button></div></label>
+      <label class="row"><input type="radio" name="err" value="4" id="err-4"><span class="key">4</span><div class="meta"><span class="name">Short rattle</span><span class="src">Mixkit “Video game retro click” · 0.16 s</span></div>
+        <div class="plays"><button type="button" class="play" data-a="zip2/err-4.mp3">Play</button></div></label>
+    </div>
+  </section>
+
+  <p class="note"><b>Also going away:</b> the old <code>open</code> / <code>close</code> whooshes. Nothing plays them since the modal sounds were dropped, so they get deleted, not replaced. <b>Licences:</b> Kenney, Freesound and BigSoundBank picks are CC0, Mixkit needs no credit, and the dice tick is from the ArtOrDie pack we already credit. The Settings credit line doesn't change.</p>
+</div>
+
+<div class="bar" role="region" aria-label="Your picks">
+  <div class="bar-in">
+    <span id="reply" class="empty">Pick one in each section</span>
+    <button id="copy" type="button" disabled>Copy reply</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const PAIRS = { A: ["A-join", "A-leave"], B: ["B-join", "B-leave"], C: ["C-join", "C-leave"], D: ["D-join", "D-leave"] };
+  let current = null, timer = null, activeBtn = null;
+
+  function stop() {
+    clearTimeout(timer);
+    if (current) { try { current.pause(); } catch {} current = null; }
+    if (activeBtn) { activeBtn.classList.remove("on"); activeBtn = null; }
+  }
+  function playSeq(files, btn) {
+    stop();
+    activeBtn = btn; btn.classList.add("on");
+    let i = 0;
+    const next = () => {
+      if (i >= files.length) { if (activeBtn === btn) { btn.classList.remove("on"); activeBtn = null; } return; }
+      const a = new Audio(files[i++]);
+      current = a;
+      a.addEventListener("ended", () => { if (current === a) timer = setTimeout(next, 450); }, { once: true });
+      a.addEventListener("error", () => { if (current === a) next(); }, { once: true });
+      a.play().catch(() => next());
+    };
+    next();
+  }
+
+  document.addEventListener("click", (ev) => {
+    const btn = ev.target.closest(".play");
+    if (!btn) return;
+    ev.preventDefault();          // inside a <label>: play without toggling the radio twice
+    const row = btn.closest("label.row");
+    if (row) { const r = row.querySelector("input"); r.checked = true; r.dispatchEvent(new Event("change", { bubbles: true })); }
+    const files = btn.dataset.pair ? PAIRS[btn.dataset.pair].map((f) => `zip2/${f}.mp3`) : [btn.dataset.a];
+    playSeq(files, btn);
+  });
+
+  const KEY = "zip-picks-2";
+  const labels = { seat: "Sit/stand", call: "call ended", err: "error" };
+  const reply = document.getElementById("reply"), copy = document.getElementById("copy");
+
+  function picks() {
+    const out = {};
+    for (const k of Object.keys(labels)) { const c = document.querySelector(`input[name="${k}"]:checked`); if (c) out[k] = c.value; }
+    return out;
+  }
+  function render() {
+    const p = picks();
+    const parts = Object.keys(labels).filter((k) => p[k]).map((k) => `${labels[k]} ${p[k]}`);
+    if (!parts.length) { reply.textContent = "Pick one in each section"; reply.classList.add("empty"); copy.disabled = true; }
+    else { reply.textContent = "Use " + parts.join(", "); reply.classList.remove("empty"); copy.disabled = false; }
+    try { localStorage.setItem(KEY, JSON.stringify(p)); } catch {}
+  }
+  document.addEventListener("change", (ev) => { if (ev.target.matches('input[type="radio"]')) render(); });
+
+  try {
+    const saved = JSON.parse(localStorage.getItem(KEY) || "{}");
+    for (const [k, v] of Object.entries(saved)) { const el = document.querySelector(`input[name="${k}"][value="${v}"]`); if (el) el.checked = true; }
+  } catch {}
+  render();
+
+  copy.addEventListener("click", () => {
+    const text = reply.textContent;
+    const done = () => { copy.textContent = "Copied"; setTimeout(() => (copy.textContent = "Copy reply"), 1600); };
+    const fallback = () => { const r = document.createRange(); r.selectNodeContents(reply); const s = getSelection(); s.removeAllRanges(); s.addRange(r); copy.textContent = "Selected — copy it"; setTimeout(() => (copy.textContent = "Copy reply"), 2200); };
+    try { navigator.clipboard.writeText(text).then(done, fallback); } catch { fallback(); }
+  });
+})();
+</script>
