@@ -1,0 +1,71 @@
+<title>Coin and Card Sounds</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,650&family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap">
+<style>
+:root{--bg:#f5efe2;--surface:#fffaf0;--well:#ebe3d1;--text:#14203b;--muted:#5b6784;--accent:#1f6fa8;--gold:#b07a00;--coin:#b07a00;--card:#1f6fa8;--shadow:0 1px 2px rgba(20,32,59,.06),0 6px 18px rgba(20,32,59,.07)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#0b1222;--surface:#16213a;--well:#0f172a;--text:#e5ecff;--muted:#93a3c6;--accent:#5ec8e5;--gold:#f5b60d;--coin:#f5b60d;--card:#5ec8e5;--shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.28)}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#0b1222;--surface:#16213a;--well:#0f172a;--text:#e5ecff;--muted:#93a3c6;--accent:#5ec8e5;--gold:#f5b60d;--coin:#f5b60d;--card:#5ec8e5;--shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.28)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 "Hanken Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1000px;margin:0 auto;padding-inline:16px;padding-block:28px 64px;display:grid;gap:18px}
+.eyebrow{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+h1{font:650 clamp(28px,4vw,36px)/1.1 Fraunces,Georgia,serif;margin:0;text-wrap:balance}
+h2{font:650 24px/1.2 Fraunces,Georgia,serif;margin:6px 0 0}
+h3{font:700 17px/1.2 "Hanken Grotesk",sans-serif;margin:0}
+.lede{color:var(--muted);max-width:72ch;margin:0}.lede b{color:var(--text)}
+.note{background:var(--well);border-radius:12px;padding:12px 14px;font-size:14px;color:var(--muted);display:grid;gap:4px}.note b{color:var(--text)}
+.slot{background:var(--surface);border-radius:14px;box-shadow:var(--shadow);padding:14px 16px;display:grid;gap:8px;border-left:5px solid var(--c)}
+.st{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline}.st span{color:var(--muted);font-size:13px}
+.say{font-size:13px;color:var(--muted);margin:0}.say i{color:var(--text);font-style:normal}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:8px}
+.t{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:center;border:0;background:var(--well);color:var(--text);border-radius:12px;padding:8px 12px;text-align:left;cursor:pointer;font:600 13px/1.3 "Hanken Grotesk",sans-serif}
+.t .p{grid-row:span 3;display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:var(--c);color:#111;font-size:12px}
+.t .n{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.t .m{color:var(--muted);font-weight:500;font-size:12px;font-variant-numeric:tabular-nums}
+.t.on{box-shadow:0 0 0 2px var(--c)}
+.empty{color:var(--muted);font-size:14px}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+</style>
+<div class="wrap">
+<header style="display:grid;gap:10px">
+ <div class="eyebrow">Bluffing Valley · sound design · your brief</div>
+ <h1>Coin and card sounds, short-listed</h1>
+ <p class="lede"><b>Coins:</b> clicky but metallic (a light natural ring allowed), three amounts plus <b>all-in</b>. <b>Cards:</b> smooth, not sharp, for dealt, played onto the pile, turned face-up, folded and collected. Up to six candidates per slot from our licensed library and the whole ArtOrDie paper-card recording. Press a tile to hear it.</p>
+</header>
+<div class="note">
+ <span><b>How these were chosen.</b> I can't hear, so every card, chip and coin recording was split into single sound events and measured. Anything that breaks your brief was dropped: for cards, sharp attacks (under 6 ms to full loudness), very bright snaps and zip-like sweeps; for coins, the wrong number of hits for the amount, or more than a light ring. The coin sounds were then ranked by <b>CLAP</b>, a local sound–text model, against the descriptions shown under each slot. CLAP can't tell card actions apart (it calls nearly every card sound "flipped"), so each card slot was filled by <b>shape</b> instead, with CLAP only confirming it sounds like cards. No sound appears in more than one slot. CLAP only pre-sorts: in its blind test it named the right sound first 11 times in 19, and it's weakest on single card landings. Your ears decide.</span>
+ <span>Each tile shows: where it came from (its library label) · CLAP margin (how much better it matches the slot's descriptions than unrelated sounds like a pen click, glass or a door; higher is surer, and only sounds above 0 are listed) · number of hits · length · <b>attack</b> (how fast it reaches full loudness: longer is smoother) · brightness · ring (pitch share; above 0.40 rings a little).</span>
+</div>
+<div id="out" style="display:grid;gap:14px"></div>
+</div>
+<script>
+let current = null;
+function play(file, el) {
+  if (current) current.pause();
+  document.querySelectorAll(".t.on").forEach((x) => x.classList.remove("on")); el.classList.add("on");
+  current = new Audio(file); current.play().catch(() => {});
+}
+fetch("found.json").then((r) => r.json()).then((d) => {
+  const out = document.getElementById("out");
+  let group = "";
+  for (const [key, s] of Object.entries(d)) {
+    if (s.group !== group) { group = s.group; const h = document.createElement("h2"); h.textContent = group; out.appendChild(h); }
+    const sec = document.createElement("section"); sec.className = "slot"; sec.style.setProperty("--c", `var(--${s.group === "Coins" ? "coin" : "card"})`);
+    sec.innerHTML = `<div class="st"><h3>${s.name}</h3><span>${s.when} · ${s.eligible} sounds fit the brief</span></div>
+      <p class="say">${s.shape ? `Chosen by shape: <i>${s.shape}</i>. CLAP only confirmed each one sounds like cards (it can't tell card actions apart).` : `Matched against: ${s.say.map((x) => `<i>"${x}"</i>`).join(" · ")}`}</p><div class="grid"></div>`;
+    const g = sec.querySelector(".grid");
+    if (!s.items.length) g.innerHTML = `<span class="empty">Nothing in the library fits this slot's brief.</span>`;
+    s.items.forEach((it, i) => {
+      const b = document.createElement("button"); b.type = "button"; b.className = "t";
+      const src = `${it.title}${it.at > 0.05 ? ` @ ${it.at.toFixed(1)} s` : ""}`;
+      b.innerHTML = `<span class="p">▶</span><span class="n" title="${src} (${it.lib}, ${it.license})">${i + 1}. ${src}</span>
+        <span class="m">${it.lib} · ${s.shape ? "sounds like cards" : "CLAP margin"} +${it.match.toFixed(3)}</span>
+        <span class="m">${it.hits} hit${it.hits === 1 ? "" : "s"} · ${Math.round(it.dur * 1000)} ms · attack ${Math.round(it.attack)} ms · ${(it.bright / 1000).toFixed(1)} kHz · ring ${it.pitch.toFixed(2)}</span>`;
+      b.setAttribute("aria-label", `Play ${s.name} candidate ${i + 1}: ${src}`);
+      b.addEventListener("click", () => play(it.file, b));
+      g.appendChild(b);
+    });
+    out.appendChild(sec);
+  }
+});
+</script>

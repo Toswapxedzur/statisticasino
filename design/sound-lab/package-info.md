@@ -27,3 +27,8 @@ of motion, to choose which sound goes with which moment. Nothing here ships with
 - `measure.py` — the shared checks (main-hit time, hit count, pitch share, zip test).
 - `synth.py` — synthesised candidates; the owner declined synthesis ("don't synthesize sound
   yourself"), so they are NOT in the lab and their clips are not committed.
+- `found.html` + `found/` + `found.json` (`find_sounds.py`, needs a torch+transformers venv) — the
+  owner's brief (coins: 1 · 2–4 · 5+ · all-in, metallic, light ring OK; cards: smooth — dealt, played,
+  turned, folded, collected): every card/chip/coin recording split into events, measured, coins ranked
+  by CLAP margin vs unrelated sounds, cards chosen by SHAPE (CLAP can't tell card actions apart),
+  each sound in one slot only.
