@@ -1,6 +1,6 @@
 // Deck-routine demo. Bundled with esbuild into demo.bundle.js (see build.sh); runs the real
 // engine (deck3d.js), the real timeline (deck-routine.js) and the real card art (composer.js).
-import { drawStack, W, H } from "../../src/lib/poker/deck3d.js";
+import { drawScene, W, H } from "../../src/lib/poker/deck3d.js";
 import { buildRoutine } from "../../src/lib/poker/deck-routine.js";
 import { renderBack, renderBoard } from "../../src/lib/poker/composer.js";
 
@@ -90,7 +90,7 @@ const LABEL = { "fly-in": "Flies in, turns over, grows", settle: "Settles", "cut
       ctx.fillText(label, spot.fx, spot.fy + H / 2 + 16);
     }
     ctx.setLineDash([]);
-    for (const s of f.stacks) drawStack(ctx, s, { back, face });
+    drawScene(ctx, f.stacks, { back, face });   // all shadows on the table, then the cards
     $("phase").textContent = LABEL[f.phase] ?? f.phase;
     $("time").textContent = `${(t / 1000).toFixed(2)} / ${(R.duration / 1000).toFixed(2)} s`;
     $("scrub").value = Math.round((t / R.duration) * 1000);

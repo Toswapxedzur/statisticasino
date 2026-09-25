@@ -112,6 +112,37 @@ export const thickness = (n) => n * t1;
 export const FULL_DECK = Array.from({ length: COUNT }, (_, i) => i + 1);
 
 /**
+ * A stack's shadow on the table: its footprint, softer and fainter the higher it is. Shadows are
+ * cast on the TABLE, so they must all be drawn before any card (see drawScene) — drawn with each
+ * stack, a lifted packet's shadow was painted over the cards beneath it.
+ */
+export function drawStackShadow(ctx, { ids, theta = 0, fx, fy, baseZ = 0, rise = 0, scale = 1 }) {
+  const n = ids.length;
+  if (!n) return;
+  const Tn = n * t1;
+  const c = Math.cos(theta), sn = Math.sin(theta);
+  const cz = baseZ + Tn / 2 + rise;
+  const low = cz - ((W / 2) * Math.abs(sn) + (Tn / 2) * Math.abs(c));
+  const hAbove = Math.max(0, low);
+  const halfW = (W / 2) * Math.abs(c) + (Tn / 2) * Math.abs(sn);
+  ctx.save();
+  if (scale !== 1) { ctx.translate(fx, fy); ctx.scale(scale, scale); ctx.translate(-fx, -fy); }
+  // canvas blur is in device pixels: scale it with the units→px transform
+  ctx.filter = `blur(${((1.5 + hAbove * 0.35) * ctx.getTransform().a).toFixed(2)}px)`;
+  ctx.fillStyle = `rgba(0,0,0,${Math.max(0.1, (0.34 - hAbove * 0.006) * Math.min(1, 0.45 + n / 40)).toFixed(3)})`;
+  ctx.beginPath();
+  ctx.roundRect(fx - halfW, fy - H / 2 + 1, halfW * 2, H, R);
+  ctx.fill();
+  ctx.restore();
+}
+
+/** Draw a set of stacks: every shadow onto the table first, then the cards far → near. */
+export function drawScene(ctx, stacks, art) {
+  for (const st of stacks) drawStackShadow(ctx, st);
+  for (const st of stacks) drawStack(ctx, st, art);
+}
+
+/**
  * Draw one stack of cards. ctx is a 2D context already scaled so 1 unit = some CSS px.
  *   ids    card ids (1..52) top → bottom in the stack's own frame; each keeps its strip look
  *   theta  rotation about the stack's long axis (0 = as dealt, π = turned over)
@@ -121,7 +152,7 @@ export const FULL_DECK = Array.from({ length: COUNT }, (_, i) => i + 1);
  *   scale  size about the footprint centre (> 1 = closer to the viewer)
  * art: { back, face } images W×H; face = the card showing when the stack is turned over.
  */
-export function drawStack(ctx, { ids, theta = 0, fx, fy, baseZ = 0, rise = 0, scale = 1, shadow = true }, art) {
+export function drawStack(ctx, { ids, theta = 0, fx, fy, baseZ = 0, rise = 0, scale = 1 }, art) {
   const n = ids.length;
   if (!n) return;
   const Tn = n * t1;
@@ -139,21 +170,6 @@ export function drawStack(ctx, { ids, theta = 0, fx, fy, baseZ = 0, rise = 0, sc
     const oz = cz + (dx - W / 2) * ex[2] + sOff * ez[2];
     return [ex[0], -ex[2], 0, 1, ox, cyW - H / 2 + T - oz];
   };
-
-  // shadow on the table: the footprint, softer and fainter the higher the stack is
-  if (shadow) {
-    const low = cz - ((W / 2) * Math.abs(sn) + (Tn / 2) * Math.abs(c));
-    const hAbove = Math.max(0, low);
-    const halfW = (W / 2) * Math.abs(c) + (Tn / 2) * Math.abs(sn);
-    ctx.save();
-    // canvas blur is in device pixels: scale it with the units→px transform
-    ctx.filter = `blur(${((1.5 + hAbove * 0.35) * ctx.getTransform().a).toFixed(2)}px)`;
-    ctx.fillStyle = `rgba(0,0,0,${Math.max(0.1, (0.34 - hAbove * 0.006) * Math.min(1, 0.45 + n / 40)).toFixed(3)})`;
-    ctx.beginPath();
-    ctx.roundRect(cx - halfW, fy - H / 2 + 1, halfW * 2, H, R);
-    ctx.fill();
-    ctx.restore();
-  }
 
   const base = ctx.getTransform();
   const facingUp = ez[2] >= 0;                     // top card's back faces the viewer
@@ -224,7 +240,7 @@ export function drawStack(ctx, { ids, theta = 0, fx, fy, baseZ = 0, rise = 0, sc
  * height; resting = T/2). origin: screen position (units) of the flat deck's top-left at rest.
  */
 export function drawDeck(ctx, { theta, lift }, art, origin = { x: 0, y: 0 }) {
-  drawStack(ctx, { ids: FULL_DECK, theta, fx: origin.x + W / 2, fy: origin.y + T + H / 2, rise: lift - T / 2 }, art);
+  drawScene(ctx, [{ ids: FULL_DECK, theta, fx: origin.x + W / 2, fy: origin.y + T + H / 2, rise: lift - T / 2 }], art);
 }
 
 /**
