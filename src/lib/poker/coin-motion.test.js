@@ -125,3 +125,12 @@ test("a check moves no coins; the uncalled bet goes home before the award; the w
   assert.ok(mid > 100 && mid < 150, `half-way through the count-up the badge reads ${mid}`);
   assert.equal(m2.stackAt(0, land + COIN.count + 1), 150);
 });
+
+test("a bet that empties the stack cues all-in (and no ordinary coin clicks)", () => {
+  const m = new Money({ 1: 40, 2: 100 });
+  m.bet(1, 40, 0); m.bet(2, 40, 0);
+  run(m, 0, 2000, 1);
+  assert.deepEqual(m.cues.filter((c) => c.name === "allIn").map((c) => c.at.seat), [1]);
+  assert.ok(!m.cues.some((c) => c.name === "coins" && c.at.pile === "bet:1"), "the all-in plays instead of clicks");
+  assert.ok(m.cues.some((c) => c.name === "coins" && c.at.pile === "bet:2"));
+});

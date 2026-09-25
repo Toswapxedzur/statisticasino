@@ -7,25 +7,29 @@
      "file": "clips/cardLand-0-s0.wav",
      "src": "game:deal-1",
      "dur": 0.229,
-     "pitch": 0.28
+     "pitch": 0.28,
+     "lead": 133.9
     },
     {
      "file": "clips/cardLand-0-s1.wav",
      "src": "game:deal-2",
      "dur": 0.282,
-     "pitch": 0.59
+     "pitch": 0.59,
+     "lead": 173.7
     },
     {
      "file": "clips/cardLand-0-s2.wav",
      "src": "game:deal-3",
      "dur": 0.22,
-     "pitch": 0.17
+     "pitch": 0.17,
+     "lead": 90.3
     },
     {
      "file": "clips/cardLand-0-s3.wav",
      "src": "game:deal-4",
      "dur": 0.3,
-     "pitch": 0.17
+     "pitch": 0.17,
+     "lead": 161.4
     }
    ]
   },
@@ -36,25 +40,29 @@
      "file": "clips/cardLand-1-s0.wav",
      "src": "kenney-casino-card-place-1",
      "dur": 0.655,
-     "pitch": 0.33
+     "pitch": 0.33,
+     "lead": 81.8
     },
     {
      "file": "clips/cardLand-1-s1.wav",
      "src": "kenney-casino-card-place-2",
      "dur": 0.478,
-     "pitch": 0.07
+     "pitch": 0.07,
+     "lead": 159.9
     },
     {
      "file": "clips/cardLand-1-s2.wav",
      "src": "kenney-casino-card-place-3",
      "dur": 0.66,
-     "pitch": 0.13
+     "pitch": 0.13,
+     "lead": 359.0
     },
     {
      "file": "clips/cardLand-1-s3.wav",
      "src": "kenney-casino-card-place-4",
      "dur": 0.66,
-     "pitch": 0.14
+     "pitch": 0.14,
+     "lead": 336.7
     }
    ]
   },
@@ -65,21 +73,36 @@
      "file": "clips/cardLand-2-s0.wav",
      "src": "fs-571577",
      "dur": 0.62,
-     "pitch": 0.08
+     "pitch": 0.08,
+     "lead": 141.0
     },
     {
      "file": "clips/cardLand-2-s1.wav",
      "src": "fs-787405",
      "dur": 0.66,
-     "pitch": 0.1
+     "pitch": 0.1,
+     "lead": 243.4
     },
     {
      "file": "clips/cardLand-2-s2.wav",
      "src": "fs-638697",
      "dur": 0.66,
-     "pitch": 0.05
+     "pitch": 0.05,
+     "lead": 561.1
     }
    ]
+  },
+  {
+   "label": "Your pick \u2014 Kenney \u201ccard slide 3\u201d",
+   "clips": [
+    {
+     "file": "picks/deal.wav",
+     "lead": 87.6,
+     "src": "owner pick",
+     "pitch": 0
+    }
+   ],
+   "pick": true
   }
  ],
  "flip": [
@@ -90,7 +113,8 @@
      "file": "clips/flip-0-s0.wav",
      "src": "mixkit-2002",
      "dur": 0.66,
-     "pitch": 0.11
+     "pitch": 0.11,
+     "lead": 145.6
     }
    ]
   },
@@ -101,7 +125,8 @@
      "file": "clips/flip-1-s0.wav",
      "src": "fs-84322",
      "dur": 0.66,
-     "pitch": 0.08
+     "pitch": 0.08,
+     "lead": 421.5
     }
    ]
   },
@@ -112,9 +137,22 @@
      "file": "clips/flip-2-s0.wav",
      "src": "fs-554208",
      "dur": 0.66,
-     "pitch": 0.46
+     "pitch": 0.46,
+     "lead": 18.0
     }
    ]
+  },
+  {
+   "label": "Your pick \u2014 \u201cShuffling deck & deal\u201d @ 0.3 s",
+   "clips": [
+    {
+     "file": "picks/flip.wav",
+     "lead": 119.0,
+     "src": "owner pick",
+     "pitch": 0
+    }
+   ],
+   "pick": true
   }
  ],
  "pileTap": [
@@ -125,13 +163,15 @@
      "file": "clips/pileTap-0-s0.wav",
      "src": "game:fold-1",
      "dur": 0.551,
-     "pitch": 0.15
+     "pitch": 0.15,
+     "lead": 272.9
     },
     {
      "file": "clips/pileTap-0-s1.wav",
      "src": "game:fold-2",
      "dur": 0.591,
-     "pitch": 0.08
+     "pitch": 0.08,
+     "lead": 445.9
     }
    ]
   },
@@ -142,25 +182,29 @@
      "file": "clips/pileTap-1-s0.wav",
      "src": "kenney-casino-card-shove-1",
      "dur": 0.66,
-     "pitch": 0.07
+     "pitch": 0.07,
+     "lead": 121.1
     },
     {
      "file": "clips/pileTap-1-s1.wav",
      "src": "kenney-casino-card-shove-2",
      "dur": 0.66,
-     "pitch": 0.09
+     "pitch": 0.09,
+     "lead": 210.8
     },
     {
      "file": "clips/pileTap-1-s2.wav",
      "src": "kenney-casino-card-shove-3",
      "dur": 0.66,
-     "pitch": 0.15
+     "pitch": 0.15,
+     "lead": 141.5
     },
     {
      "file": "clips/pileTap-1-s3.wav",
      "src": "kenney-casino-card-shove-4",
      "dur": 0.66,
-     "pitch": 0.39
+     "pitch": 0.39,
+     "lead": 231.6
     }
    ]
   },
@@ -171,9 +215,22 @@
      "file": "clips/pileTap-2-s0.wav",
      "src": "fs-96127",
      "dur": 0.141,
-     "pitch": 0.29
+     "pitch": 0.29,
+     "lead": 22.7
     }
    ]
+  },
+  {
+   "label": "Your pick \u2014 \u201cIndex Card Flips\u201d @ 3.7 s",
+   "clips": [
+    {
+     "file": "picks/pile.wav",
+     "lead": 114.8,
+     "src": "owner pick",
+     "pitch": 0
+    }
+   ],
+   "pick": true
   }
  ],
  "pileDone": [
@@ -184,7 +241,8 @@
      "file": "clips/pileDone-0-s0.wav",
      "src": "mixkit-1994",
      "dur": 0.56,
-     "pitch": 0.08
+     "pitch": 0.08,
+     "lead": 14.6
     }
    ]
   },
@@ -195,7 +253,8 @@
      "file": "clips/pileDone-1-s0.wav",
      "src": "fs-466789",
      "dur": 0.56,
-     "pitch": 0.11
+     "pitch": 0.11,
+     "lead": 262.0
     }
    ]
   },
@@ -206,7 +265,8 @@
      "file": "clips/pileDone-2-s0.wav",
      "src": "kenney-casino-cards-pack-take-out-1",
      "dur": 0.553,
-     "pitch": 0.06
+     "pitch": 0.06,
+     "lead": 182.8
     }
    ]
   }
@@ -219,7 +279,8 @@
      "file": "clips/deckSlide-0-s0.wav",
      "src": "kenney-casino-card-fan-1",
      "dur": 0.66,
-     "pitch": 0.3
+     "pitch": 0.3,
+     "lead": 492.9
     }
    ]
   },
@@ -230,7 +291,8 @@
      "file": "clips/deckSlide-1-s0.wav",
      "src": "kenney-casino-card-slide-5",
      "dur": 0.66,
-     "pitch": 0.4
+     "pitch": 0.4,
+     "lead": 124.7
     }
    ]
   },
@@ -241,7 +303,8 @@
      "file": "clips/deckSlide-2-s0.wav",
      "src": "fs-843344",
      "dur": 0.589,
-     "pitch": 0.49
+     "pitch": 0.49,
+     "lead": 355.4
     }
    ]
   }
@@ -254,7 +317,8 @@
      "file": "clips/cutDrop-0-s0.wav",
      "src": "fs-96127",
      "dur": 0.141,
-     "pitch": 0.29
+     "pitch": 0.29,
+     "lead": 22.7
     }
    ]
   },
@@ -265,7 +329,8 @@
      "file": "clips/cutDrop-1-s0.wav",
      "src": "mixkit-1994",
      "dur": 0.66,
-     "pitch": 0.08
+     "pitch": 0.08,
+     "lead": 14.6
     }
    ]
   },
@@ -276,7 +341,8 @@
      "file": "clips/cutDrop-2-s0.wav",
      "src": "kenney-casino-card-place-3",
      "dur": 0.66,
-     "pitch": 0.13
+     "pitch": 0.13,
+     "lead": 359.0
     }
    ]
   }
@@ -289,7 +355,8 @@
      "file": "clips/riffle-0-s0.wav",
      "src": "fs-256508",
      "dur": 2.86,
-     "pitch": 0.06
+     "pitch": 0.06,
+     "lead": 1269.0
     }
    ]
   },
@@ -300,7 +367,8 @@
      "file": "clips/riffle-1-s0.wav",
      "src": "fs-445031",
      "dur": 2.86,
-     "pitch": 0.62
+     "pitch": 0.62,
+     "lead": 1120.8
     }
    ]
   },
@@ -311,9 +379,23 @@
      "file": "clips/riffle-2-s0.wav",
      "src": "fs-96127",
      "dur": 0.141,
-     "pitch": 0.29
+     "pitch": 0.29,
+     "lead": 22.7
     }
-   ]
+   ],
+   "ticks": true
+  },
+  {
+   "label": "Your pick \u2014 \u201ccards riffle shuffle\u201d (5ro4)",
+   "clips": [
+    {
+     "file": "picks/riffle.wav",
+     "lead": 1175.8,
+     "src": "owner pick",
+     "pitch": 0
+    }
+   ],
+   "pick": true
   }
  ],
  "deckLand": [
@@ -324,7 +406,8 @@
      "file": "clips/deckLand-0-s0.wav",
      "src": "mixkit-1994",
      "dur": 0.66,
-     "pitch": 0.08
+     "pitch": 0.08,
+     "lead": 14.6
     }
    ]
   },
@@ -335,7 +418,8 @@
      "file": "clips/deckLand-1-s0.wav",
      "src": "fs-466789",
      "dur": 0.66,
-     "pitch": 0.11
+     "pitch": 0.11,
+     "lead": 262.0
     }
    ]
   },
@@ -346,7 +430,8 @@
      "file": "clips/deckLand-2-s0.wav",
      "src": "kenney-casino-card-place-1",
      "dur": 0.655,
-     "pitch": 0.33
+     "pitch": 0.33,
+     "lead": 81.8
     }
    ]
   }
@@ -359,19 +444,22 @@
      "file": "clips/coinsLand-0-s0.wav",
      "src": "game:bet-1",
      "dur": 0.172,
-     "pitch": 0.15
+     "pitch": 0.15,
+     "lead": 1.0
     },
     {
      "file": "clips/coinsLand-0-s1.wav",
      "src": "game:bet-2",
      "dur": 0.192,
-     "pitch": 0.24
+     "pitch": 0.24,
+     "lead": 1.0
     },
     {
      "file": "clips/coinsLand-0-s2.wav",
      "src": "game:bet-3",
      "dur": 0.157,
-     "pitch": 0.22
+     "pitch": 0.22,
+     "lead": 22.5
     }
    ]
   },
@@ -382,31 +470,36 @@
      "file": "clips/coinsLand-1-s0.wav",
      "src": "kenney-casino-chips-stack-1",
      "dur": 0.27,
-     "pitch": 0.09
+     "pitch": 0.09,
+     "lead": 18.0
     },
     {
      "file": "clips/coinsLand-1-s1.wav",
      "src": "kenney-casino-chips-stack-2",
      "dur": 0.228,
-     "pitch": 0.14
+     "pitch": 0.14,
+     "lead": 14.0
     },
     {
      "file": "clips/coinsLand-1-s2.wav",
      "src": "kenney-casino-chips-stack-3",
      "dur": 0.418,
-     "pitch": 0.12
+     "pitch": 0.12,
+     "lead": 22.1
     },
     {
      "file": "clips/coinsLand-1-s3.wav",
      "src": "kenney-casino-chips-stack-4",
      "dur": 0.254,
-     "pitch": 0.19
+     "pitch": 0.19,
+     "lead": 13.3
     },
     {
      "file": "clips/coinsLand-1-s4.wav",
      "src": "kenney-casino-chips-stack-5",
      "dur": 0.213,
-     "pitch": 0.11
+     "pitch": 0.11,
+     "lead": 11.2
     }
    ]
   },
@@ -417,13 +510,15 @@
      "file": "clips/coinsLand-2-s0.wav",
      "src": "fs-349283",
      "dur": 0.66,
-     "pitch": 0.09
+     "pitch": 0.09,
+     "lead": 10.2
     },
     {
      "file": "clips/coinsLand-2-s1.wav",
      "src": "fs-343462",
      "dur": 0.224,
-     "pitch": 0.54
+     "pitch": 0.54,
+     "lead": 23.7
     }
    ],
    "many": [
@@ -431,9 +526,77 @@
      "file": "clips/coinsLand-2-m0.wav",
      "src": "fs-223344",
      "dur": 0.536,
-     "pitch": 0.17
+     "pitch": 0.17,
+     "lead": 111.7
     }
    ]
+  },
+  {
+   "label": "Your pick \u2014 clay chips (1 \u00b7 2\u20134 \u00b7 5+)",
+   "clips": [],
+   "tiers": {
+    "one": [
+     {
+      "file": "picks/clay-one-1.wav",
+      "lead": 16.0,
+      "src": "owner pick",
+      "pitch": 0
+     },
+     {
+      "file": "picks/clay-one-2.wav",
+      "lead": 14.2,
+      "src": "owner pick",
+      "pitch": 0
+     },
+     {
+      "file": "picks/clay-one-3.wav",
+      "lead": 21.4,
+      "src": "owner pick",
+      "pitch": 0
+     }
+    ],
+    "few": [
+     {
+      "file": "picks/clay-few-1.wav",
+      "lead": 25.1,
+      "src": "owner pick",
+      "pitch": 0
+     },
+     {
+      "file": "picks/clay-few-2.wav",
+      "lead": 49.2,
+      "src": "owner pick",
+      "pitch": 0
+     },
+     {
+      "file": "picks/clay-few-3.wav",
+      "lead": 50.3,
+      "src": "owner pick",
+      "pitch": 0
+     }
+    ],
+    "pile": [
+     {
+      "file": "picks/clay-pile-1.wav",
+      "lead": 99.0,
+      "src": "owner pick",
+      "pitch": 0
+     },
+     {
+      "file": "picks/clay-pile-2.wav",
+      "lead": 294.6,
+      "src": "owner pick",
+      "pitch": 0
+     },
+     {
+      "file": "picks/clay-pile-3.wav",
+      "lead": 15.4,
+      "src": "owner pick",
+      "pitch": 0
+     }
+    ]
+   },
+   "pick": true
   }
  ],
  "merge": [
@@ -444,25 +607,29 @@
      "file": "clips/merge-0-s0.wav",
      "src": "kenney-casino-chips-collide-1",
      "dur": 0.241,
-     "pitch": 0.23
+     "pitch": 0.23,
+     "lead": 10.0
     },
     {
      "file": "clips/merge-0-s1.wav",
      "src": "kenney-casino-chips-collide-2",
      "dur": 0.264,
-     "pitch": 0.13
+     "pitch": 0.13,
+     "lead": 11.2
     },
     {
      "file": "clips/merge-0-s2.wav",
      "src": "kenney-casino-chips-collide-3",
      "dur": 0.199,
-     "pitch": 0.14
+     "pitch": 0.14,
+     "lead": 12.4
     },
     {
      "file": "clips/merge-0-s3.wav",
      "src": "kenney-casino-chips-collide-4",
      "dur": 0.236,
-     "pitch": 0.14
+     "pitch": 0.14,
+     "lead": 14.5
     }
    ]
   },
@@ -473,19 +640,22 @@
      "file": "clips/merge-1-s0.wav",
      "src": "fs-817552",
      "dur": 0.379,
-     "pitch": 0.57
+     "pitch": 0.57,
+     "lead": 3.6
     },
     {
      "file": "clips/merge-1-s1.wav",
      "src": "fs-817553",
      "dur": 0.372,
-     "pitch": 0.36
+     "pitch": 0.36,
+     "lead": 16.3
     },
     {
      "file": "clips/merge-1-s2.wav",
      "src": "fs-817554",
      "dur": 0.391,
-     "pitch": 0.44
+     "pitch": 0.44,
+     "lead": 16.9
     }
    ]
   },
@@ -496,7 +666,8 @@
      "file": "clips/merge-2-s0.wav",
      "src": "fs-201808",
      "dur": 0.27,
-     "pitch": 0.31
+     "pitch": 0.31,
+     "lead": 26.5
     }
    ]
   }
@@ -509,13 +680,15 @@
      "file": "clips/break-0-s0.wav",
      "src": "kenney-casino-chips-handle-3",
      "dur": 0.286,
-     "pitch": 0.19
+     "pitch": 0.19,
+     "lead": 31.3
     },
     {
      "file": "clips/break-0-s1.wav",
      "src": "kenney-casino-chips-handle-4",
      "dur": 0.416,
-     "pitch": 0.15
+     "pitch": 0.15,
+     "lead": 63.4
     }
    ]
   },
@@ -526,7 +699,8 @@
      "file": "clips/break-1-s0.wav",
      "src": "fs-336571",
      "dur": 0.607,
-     "pitch": 0.07
+     "pitch": 0.07,
+     "lead": 215.5
     }
    ]
   },
@@ -537,7 +711,8 @@
      "file": "clips/break-2-s0.wav",
      "src": "fs-223344",
      "dur": 0.536,
-     "pitch": 0.17
+     "pitch": 0.17,
+     "lead": 111.7
     }
    ]
   }
@@ -550,7 +725,8 @@
      "file": "clips/sweepStart-0-s0.wav",
      "src": "fs-532860",
      "dur": 0.76,
-     "pitch": 0.05
+     "pitch": 0.05,
+     "lead": 359.6
     }
    ]
   },
@@ -561,7 +737,8 @@
      "file": "clips/sweepStart-1-s0.wav",
      "src": "kenney-casino-chips-handle-1",
      "dur": 0.645,
-     "pitch": 0.08
+     "pitch": 0.08,
+     "lead": 82.3
     }
    ]
   },
@@ -572,7 +749,8 @@
      "file": "clips/sweepStart-2-s0.wav",
      "src": "fs-336481",
      "dur": 0.76,
-     "pitch": 0.04
+     "pitch": 0.04,
+     "lead": 522.6
     }
    ]
   }
@@ -585,7 +763,8 @@
      "file": "clips/sweepLand-0-s0.wav",
      "src": "game:pot",
      "dur": 0.602,
-     "pitch": 0.12
+     "pitch": 0.12,
+     "lead": 97.9
     }
    ]
   },
@@ -596,7 +775,8 @@
      "file": "clips/sweepLand-1-s0.wav",
      "src": "kenney-casino-chips-stack-3",
      "dur": 0.418,
-     "pitch": 0.12
+     "pitch": 0.12,
+     "lead": 22.1
     }
    ]
   },
@@ -607,9 +787,34 @@
      "file": "clips/sweepLand-2-s0.wav",
      "src": "mixkit-1993",
      "dur": 0.86,
-     "pitch": 0.1
+     "pitch": 0.1,
+     "lead": 60.6
     }
    ]
+  },
+  {
+   "label": "Your pick \u2014 clay chips, a pile",
+   "clips": [
+    {
+     "file": "picks/clay-sweep-1.wav",
+     "lead": 99.0,
+     "src": "owner pick",
+     "pitch": 0
+    },
+    {
+     "file": "picks/clay-sweep-2.wav",
+     "lead": 294.6,
+     "src": "owner pick",
+     "pitch": 0
+    },
+    {
+     "file": "picks/clay-sweep-3.wav",
+     "lead": 15.4,
+     "src": "owner pick",
+     "pitch": 0
+    }
+   ],
+   "pick": true
   }
  ],
  "collect": [
@@ -620,7 +825,8 @@
      "file": "clips/collect-0-s0.wav",
      "src": "game:win-chips",
      "dur": 0.663,
-     "pitch": 0.07
+     "pitch": 0.07,
+     "lead": 336.0
     }
    ]
   },
@@ -631,7 +837,8 @@
      "file": "clips/collect-1-s0.wav",
      "src": "fs-532861",
      "dur": 0.913,
-     "pitch": 0.05
+     "pitch": 0.05,
+     "lead": 246.1
     }
    ]
   },
@@ -642,7 +849,8 @@
      "file": "clips/collect-2-s0.wav",
      "src": "mixkit-3187",
      "dur": 0.96,
-     "pitch": 0.05
+     "pitch": 0.05,
+     "lead": 10.4
     }
    ]
   }
@@ -655,19 +863,22 @@
      "file": "clips/sink-0-s0.wav",
      "src": "kenney-casino-chip-lay-1",
      "dur": 0.191,
-     "pitch": 0.39
+     "pitch": 0.39,
+     "lead": 14.5
     },
     {
      "file": "clips/sink-0-s1.wav",
      "src": "kenney-casino-chip-lay-2",
      "dur": 0.287,
-     "pitch": 0.08
+     "pitch": 0.08,
+     "lead": 83.3
     },
     {
      "file": "clips/sink-0-s2.wav",
      "src": "kenney-casino-chip-lay-3",
      "dur": 0.243,
-     "pitch": 0.52
+     "pitch": 0.52,
+     "lead": 15.7
     }
    ]
   },
@@ -678,7 +889,8 @@
      "file": "clips/sink-1-s0.wav",
      "src": "bsb-0339",
      "dur": 0.66,
-     "pitch": 0.32
+     "pitch": 0.32,
+     "lead": 10.8
     }
    ]
   },
@@ -689,7 +901,8 @@
      "file": "clips/sink-2-s0.wav",
      "src": "fs-540369",
      "dur": 0.66,
-     "pitch": 0.06
+     "pitch": 0.06,
+     "lead": 8.0
     }
    ]
   }
@@ -702,7 +915,8 @@
      "file": "clips/check-0-s0.wav",
      "src": "game:check",
      "dur": 0.067,
-     "pitch": 0.55
+     "pitch": 0.55,
+     "lead": 1.0
     }
    ]
   },
@@ -713,7 +927,8 @@
      "file": "clips/check-1-s0.wav",
      "src": "fs-96127",
      "dur": 0.251,
-     "pitch": 0.18
+     "pitch": 0.18,
+     "lead": 22.7
     }
    ]
   },
@@ -724,9 +939,24 @@
      "file": "clips/check-2-s0.wav",
      "src": "mixkit-1994",
      "dur": 0.36,
-     "pitch": 0.22
+     "pitch": 0.22,
+     "lead": 14.6
     }
    ]
+  }
+ ],
+ "allIn": [
+  {
+   "label": "Your pick \u2014 clay chips clip 33 (13 hits)",
+   "clips": [
+    {
+     "file": "picks/clay-allin.wav",
+     "lead": 685.9,
+     "src": "owner pick",
+     "pitch": 0
+    }
+   ],
+   "pick": true
   }
  ]
 }

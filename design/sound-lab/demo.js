@@ -35,11 +35,15 @@ const EVENTS = {
   collect:    { scene: "money", label: "Winnings leave the pot", when: "each share, as it lifts off toward its winner", gain: 0.8 },
   sink:       { scene: "money", label: "Winnings sink into the badge", when: "as the coins disappear into the winner's badge (the number counts up)", gain: 0.6 },
   check:      { scene: "money", label: "Check", when: "a knock — no coins move", gain: 1.0 },
+  allIn:      { scene: "money", label: "All-in", when: "a player pushes every coin they have (plays instead of the coin clicks)", gain: 0.95 },
 };
+// moments where something LANDS: the sound starts early by its clip's lead, so its main hit is on the frame
+const ON_HIT = new Set(["cardLand", "pileTap", "pileDone", "cutDrop", "deckLand", "coinsLand", "merge", "break", "sweepLand", "sink"]);
 const picks = {};
-for (const k of Object.keys(EVENTS)) picks[k] = 0;
-try { Object.assign(picks, JSON.parse(localStorage.getItem("bv-sound-lab") || "{}")); } catch {}
-const savePicks = () => { try { localStorage.setItem("bv-sound-lab", JSON.stringify(picks)); } catch {} };
+// default: the owner's own pick where there is one (option D), otherwise A
+for (const k of Object.keys(EVENTS)) { const i = (CLIPS[k] || []).findIndex((o) => o.pick); picks[k] = i >= 0 ? i : 0; }
+try { Object.assign(picks, JSON.parse(localStorage.getItem("bv-sound-lab-2") || "{}")); } catch {}
+const savePicks = () => { try { localStorage.setItem("bv-sound-lab-2", JSON.stringify(picks)); } catch {} };
 
 // ---------------------------------------------------------------- audio
 let ctx = null, master = null;
@@ -53,7 +57,7 @@ async function audio() {
   master.gain.value = +$("vol").value;
   master.connect(ctx.destination);
   const files = new Set();
-  for (const opts of Object.values(CLIPS)) for (const o of opts) for (const c of [...o.clips, ...(o.many || [])]) files.add(c.file);
+  for (const opts of Object.values(CLIPS)) for (const o of opts) for (const c of [...o.clips, ...(o.many || []), ...Object.values(o.tiers || {}).flat()]) files.add(c.file);
   $("status").textContent = "Loading sounds…";
   await Promise.all([...files].map(async (f) => {
     try { buffers.set(f, await ctx.decodeAudioData(await (await fetch(f)).arrayBuffer())); } catch { /* a missing clip plays nothing */ }
@@ -65,24 +69,29 @@ function clipFor(event, count) {
   const pick = picks[event];
   const opt = CLIPS[event]?.[pick];
   if (!opt) return null;
-  const list = count >= 3 && opt.many ? opt.many : opt.clips;
-  const key = `${event}:${pick}:${list === opt.many ? "m" : "s"}`;
+  // tiers (the owner's coins): 1 coin · 2–4 · 5+; else the heavier variant for 3+ coins
+  const tier = opt.tiers ? (count >= 5 ? "pile" : count >= 2 ? "few" : "one") : null;
+  const list = tier ? opt.tiers[tier] : count >= 3 && opt.many ? opt.many : opt.clips;
+  const key = `${event}:${pick}:${tier || (list === opt.many ? "m" : "s")}`;
   const i = rr.get(key) || 0;
   rr.set(key, i + 1);
-  return buffers.get(list[i % list.length].file) || null;
+  const c = list[i % list.length];
+  return c && buffers.get(c.file) ? { buf: buffers.get(c.file), lead: (c.lead || 0) / 1000 } : null;
 }
 /** Play `event` at audio time `when`. x = 0..1 across the stage (for the left/right pan). */
 function sound(event, when, { x = 0.5, gain = 1, dur = null, count = 1 } = {}) {
   if (!ctx || picks[event] < 0) return;
-  if (event === "riffle" && picks.riffle === 2 && dur) return;           // ticks mode: skip the long take
-  if (event === "riffleTick") { if (picks.riffle !== 2) return; event = "riffle"; }
+  const ticks = !!CLIPS.riffle[picks.riffle]?.ticks;                       // this riffle option = a tick per card
+  if (event === "riffle" && ticks && dur) return;                          // ticks mode: skip the long take
+  if (event === "riffleTick") { if (!ticks) return; event = "riffle"; }
   const last = lastAt.get(event) ?? -1;
   if (when - last < 0.022) return;                                        // two of the same within 22 ms: one sound
   lastAt.set(event, when);
-  const buf = clipFor(event, count);
-  if (!buf) return;
+  const clip = clipFor(event, count);
+  if (!clip) return;
+  if (ON_HIT.has(event)) when = Math.max(ctx.currentTime, when - clip.lead);   // land the main hit on the frame
   const src = ctx.createBufferSource();
-  src.buffer = buf;
+  src.buffer = clip.buf;
   const g = ctx.createGain();
   g.gain.value = EVENTS[event].gain * gain;
   let node = g;
@@ -225,8 +234,9 @@ const HAND = [
   [4200, "bet", 1, 7, "Call 8"], [4900, "bet", 2, 6, "Call 8"], [5000, "sweep"], [5000, "street", "Flop"],
   [6600, "check", 1], [7200, "check", 2], [7900, "bet", 4, 20, "Bet 20"], [8700, "bet", 5, 60, "Raise to 60"],
   [9400, "fold", 1], [9900, "fold", 2], [10500, "bet", 4, 40, "Call 60"], [10600, "sweep"], [10600, "street", "Turn"],
-  [12300, "check", 4], [12900, "check", 5], [13000, "sweep"], [13000, "street", "River"],
-  [13800, "check", 4], [14400, "check", 5], [14500, "street", "Showdown — Theo and Ada split 152"], [14500, "award", [[4, 76], [5, 76]]],
+  [11800, "bet", 5, 90, "Bet 90"], [12700, "bet", 4, 132, "All-in 132"], [13600, "bet", 5, 42, "Call — all-in"],
+  [13700, "sweep"], [13700, "street", "River — both all-in"],
+  [14700, "street", "Showdown — Theo and Ada split 416"], [14700, "award", [[4, 208], [5, 208]]],
 ];
 function buildMoney() {
   const m = new Money({ 0: 200, 1: 200, 2: 200, 3: 200, 4: 200, 5: 200 });
@@ -242,8 +252,8 @@ function moneyScene() {
   // run once to learn the cues and the length
   const m = buildMoney();
   let t = 0;
-  while (t < 14500 || m.busy(t)) { t += 10; m.tick(t); }
-  const MAP = { coins: "coinsLand", merge: "merge", break: "break", sweep: "sweepStart", pot: "sweepLand", collect: "collect", sink: "sink", check: "check" };
+  while (t < 14700 || m.busy(t)) { t += 10; m.tick(t); }
+  const MAP = { coins: "coinsLand", allIn: "allIn", merge: "merge", break: "break", sweep: "sweepStart", pot: "sweepLand", collect: "collect", sink: "sink", check: "check" };
   const pos = (at) => at?.kind === "stack" ? MSEATS[at.seat] : at?.kind === "slot" && at.pile.startsWith("bet:") ? MSEATS[+at.pile.slice(4)] : POT;
   const events = m.cues.filter((c) => MAP[c.name]).map((c) => ({ t: c.t, name: MAP[c.name], x: pos(c.at).x / M_W, count: c.count || 1 }));
   return { events: events.sort((a, b) => a.t - b.t), duration: t + 600 };
@@ -417,6 +427,7 @@ async function play(key) {
 }
 
 // ---------------------------------------------------------------- the picker rows
+let tryCount = -1;   // ▶ on the coin tiers walks 1 coin → a few → a pile
 function rows() {
   for (const [event, meta] of Object.entries(EVENTS)) {
     const host = $(`events-${meta.scene}`);
@@ -430,13 +441,13 @@ function rows() {
       const o = document.createElement("div");
       o.className = "opt";
       const ring = clip && clip.pitch > 0.45 ? `<em title="measured pitch share ${clip.pitch}">rings a little</em>` : "";
-      o.innerHTML = `<label><input type="radio" name="${id}" value="${i}" ${picks[event] === i ? "checked" : ""}> <span class="letter">${i < 0 ? "–" : "ABC"[i]}</span> ${label} ${ring}</label>${i >= 0 ? `<button type="button" class="try" aria-label="Hear ${label}">▶</button>` : ""}`;
+      o.innerHTML = `<label><input type="radio" name="${id}" value="${i}" ${picks[event] === i ? "checked" : ""}> <span class="letter">${i < 0 ? "–" : "ABCD"[i]}</span> ${label} ${ring}</label>${i >= 0 ? `<button type="button" class="try" aria-label="Hear ${label}">▶</button>` : ""}`;
       o.querySelector("input").addEventListener("change", () => { picks[event] = i; savePicks(); });
       o.querySelector(".try")?.addEventListener("click", async () => {
         await audio(); if (ctx.state === "suspended") await ctx.resume();
         const was = picks[event]; picks[event] = i;
         lastAt.delete(event);
-        sound(event, ctx.currentTime + 0.02, { dur: event === "riffle" && i < 2 ? 2.4 : null });
+        sound(event, ctx.currentTime + 0.3, { dur: event === "riffle" && !CLIPS.riffle[i]?.ticks ? 2.6 : null, count: event === "coinsLand" ? [1, 3, 6][(tryCount = (tryCount + 1) % 3)] : 1 });
         picks[event] = was;
       });
       box.appendChild(o);
@@ -447,7 +458,7 @@ function rows() {
   }
 }
 function copyPicks() {
-  const text = Object.entries(EVENTS).map(([k, m]) => `${m.label}: ${picks[k] < 0 ? "off" : `${"ABC"[picks[k]]} (${CLIPS[k][picks[k]].label})`}`).join("\n");
+  const text = Object.entries(EVENTS).map(([k, m]) => `${m.label}: ${picks[k] < 0 ? "off" : `${"ABCD"[picks[k]]} (${CLIPS[k][picks[k]].label})`}`).join("\n");
   const out = $("picks-text");
   out.value = text; out.hidden = false;
   navigator.clipboard?.writeText(text).then(() => { $("copy").textContent = "Copied"; setTimeout(() => ($("copy").textContent = "Copy my picks"), 1500); }).catch(() => { out.select(); });

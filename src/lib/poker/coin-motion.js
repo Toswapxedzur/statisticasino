@@ -60,8 +60,9 @@ export const COIN = {
 /** Sound cues, each at the exact moment of its motion: coins (a column lands on a pile, `count`
  *  coins), bet (a bet's first column lands), merge / break (a carry / borrow lands), sweep (the
  *  piles start for the pot), pot (they land), collect (winnings leave the pot), winChips (they
- *  land), sink (they're inside the badge), check (a knock — nothing moves). `at` = the place. */
-export const CUES = ["coins", "bet", "merge", "break", "sweep", "pot", "collect", "winChips", "sink", "check"];
+ *  land), sink (they're inside the badge), check (a knock — nothing moves), allIn (a bet that takes a
+ *  player's whole stack — played instead of its coin clicks). `at` = the place. */
+export const CUES = ["coins", "bet", "allIn", "merge", "break", "sweep", "pot", "collect", "winChips", "sink", "check"];
 
 export const mj = (u) => { const k = Math.min(1, Math.max(0, u)); return k * k * k * (10 + k * (-15 + 6 * k)); };
 export const bump = (u) => { const k = Math.min(1, Math.max(0, u)); return 64 * (k * (1 - k)) ** 3; };
@@ -84,13 +85,18 @@ export class Money {
   /** `amount` onto `seat`'s pile, paid from `payer`'s badge (the seat itself, or "house"). */
   bet(seat, amount, t, payer = seat) {
     const pile = `bet:${seat}`;
+    let allIn = false;
     breakdown(amount).forEach((c, i) => {
       this._at(t + i * COIN.every, (now) => {
         const value = c.denom * c.count;
+        // a player's own bet that takes their whole stack: the all-in push (its own sound, no coin clicks)
+        if (i === 0 && payer === seat && typeof seat === "number" && (this.stack.get(seat) ?? 0) - amount <= 0) {
+          allIn = true; this.cues.push({ t: now, name: "allIn", at: { kind: "stack", seat } });
+        }
         this._setStack(payer, (this.stack.get(payer) ?? 0) - value, null);   // leaves the badge at once
         this._fly({ kind: "column", denom: c.denom, count: c.count, amount: value, from: { kind: "stack", seat: payer }, to: { kind: "slot", pile, denom: c.denom }, dur: COIN.flight }, now, (tl) => {
           this._add(pile, c.denom, c.count, tl);
-          this.cues.push({ t: tl, name: "coins", count: c.count, at: { kind: "slot", pile, denom: c.denom } });
+          if (!allIn) this.cues.push({ t: tl, name: "coins", count: c.count, at: { kind: "slot", pile, denom: c.denom } });
           if (i === 0) this.cues.push({ t: tl, name: "bet" });
         });
       }, { bet: true });
