@@ -30,6 +30,7 @@
   import { d, DUR } from "$lib/motion.js";
   import { play, playBurst, soundEnabled, setSoundEnabled } from "$lib/sfx.js";
   import { tableSoundCues } from "$lib/poker/table-sfx.js";
+  import { TableSounds, moneySound } from "$lib/poker/table-audio.js";
   import DeckLayer from "$lib/poker/components/DeckLayer.svelte";
   import { Dealer } from "$lib/poker/dealer.svelte.js";
   import { animatesTable } from "$lib/poker/deal-anim.js";
@@ -204,19 +205,45 @@
   function leaveWaitlist() { poker.leaveWaitlist(tableId); onWaitlist = false; }
   $effect(() => { if (isSeated) onWaitlist = false; });
 
-  // --- sound effects (see $lib/sfx.js) ---
+  // --- sound effects ---
+  // Moving cards and coins sound on their own motion: the dealer and the coin engine announce each
+  // landing, and table-audio.js lands the sound's hit on that frame (the owner's Sound Lab picks).
+  // The view diff (table-sfx.js) covers the rest (join, check, showdown, dice…) — and the card / coin
+  // moments on tables where nothing animates them, with the same sounds.
   let sfxOn = $state(true);
   onMount(() => { sfxOn = soundEnabled(); });
   function toggleSfx() { sfxOn = !sfxOn; setSoundEnabled(sfxOn); }
+  const tableSounds = new TableSounds();
+  const DEALT = new Set(["shuffle", "deal", "board", "fold"]);            // the dealer's motion plays these
+  const COINED = new Set(["bet", "raise", "allin", "pot", "winChips"]);   // the coins' motion plays these
+  const AS_TABLE = {
+    deal: ["cardLand"], board: ["flip"], fold: ["pileTap"], shuffle: ["riffle", { dur: 1200 }], cardPlay: ["cardPlay"],
+    bet: ["coins", { count: 3 }], raise: ["coins", { count: 5 }], allin: ["allIn"], pot: ["pot"], winChips: ["coins", { count: 5 }]
+  };
   let _prevView = null;
   $effect(() => {
     const v = view;
     const prev = _prevView; _prevView = v;
     if (!v || !prev || prev.id !== v.id) return;
+    const animated = untrack(() => ({ cards: !!dealer, coins: !!bank }));
     for (const c of tableSoundCues(prev, v, me?.id ?? null)) {
-      if (c.count) playBurst(c.name, c.count, c.gap, { delay: c.delay, volume: c.volume });
+      if ((animated.cards && DEALT.has(c.name)) || (animated.coins && COINED.has(c.name))) continue;
+      const [name, opts] = AS_TABLE[c.name] || [];
+      if (name) tableSounds.now(name, { ...opts, delay: c.delay || 0, gap: c.gap || 0, burst: c.count || 1, volume: c.volume ?? 1 });
+      else if (c.count) playBurst(c.name, c.count, c.gap, { delay: c.delay, volume: c.volume });
       else play(c.name, { delay: c.delay, volume: c.volume });
     }
+  });
+  onMount(() => {
+    let raf = 0;
+    const loop = () => {
+      if (dealer) tableSounds.take(dealer.cues);
+      if (bank) tableSounds.take(bank.money.cues, moneySound);
+      tableSounds.frame();
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
   });
   // --- the dealt / shuffled deck (flop poker, see $lib/poker/deal-anim.js) ---
   // One Dealer per table: it turns view changes into card flights drawn by DeckLayer, and

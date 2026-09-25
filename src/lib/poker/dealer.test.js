@@ -87,3 +87,49 @@ test("a whole hand: deal, early fold, board, showdown, collection, routine — e
   assert.equal(d.tableHidden, false);
   assert.equal(d.used.length, 0);
 });
+
+test("sound cues: each landing is announced as its card launches, for the frame it lands", () => {
+  clock.t = 50000;
+  const d = new Dealer({ variant: "holdem", mySeat: 0 });
+  const idle = { handNo: 1, buttonSeat: 2, board: [], seats: [0, 1, 2].map((n) => seat(n, { hasCards: false, inHand: false })) };
+  d.init(idle);
+  d.geom = { deckSpot: { fx: 12, fy: 80 }, usedSpot: { fx: 900, fy: 80 }, centre: { fx: 450, fy: 300 } };
+  const h = { handNo: 2, buttonSeat: 2, board: [], seats: [0, 1, 2].map((n) => seat(n)) };
+  const cues = [], lands = [];
+  const step = (until) => {
+    while (clock.t < until) {
+      clock.t += 16;
+      d.tick(clock.t);
+      for (const f of d.flights) if (!f.seen) { f.seen = true; lands.push({ t: f.t0 + f.dur, to: f.to.kind, seat: f.to.seat }); }
+      for (const c of d.cues.splice(0)) { assert.ok(c.t >= clock.t, `${c.name} announced before its moment`); cues.push(c); }
+    }
+  };
+  d.onView(idle, h, null);
+  step(clock.t + 1200);
+  const dealt = lands.filter((l) => l.to === "seat").map((l) => l.t);
+  assert.equal(dealt.length, 6);
+  assert.deepEqual(cues.filter((c) => c.name === "cardLand").map((c) => c.t), dealt, "a card sound on every landing frame");
+  const myFlip = cues.find((c) => c.name === "flip");
+  const mine = lands.filter((l) => l.seat === 0).map((l) => l.t);
+  assert.equal(myFlip?.at.seat, 0);
+  const late = myFlip.t - (Math.max(...mine) + DEAL.flipAfterLand);   // the landing is seen on the next frame
+  assert.ok(late >= 0 && late < 16, "my cards' flip, as they start to turn");
+  // seat 1 folds: two taps on the used pile, on the frames its cards land there
+  const f = { ...h, seats: h.seats.map((s) => (s.seat === 1 ? { ...s, status: "folded" } : s)) };
+  d.onView(h, f, null);
+  step(clock.t + 600);
+  const taps = cues.filter((c) => c.name === "pileTap").map((c) => c.t);
+  assert.deepEqual(taps, lands.filter((l) => l.to === "used").map((l) => l.t));
+  assert.equal(taps.length, 2);
+  // the result: the collection taps grow quieter; then one riffle for the shuffle phase
+  const res = { ...f, board: [], seats: f.seats.map((s) => ({ ...s, hasCards: false })), result: { type: "fold", winners: [{ seat: 0, amount: 3 }] } };
+  d.onView(f, res, { holeCards: ["As", "Ks"] });
+  step(clock.t + 3000);
+  const collected = cues.filter((c) => c.name === "pileTap").slice(2);
+  assert.ok(collected.length >= 4, "the leftover deck and the live hands");
+  assert.ok(collected.every((c, i) => i === 0 || (c.gain ?? 1) <= (collected[i - 1].gain ?? 1)));
+  const riffle = cues.find((c) => c.name === "riffle");
+  const phase = d.routine.R.phases.find((p) => p.name === "shuffle");
+  assert.equal(riffle.t, d.routine.t0 + phase.t0);
+  assert.equal(riffle.dur, phase.t1 - phase.t0);
+});

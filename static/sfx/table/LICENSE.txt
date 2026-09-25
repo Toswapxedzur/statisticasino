@@ -1,0 +1,14 @@
+Table animation sounds (played by $lib/poker/table-audio.js, built by design/sound-lab/build_game_sfx.py):
+
+* coin-*.ogg/.mp3: single clicks and short takes cut from ArtOrDie's "clay chips" recording in the
+  "Poker and Dice" pack on Freesound (https://freesound.org/people/ArtOrDie/packs/10595/), Creative
+  Commons Attribution 4.0 (https://creativecommons.org/licenses/by/4.0/). Trimmed, normalised,
+  re-encoded. Credit is shown in Settings (same pack as ../LICENSE.txt).
+* card-deal: "card slide 3" from Kenney's Casino Audio pack (https://kenney.nl), CC0.
+* card-flip: "Playing cards - Shuffling deck & deal" by Vrymaa on Freesound (https://freesound.org/s/734631/), CC0.
+* card-pile: "Index Card Flips (handle business paper mvmt) 02.wav" by cmorris035 on Freesound
+  (https://freesound.org/s/319154/), CC0.
+* card-play: "Cards deck hits" from Mixkit (https://mixkit.co), Mixkit Sound Effects Free License.
+* riffle: "cards riffle shuffle.wav" by 5ro4 on Freesound (https://freesound.org/s/611107/), CC0;
+  its first 2.1 s, time-stretched to 2.6 s without a pitch change.
+Picked by the owner 2026-09-25 in the Sound Lab.

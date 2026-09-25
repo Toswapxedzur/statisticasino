@@ -32,6 +32,9 @@ export class Dealer {
   flights = [];                      // { id, from, to, t0, dur, faceUp, arc, onLand }
   held = [];                         // cards the canvas holds in place: { id, at, faceUp, until }
   routine = null;                    // { R, t0, faceId } while the shuffle routine plays
+  // sound cues, announced as each motion starts: { t, name, at?, gain?, dur? } where t is the frame
+  // it lands (performance.now() clock) — cardLand · flip · pileTap · riffle (see table-audio.js)
+  cues = [];
 
   constructor({ variant, mySeat = null } = {}) {
     this.holeCount = HOLE_COUNT[variant] ?? 2;
@@ -119,7 +122,7 @@ export class Dealer {
         const id = this._take();
         this._seatIds.get(p.seat)[p.slot] = id;
         const at = { kind: "seat", seat: p.seat, slot: p.slot };
-        this._fly({ id, from: { kind: "deck" }, to: at, dur: DEAL.flight, faceUp: false }, () => {
+        this._fly({ id, from: { kind: "deck" }, to: at, dur: DEAL.flight, faceUp: false, cue: { name: "cardLand" } }, () => {
           this.held.push({ id, at, faceUp: false, seat: p.seat });
           const n = this._landed.get(p.seat) + 1;
           this._landed.set(p.seat, n);
@@ -135,7 +138,10 @@ export class Dealer {
     const s = new Set(this.hiddenSeats); s.delete(seat); this.hiddenSeats = s;
     // the DOM hand is now visible (face-down); drop the canvas copies a moment later
     this._at(now() + 60, () => { this.held = this.held.filter((h) => h.seat !== seat || this._mucked.has(seat)); });
-    if (seat === this.mySeat) this._at(now() + DEAL.flipAfterLand, () => { this.ownRevealed = true; });
+    if (seat === this.mySeat) {
+      this._at(now() + DEAL.flipAfterLand, () => { this.ownRevealed = true; });
+      this.cues.push({ t: now() + DEAL.flipAfterLand, name: "flip", at: { kind: "seat", seat } });
+    }
   }
 
   _dealBoard(board, from, to, t) {
@@ -145,12 +151,13 @@ export class Dealer {
         const id = this._take();
         this.faces.set(id, board[i]);
         this._boardIds[i] = id;
-        this._fly({ id, from: { kind: "deck" }, to: { kind: "board", slot: i }, dur: DEAL.flight, faceUp: false }, () => {
+        this._fly({ id, from: { kind: "deck" }, to: { kind: "board", slot: i }, dur: DEAL.flight, faceUp: false, cue: { name: "cardLand" } }, () => {
           this.held.push({ id, at: { kind: "board", slot: i }, faceUp: false, board: true });
           if (++landed === to - from) {
             this.boardShown = to;                                  // DOM slots appear, face-down
             this._at(now() + 60, () => { this.held = this.held.filter((h) => !h.board); });
             this._at(now() + DEAL.flipAfterLand, () => { this.boardFaceUp = to; });   // flip together
+            this.cues.push({ t: now() + DEAL.flipAfterLand, name: "flip", at: { kind: "board" } });
           }
         });
       });
@@ -168,7 +175,7 @@ export class Dealer {
       this._at(t + i * 40, () => {
         this.held = this.held.filter((h) => h.id !== id);
         if (known?.[i]) this.faces.set(id, known[i]);
-        this._fly({ id, from: { kind: "seat", seat, slot: i }, to: { kind: "used" }, dur: DEAL.muckFlight, faceUp: !!known?.[i] }, () => this.used.push(id));
+        this._fly({ id, from: { kind: "seat", seat, slot: i }, to: { kind: "used" }, dur: DEAL.muckFlight, faceUp: !!known?.[i], cue: { name: "pileTap" } }, () => this.used.push(id));
       });
     });
   }
@@ -205,12 +212,13 @@ export class Dealer {
       const bottom = rest[rest.length - 1];
       const unseen = ALL_CARDS.filter((c) => !seen.has(c));
       this.faces.set(bottom, unseen[Math.floor(Math.random() * unseen.length)]);
-      this._fly({ id: bottom, ids: rest, from: { kind: "deck" }, to: { kind: "used" }, dur: DEAL.collectFlight + 180, flip: true, arc: 34 }, () => this.used.unshift(...rest));
+      this._fly({ id: bottom, ids: rest, from: { kind: "deck" }, to: { kind: "used" }, dur: DEAL.collectFlight + 180, flip: true, arc: 34, cue: { name: "pileTap" } }, () => this.used.unshift(...rest));
     }
     cards.forEach((c, i) => {
       this._at(t + DEAL.collectEvery + i * gap, () => {
         this.held = this.held.filter((h) => h !== c);
-        this._fly({ id: c.id, from: c.at, to: { kind: "used" }, dur: DEAL.collectFlight, faceUp: c.faceUp }, () => this.used.push(c.id));
+        // each tap a little quieter than the last, so the collection settles instead of rattling
+        this._fly({ id: c.id, from: c.at, to: { kind: "used" }, dur: DEAL.collectFlight, faceUp: c.faceUp, cue: { name: "pileTap", gain: Math.max(0.35, 1 - i * 0.07) } }, () => this.used.push(c.id));
       });
     });
     this._at(t + DEAL.collectEvery + Math.max(0, cards.length - 1) * gap + DEAL.collectFlight + 30, () => this._startRoutine());
@@ -223,6 +231,9 @@ export class Dealer {
     // the face showing as the used pile leaves: the top of the pile, if it is public
     const topId = this.used[this.used.length - 1];
     this.routine = { R, t0: now(), face: this.faces.get(topId) ?? null };
+    // one continuous riffle for the shuffle phase (the third pile building up)
+    const shuffle = R.phases.find((p) => p.name === "shuffle");
+    if (shuffle) this.cues.push({ t: this.routine.t0 + shuffle.t0, name: "riffle", dur: shuffle.t1 - shuffle.t0 });
     this.used = [];
     this.deck = [];
   }
@@ -246,7 +257,11 @@ export class Dealer {
   get busy() { return !!(this.flights.length || this._queue.length || this.routine || this.held.length); }
 
   _at(t, fn) { this._queue.push({ t, fn }); }
-  _fly(f, onLand) { this.flights.push({ arc: DEAL.arc, ...f, t0: now(), onLand }); }   // arc: a turning packet needs half a card width of lift
+  _fly({ cue, ...f }, onLand) {   // arc: a turning packet needs half a card width of lift
+    const t0 = now();
+    this.flights.push({ arc: DEAL.arc, ...f, t0, onLand });
+    if (cue) this.cues.push({ t: t0 + f.dur, at: f.to, ...cue });   // the sound lands with the card
+  }
   // the top card of the deck (forgetting any face its id carried last hand)
   _take() { const id = this.deck.shift() ?? this._takeLooseId(); this.faces.delete(id); return id; }
   // a card that isn't in the deck (a folded / collected one): reuse any id not in the deck or pile

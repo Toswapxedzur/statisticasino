@@ -1,4 +1,7 @@
-// Table sound effects — Kenney CC0 clips in /static/sfx (see LICENSE.txt there).
+// Table sound effects — Kenney CC0 clips in /static/sfx (see LICENSE.txt there). The sounds of the
+// table's moving cards and coins (deal, flip, fold, shuffle, bets, pot…) are in
+// $lib/poker/table-audio.js, timed to their animation (the owner's picks, 2026-09-25); the table no
+// longer plays shuffle / deal / board / fold / bet / raise / allin / pot / winChips from here.
 //
 // Design: one tiny module, no audio graph. Each named sound has 1..n variants
 // (rotated so repeated deals/bets don't sound like a loop) and a base gain. The
@@ -12,6 +15,7 @@ const SOUNDS = {
   shuffle:  { files: ["shuffle"], gain: 0.5 },
   deal:     { files: ["deal-1", "deal-2", "deal-3", "deal-4"], gain: 0.7 },
   board:    { files: ["board-1", "board-2", "board-3", "board-4"], gain: 0.8 },
+  ball:     { files: ["board-1", "board-2", "board-3", "board-4"], gain: 0.8 },   // a keno number drawn
   showdown: { files: ["showdown"], gain: 0.8 },
   fold:     { files: ["fold-1", "fold-2"], gain: 0.7 },
   check:    { files: ["check"], gain: 0.6 },
@@ -75,6 +79,9 @@ function ext() {
   _ext = a.canPlayType('audio/ogg; codecs="vorbis"') ? "ogg" : "mp3";
   return _ext;
 }
+
+/** Has the page had the gesture browsers require before sound (so an audio context may start)? */
+export function sfxUnlocked() { return _unlocked; }
 
 export function soundEnabled() {
   if (!browser) return false;

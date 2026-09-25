@@ -35,3 +35,10 @@ of motion, to choose which sound goes with which moment. Nothing here ships with
 - `chips.html` + `chips/` + `chips.json` (`find_chips.py`) — chip sounds by material (ArtOrDie ceramic,
   ArtOrDie clay incl. single clicks cut from their bursts, other poker chips, metal coins) × amount
   (one · a few · a pile · all-in). Owner's card picks are recorded in the project memory (table-sfx).
+- `build_picks.py` → `picks/` — the owner's picks (2026-09-25) as the lab's option D: clay chips
+  one / few / pile by coin count + clay clip 33 for all-in; card slide 3 (deal), Vrymaa @0.3 s (flip),
+  Index Card Flips @3.7 s (fold + collection), 5ro4 riffle (shuffle).
+- `build_game_sfx.py` → `static/sfx/table/*.ogg|mp3` + `src/lib/poker/table-sounds.json` — the same
+  picks (plus Mixkit "Cards deck hits" for a card played onto the centre pile) for the GAME, each
+  file at the same loudness, with the measured lead to its main hit. Played by
+  `src/lib/poker/table-audio.js` on the dealer's and the coin engine's landing cues.

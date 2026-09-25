@@ -153,17 +153,24 @@ function gameCues(prev, next, myUserId) {
 
   // Keno: each drawn number.
   const d0 = newRound ? 0 : (pr.drawn || []).length, d1 = (nr.drawn || []).length;
-  if (d1 > d0) cues.push({ name: "board", count: Math.min(d1 - d0, 10), gap: 110 });
+  if (d1 > d0) cues.push({ name: "ball", count: Math.min(d1 - d0, 10), gap: 110 });
 
-  // Shedding games: a draw shows up as a bigger hand count for some player.
+  // Shedding games: a draw shows up as a bigger hand count (cardCount) for some player.
   if (!newRound && Array.isArray(nr.players) && Array.isArray(pr.players)) {
     let drawn = 0;
-    for (const np of nr.players) { const pp = pr.players.find((x) => x.seat === np.seat); if (pp && typeof np.count === "number" && np.count > (pp.count ?? 0)) drawn += np.count - pp.count; }
+    for (const np of nr.players) {
+      const pp = pr.players.find((x) => x.seat === np.seat), n1 = np.cardCount ?? np.count, n0 = pp?.cardCount ?? pp?.count;
+      if (typeof n1 === "number" && typeof n0 === "number" && n1 > n0) drawn += n1 - n0;
+    }
     if (drawn > 0) cues.push({ name: "deal", count: Math.min(drawn, 8), gap: 85 });
   }
-  // Shedding games: a card played onto the pile.
-  const pile0 = newRound ? 0 : (pr.pile?.length ?? (pr.pileCards?.length ?? 0)), pile1 = nr.pile?.length ?? (nr.pileCards?.length ?? 0);
-  if (pile1 > pile0) cues.push({ name: "board", count: Math.min(pile1 - pile0, 5), gap: 120 });
+  // Shedding games: cards played onto the centre pile — Crazy Eights shows a new top card, Big Two
+  // a new combination on the pile (it replaces the last one, so compare contents, not length).
+  if (!newRound && nr.shedGame) {
+    const pile0 = (pr.pile || []).join(","), pile1 = (nr.pile || []).join(",");
+    if (nr.top && nr.top !== pr.top) cues.push({ name: "cardPlay" });
+    else if (pile1 && pile1 !== pile0) cues.push({ name: "cardPlay", count: Math.min((nr.pile || []).length, 5), gap: 70 });
+  }
 
   // Settlement for the viewer's seat.
   const r0 = (newRound ? [] : (pr.results || [])), r1 = nr.results || [];

@@ -134,3 +134,23 @@ test("a bet that empties the stack cues all-in (and no ordinary coin clicks)", (
   assert.ok(!m.cues.some((c) => c.name === "coins" && c.at.pile === "bet:1"), "the all-in plays instead of clicks");
   assert.ok(m.cues.some((c) => c.name === "coins" && c.at.pile === "bet:2"));
 });
+
+test("sound cues are announced as the coins leave, for the frame they land", () => {
+  const m = new Money({ 1: 500, 2: 500 });
+  m.bet(1, 37, 0); m.bet(2, 37, 100); m.sweep(200); m.award([{ seat: 1, amount: 74 }], 300);
+  const lands = [];
+  for (let t = 0; t < 6000; t += 16) {
+    const before = m.cues.length;
+    m.tick(t);
+    for (const f of m.flights) if (!f.seen) { f.seen = true; lands.push({ t: f.t0 + f.dur, f }); }
+    for (const c of m.cues.slice(before)) assert.ok(c.t >= t - 16, `${c.name} at ${c.t} announced at ${t}`);
+  }
+  const coins = m.cues.filter((c) => c.name === "coins");
+  const columns = lands.filter((l) => l.f.kind === "column" && l.f.from.kind === "stack" && l.f.to.kind === "slot");
+  assert.deepEqual(coins.map((c) => c.t).sort((a, b) => a - b), columns.map((l) => l.t).sort((a, b) => a - b));
+  assert.deepEqual(coins.map((c) => c.count), coins.map((c) => columns.find((l) => l.t === c.t && l.f.denom === c.at.denom).f.count));
+  const pot = m.cues.find((c) => c.name === "pot");
+  assert.ok(lands.some((l) => l.f.to.pile === "pot" && l.t === pot.t), "the pot sound on the sweep's landing");
+  const sink = m.cues.find((c) => c.name === "sink");
+  assert.ok(sink.count > 0, "winnings carry their coin count (for the one / few / pile sound)");
+});

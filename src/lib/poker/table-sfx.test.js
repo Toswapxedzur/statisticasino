@@ -92,14 +92,25 @@ test("sic bo rolls dice, slots spin reels, keno draws numbers", () => {
   assert.deepEqual(names(tableSoundCues(l0, l1, "u1")), ["reel"]);
   const k0 = mk("keno", { drawn: [], tickets: [], results: [] }), k1 = mk("keno", { drawn: [4, 9, 23], tickets: [], results: [] });
   const kc = tableSoundCues(k0, k1, "u1");
-  assert.deepEqual(names(kc), ["board"]); assert.equal(kc[0].count, 3);
+  assert.deepEqual(names(kc), ["ball"]); assert.equal(kc[0].count, 3);
 });
 
 test("crazy eights: a card played hits the pile, a draw deals", () => {
-  const mk = (round) => ({ id: "c8", game: "crazy-eights", handNo: 1, result: null, seats: [seat(1, "u1"), seat(2, "u2")], round });
-  const a = mk({ pile: ["7h"], top: "7h", players: [{ seat: 1, count: 5 }, { seat: 2, count: 5 }] });
-  const b = mk({ pile: ["7h", "7s"], top: "7s", players: [{ seat: 1, count: 4 }, { seat: 2, count: 5 }] });
-  assert.deepEqual(names(tableSoundCues(a, b, "u1")), ["board"]);
-  const c = mk({ ...b.round, drawCount: 1, players: [{ seat: 1, count: 4 }, { seat: 2, count: 6 }] });
+  // the server's shape (crazy-eights.js publicView): top card + cardCount, no pile array
+  const mk = (round) => ({ id: "c8", game: "crazy-eights", handNo: 1, result: null, seats: [seat(1, "u1"), seat(2, "u2")], round: { shedGame: true, ...round } });
+  const a = mk({ top: "7h", players: [{ seat: 1, cardCount: 5 }, { seat: 2, cardCount: 5 }] });
+  const b = mk({ top: "7s", players: [{ seat: 1, cardCount: 4 }, { seat: 2, cardCount: 5 }] });
+  assert.deepEqual(names(tableSoundCues(a, b, "u1")), ["cardPlay"]);
+  const c = mk({ ...b.round, drawCount: 1, players: [{ seat: 1, cardCount: 4 }, { seat: 2, cardCount: 6 }] });
   assert.deepEqual(names(tableSoundCues(b, c, "u1")), ["deal"]); // seat 2 drew one card
+});
+
+test("big two: a new combination on the pile is a play, even when it's shorter", () => {
+  const mk = (round) => ({ id: "b2", game: "big-two", handNo: 1, result: null, seats: [seat(1, "u1"), seat(2, "u2")], round: { shedGame: true, ...round } });
+  const a = mk({ pile: ["3c", "3d"], players: [{ seat: 1, cardCount: 11 }, { seat: 2, cardCount: 13 }] });
+  const b = mk({ pile: ["5h", "5s"], players: [{ seat: 1, cardCount: 11 }, { seat: 2, cardCount: 11 }] });
+  const cues = tableSoundCues(a, b, "u1");
+  assert.deepEqual(names(cues), ["cardPlay"]); assert.equal(cues[0].count, 2);
+  const pass = mk({ ...b.round });
+  assert.deepEqual(names(tableSoundCues(b, pass, "u1")), []);
 });
