@@ -1,0 +1,80 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coin Motion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,650&family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap">
+<style>
+:root{--bg:#f5efe2;--surface:#fffaf0;--well:#ebe3d1;--text:#14203b;--muted:#5b6784;--faint:#8a93a8;--accent:#1f6fa8;--gold:#b07a00;--shadow:0 1px 2px rgba(20,32,59,.06),0 6px 18px rgba(20,32,59,.07)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#0b1222;--surface:#16213a;--well:#0f172a;--text:#e5ecff;--muted:#93a3c6;--faint:#62708f;--accent:#5ec8e5;--gold:#f5b60d;--shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.28)}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#0b1222;--surface:#16213a;--well:#0f172a;--text:#e5ecff;--muted:#93a3c6;--faint:#62708f;--accent:#5ec8e5;--gold:#f5b60d;--shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.28)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 "Hanken Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1300px;margin:0 auto;padding-inline:16px;padding-block:30px 56px;display:grid;gap:18px}
+.eyebrow{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+h1{font:650 clamp(26px,4vw,36px)/1.1 Fraunces,Georgia,serif;margin:0;text-wrap:balance}
+.lede{color:var(--muted);max-width:74ch;margin:0}.lede b{color:var(--text)}
+.table{background:#0f172a;border-radius:18px;padding:10px;overflow:hidden}
+.fitbox{position:relative;width:100%}
+/* the stage: the real table's dark-blue arena, 900×560 px, scaled to fit */
+#stage{position:absolute;left:0;top:0;width:900px;height:560px;transform-origin:0 0;
+  background:radial-gradient(ellipse 60% 55% at 50% 48%,#1b2a4d 0%,#101a31 70%,#0f172a 100%);border-radius:12px;
+  font-family:"Hanken Grotesk",system-ui,sans-serif;color:#e5ecff}
+.badge{position:absolute;transform:translate(-50%,-50%);display:flex;align-items:center;gap:8px;min-width:132px;padding:7px 12px 7px 8px;
+  background:#1e2c4c;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.35);transition:opacity .2s,box-shadow .2s}
+.badge .av{width:30px;height:30px;border-radius:50%;background:#4d6fb8;display:grid;place-items:center;font-weight:800;font-size:13px}
+.badge .txt{display:grid;line-height:1.2}
+.badge b{font-size:12px}
+.badge .stack{font-size:13px;font-weight:800;color:#f5b60d;font-variant-numeric:tabular-nums}
+.badge .say{font-size:10px;color:#93a3c6;min-height:12px}
+.badge.folded{opacity:.42}
+.badge.won{box-shadow:0 0 0 2px #36c47a,0 2px 8px rgba(0,0,0,.35)}
+.potpill{position:absolute;transform:translate(-50%,0);background:#16213a;border-radius:999px;padding:4px 13px;font-size:13px;box-shadow:0 2px 6px rgba(0,0,0,.4);font-variant-numeric:tabular-nums;white-space:nowrap}
+.potpill .lbl{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#93a3c6}
+.potpill b{color:#f5b60d}
+.street{position:absolute;transform:translate(-50%,0);font-size:13px;font-weight:600;color:#93a3c6;white-space:nowrap}
+.coins{position:absolute;inset:0;pointer-events:none}
+.pile{position:absolute;transform:translate(-50%,-100%);display:block;line-height:0}
+.amt{position:absolute;left:0;top:0;white-space:nowrap;line-height:1;will-change:transform,opacity;font:800 12px/1 "Hanken Grotesk",sans-serif;color:#f5b60d;background:#16213a;border-radius:999px;padding:3px 7px;box-shadow:0 1px 3px rgba(0,0,0,.45);font-variant-numeric:tabular-nums}
+.flight{position:absolute;left:0;top:0;line-height:0;will-change:transform,opacity}
+/* CoinStack's pile: columns at half-coin pitch, alternate columns raised 0.6·size behind */
+.cstack{display:inline-flex;align-items:flex-end;padding-top:calc(var(--sz)*.6)}
+.ccol{position:relative;width:var(--sz);display:inline-block;flex:0 0 auto;z-index:2}
+.ccol+.ccol{margin-left:calc(var(--sz)*-.5)}
+.ccol.hi{transform:translateY(calc(var(--sz)*-.6));z-index:1}
+.cc{position:absolute;left:0;display:block;line-height:0}
+.coin{display:inline-block;line-height:0;filter:drop-shadow(0 1px 1px rgba(0,0,0,.45))}
+.coin svg{display:block}
+.controls{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:center}
+#play{font:700 15px/1 "Hanken Grotesk",system-ui,sans-serif;border:0;border-radius:999px;padding:12px 22px;background:var(--gold);color:#1a1405;cursor:pointer;min-width:120px}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+label{color:var(--muted);font-size:14px;display:inline-flex;gap:8px;align-items:center}
+select{font:600 14px/1 "Hanken Grotesk",system-ui,sans-serif;background:var(--surface);color:var(--text);border:0;border-radius:999px;padding:8px 12px;box-shadow:var(--shadow)}
+.scrub{flex:1 1 240px}#scrub{flex:1;accent-color:var(--accent)}
+#time{font-variant-numeric:tabular-nums;color:var(--muted);font-size:14px;min-width:110px;text-align:right}
+.notes{background:var(--well);border-radius:14px;padding:14px 16px;color:var(--muted);font-size:14px;margin:0;display:grid;gap:6px}.notes b{color:var(--text)}
+</style>
+<div class="wrap">
+<header style="display:grid;gap:10px">
+ <div class="eyebrow">Bluffing Valley · currency animation · demo</div>
+ <h1>Bets stream in, the pot sweeps up, the winner collects</h1>
+ <p class="lede">A <b>bet</b> leaves the badge <b>one coin column at a time</b> (highest value first) and stacks onto a <b>pile in front of the seat</b>; a raise adds to it, a <b>check moves nothing</b>. When the street ends, <b>every pile slides into the pot together, its number riding along and merging into the pot's number</b>, which counts up. An <b>uncalled bet slides back</b>. The <b>pot flies to the winner</b> (a split pot: one share each), <b>sinks into the badge</b>, and the stack counts up.</p>
+</header>
+
+<div class="table"><div class="fitbox"><div id="stage" aria-label="Poker table with coins in motion"></div></div></div>
+
+<div class="controls">
+ <button id="play" type="button">Play</button>
+ <label for="hand">Hand <select id="hand"><option value="h1">1 · raise, sweep, uncalled bet, win</option><option value="h2">2 · checked street, split pot</option></select></label>
+ <label for="speed">Speed <select id="speed"><option value="1">1×</option><option value="0.5">½×</option><option value="0.25">¼×</option></select></label>
+ <label><input id="sound" type="checkbox" checked> Sound</label>
+ <label class="scrub" for="scrub">Frame <input id="scrub" type="range" min="0" max="1000" value="0"></label>
+ <span id="time"></span>
+</div>
+
+<div class="notes">
+ <span><b>Timing</b>: a bet's columns leave 40 ms apart and land 0.38 s later · the sweep waits for the last bet to land (+0.15 s) and takes 0.52 s, all piles landing at the same instant · an uncalled bet slides home in 0.46 s · the win flies 0.6 s, sinks 0.22 s, and the number counts up over 0.52 s. The actions come faster here than at a real table, so the whole hand fits in about 15 s.</span>
+ <span><b>Motion</b>: every move is minimum-jerk, like the cards: speed and acceleration are zero at both ends. Coins lift slightly in flight (16% of the distance, 60 px at most), with no bounce. The piles are the table's own coin piles (60° zig-zag), in the table's real coin sizes.</span>
+ <span><b>Sound</b>: the game's own sounds, each played when coins <i>land</i>: a chip push per bet, one pot sound per sweep, the win sound when the winnings land, and the check knock on a check. A street where everyone checks makes no chip sound at all.</span>
+</div>
+</div>
+<script src="demo.bundle.js"></script>
