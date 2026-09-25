@@ -7,7 +7,9 @@ import { renderBack, renderBoard } from "../../src/lib/poker/composer.js";
 const BASE = "deck-parts/";
 const $ = (id) => document.getElementById(id);
 const STAGE_W = 700, STAGE_H = 420;                   // table units (a card is 60 wide)
-const START = { fx: 350, fy: 66 }, CENTRE = { fx: 350, fy: 250 };
+const BAR = 28;                                        // the top bar
+// the real game: face-up (used) pile top-right, face-down deck top-left, just below the bar
+const START = { fx: 640, fy: 93 }, END = { fx: 60, fy: 93 }, CENTRE = { fx: 350, fy: 240 };
 
 // ---- card art: composer SVG → image (external hrefs inlined; an SVG image can't fetch) ----
 const cache = new Map();
@@ -28,13 +30,13 @@ async function toImage(markup, px = 600) {
 }
 const RANKS = "A23456789TJQK", SUITS = "shdc";
 const randomCard = () => RANKS[Math.floor(Math.random() * 13)] + SUITS[Math.floor(Math.random() * 4)];
-const LABEL = { "fly-in": "Flies in, turns over, grows", settle: "Settles", "cut 1": "Cut 1 of 3", "cut 2": "Cut 2 of 3", "cut 3": "Cut 3 of 3", split: "Splits into two piles", shuffle: "Shuffle: cards to the third pile", "fly-back": "Flies back, shrinks", pause: "", done: "Back in place" };
+const LABEL = { "fly-in": "Flies in, turns over, grows", settle: "Settles", "cut 1": "Middle cut 1 of 3", "cut 2": "Middle cut 2 of 3", "cut 3": "Middle cut 3 of 3", split: "Splits into two piles", shuffle: "Shuffle: cards to the third pile", "fly-back": "Flies to the deck spot, shrinks", pause: "", done: "Back in place" };
 
 (async () => {
   const back = await toImage(renderBack(60, { edge: false }));
   let face = await toImage(renderBoard(randomCard(), 60, { edge: false }));
   let seed = Math.floor(Math.random() * 1e9);
-  let R = buildRoutine({ start: START, centre: CENTRE, seed });
+  let R = buildRoutine({ start: START, end: END, centre: CENTRE, seed });
 
   const cv = $("stage"), ctx = cv.getContext("2d");
   let scale = 1, dpr = 1;
@@ -71,13 +73,22 @@ const LABEL = { "fly-in": "Flies in, turns over, grows", settle: "Settles", "cut
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, cv.width, cv.height);
     ctx.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
-    // the dealer spot: a faint outline where the deck lives
+    // the top bar, and the two spots just below it (faint outlines + labels)
+    ctx.fillStyle = "rgba(147,163,198,0.10)";
+    ctx.fillRect(0, 0, STAGE_W, BAR);
+    ctx.fillStyle = "rgba(147,163,198,0.55)";
+    ctx.font = "10px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("top bar", STAGE_W / 2, BAR / 2 + 3.5);
     ctx.strokeStyle = "rgba(147,163,198,0.28)";
     ctx.setLineDash([4, 4]);
     ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.roundRect(START.fx - W / 2 - 4, START.fy - H / 2 - 4, W + 8, H + 8, 9);
-    ctx.stroke();
+    for (const [spot, label] of [[END, "deck (face down)"], [START, "used pile (face up)"]]) {
+      ctx.beginPath();
+      ctx.roundRect(spot.fx - W / 2 - 4, spot.fy - H / 2 - 4, W + 8, H + 8, 9);
+      ctx.stroke();
+      ctx.fillText(label, spot.fx, spot.fy + H / 2 + 16);
+    }
     ctx.setLineDash([]);
     for (const s of f.stacks) drawStack(ctx, s, { back, face });
     $("phase").textContent = LABEL[f.phase] ?? f.phase;
@@ -103,7 +114,7 @@ const LABEL = { "fly-in": "Flies in, turns over, grows", settle: "Settles", "cut
     if (t >= R.duration) {
       // a fresh routine: new cut points and shuffle, a new face-up card to start
       seed = Math.floor(Math.random() * 1e9);
-      R = buildRoutine({ start: START, centre: CENTRE, seed });
+      R = buildRoutine({ start: START, end: END, centre: CENTRE, seed });
       face = await toImage(renderBoard(randomCard(), 60, { edge: false }));
       buildBar();
       t = 0;
