@@ -1,6 +1,6 @@
 <script>
   // The canvas over the table that draws the dealer's world: the face-down deck top-left and
-  // the face-up used pile top-right (each ~30% past the screen edge, just below the top bar —
+  // the face-up used pile top-right (each ~70% buried past the screen edge, 30% showing, just below the top bar —
   // owner's rule), every card flying between them and the seats / board, and the shuffle
   // routine between hands. Positions come from the real DOM every frame (the seat and board
   // slots carry data-seat / data-slot / data-board-slot), so zoom and resizes never misalign.
@@ -54,8 +54,9 @@
     const hudBottom = hud ? hud.getBoundingClientRect().bottom - cr.top : 48;
     // a full deck's top card starts just below the bar: its top edge is at fy − H/2 − T
     const fy = (hudBottom + 6) / k + H / 2 + T;
-    const deckSpot = { fx: (0.2 * cw) / k, fy };                    // 30% past the left edge
-    const usedSpot = { fx: (cr.width - 0.2 * cw) / k, fy };          // 30% past the right edge
+    // owner's rule: 70% of the card buried past the edge, 30% showing (centre 0.2 card-widths out)
+    const deckSpot = { fx: (-0.2 * cw) / k, fy };                   // 70% past the left edge
+    const usedSpot = { fx: (cr.width + 0.2 * cw) / k, fy };          // 70% past the right edge
     const mid = q('[data-board-slot="2"]');
     const centre = mid ? { fx: mid.x / k, fy: mid.y / k } : { fx: cr.width / 2 / k, fy: cr.height / 2 / k };
     // last-known spot of each slot: a hand won without a showdown leaves the DOM at once

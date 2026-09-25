@@ -3,7 +3,7 @@
 //
 // Owner's decisions (2026-09-25): POKER only for now (the flop games: Hold'em, Omaha, Short
 // Deck); the face-down deck lives top-left and the face-up used pile top-right, just below the
-// top bar, each ~30% off the screen edge; cards leave the deck face-down one at a time,
+// top bar, each ~70% buried past the screen edge (30% showing); cards leave the deck face-down one at a time,
 // clockwise from the left of the button; your own cards flip once they land; the flop flies
 // out and flips together, turn and river singly; folded hands and, at the end of the hand, all
 // cards fly to the used pile; then the full shuffle routine plays, every hand — the server
