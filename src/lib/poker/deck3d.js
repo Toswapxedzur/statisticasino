@@ -106,37 +106,54 @@ function convexHull(points) {
   return lower.slice(0, -1).concat(upper.slice(0, -1));
 }
 
+/** Thickness of a stack of n cards. */
+export const thickness = (n) => n * t1;
+/** Card ids 1..52, top to bottom, of the deck as first built (id k keeps its own edge look). */
+export const FULL_DECK = Array.from({ length: COUNT }, (_, i) => i + 1);
+
 /**
- * Draw the deck. ctx is a 2D context already scaled so 1 unit = `scale` CSS px.
- * state: { theta, lift } from flipState (lift = centre height; resting = T/2).
- * origin: screen position (in units) of the flat deck's top-left corner at rest.
- * art: { back, face } — images/canvases of the card back and the bottom card's face (W×H).
+ * Draw one stack of cards. ctx is a 2D context already scaled so 1 unit = some CSS px.
+ *   ids    card ids (1..52) top → bottom in the stack's own frame; each keeps its strip look
+ *   theta  rotation about the stack's long axis (0 = as dealt, π = turned over)
+ *   fx,fy  the stack's footprint centre on the table (screen units)
+ *   baseZ  height of the stack's underside above the table at rest (e.g. lying on a pile)
+ *   rise   extra lift of the centre (the flip's lift above resting)
+ *   scale  size about the footprint centre (> 1 = closer to the viewer)
+ * art: { back, face } images W×H; face = the card showing when the stack is turned over.
  */
-export function drawDeck(ctx, { theta, lift }, art, origin = { x: 0, y: 0 }) {
+export function drawStack(ctx, { ids, theta = 0, fx, fy, baseZ = 0, rise = 0, scale = 1, shadow = true }, art) {
+  const n = ids.length;
+  if (!n) return;
+  const Tn = n * t1;
+  ctx.save();
+  if (scale !== 1) { ctx.translate(fx, fy); ctx.scale(scale, scale); ctx.translate(-fx, -fy); }
   // Right edge lifts first (the side face appears on the right, as the owner's preview showed):
   // local x → (cosθ, 0, sinθ), local normal (up) → (−sinθ, 0, cosθ).
   const c = Math.cos(theta), sn = Math.sin(theta);
   const ex = [c, 0, sn], ez = [-sn, 0, c];
-  const cx = origin.x + W / 2, cy = origin.y + H / 2, cz = lift;
+  const cx = fx, cyW = fy - T, cz = baseZ + Tn / 2 + rise;   // screen Y = y + (T − z)
 
-  // screen transform for a card plane at stack offset s (along ez from the deck centre)
+  // screen transform for a card plane at stack offset s (along ez from the stack centre)
   const plane = (sOff, dx = 0) => {
     const ox = cx + (dx - W / 2) * ex[0] + sOff * ez[0];
     const oz = cz + (dx - W / 2) * ex[2] + sOff * ez[2];
-    return [ex[0], -ex[2], 0, 1, ox, cy - H / 2 + T - oz];
+    return [ex[0], -ex[2], 0, 1, ox, cyW - H / 2 + T - oz];
   };
 
-  // shadow on the table: the deck's footprint, softer and fainter as it rises
-  const hAbove = Math.max(0, lift - halfExtent(theta));
-  const halfW = (W / 2) * Math.abs(c) + (T / 2) * Math.abs(sn);
-  ctx.save();
-  // canvas blur is in device pixels: scale it with the caller's units→px transform
-  ctx.filter = `blur(${((1.5 + hAbove * 0.35) * ctx.getTransform().a).toFixed(2)}px)`;
-  ctx.fillStyle = `rgba(0,0,0,${Math.max(0.12, 0.34 - hAbove * 0.006).toFixed(3)})`;
-  ctx.beginPath();
-  ctx.roundRect(cx - halfW, origin.y + T + 1, halfW * 2, H, R);
-  ctx.fill();
-  ctx.restore();
+  // shadow on the table: the footprint, softer and fainter the higher the stack is
+  if (shadow) {
+    const low = cz - ((W / 2) * Math.abs(sn) + (Tn / 2) * Math.abs(c));
+    const hAbove = Math.max(0, low);
+    const halfW = (W / 2) * Math.abs(c) + (Tn / 2) * Math.abs(sn);
+    ctx.save();
+    // canvas blur is in device pixels: scale it with the units→px transform
+    ctx.filter = `blur(${((1.5 + hAbove * 0.35) * ctx.getTransform().a).toFixed(2)}px)`;
+    ctx.fillStyle = `rgba(0,0,0,${Math.max(0.1, (0.34 - hAbove * 0.006) * Math.min(1, 0.45 + n / 40)).toFixed(3)})`;
+    ctx.beginPath();
+    ctx.roundRect(cx - halfW, fy - H / 2 + 1, halfW * 2, H, R);
+    ctx.fill();
+    ctx.restore();
+  }
 
   const base = ctx.getTransform();
   const facingUp = ez[2] >= 0;                     // top card's back faces the viewer
@@ -148,9 +165,9 @@ export function drawDeck(ctx, { theta, lift }, art, origin = { x: 0, y: 0 }) {
   // Every card is a real slab with thickness, not a zero-thickness plane: edge-on (θ = 90°) a
   // plane has no area and the side face would vanish. Each layer of a card (its grey gap, then
   // its white edge) is drawn as the convex hull of its lower and upper outlines — exact for a
-  // parallel projection — so edge-on it is a strip one layer thick, and the 52 strips form the
+  // parallel projection — so edge-on it is a strip one layer thick, and the strips form the
   // side face at every angle.
-  const hull2 = (m, dx, sA, sB) => {
+  const hull2 = (dx, sA, sB) => {
     const pts = [];
     for (const sOff of [sA, sB]) {
       const [a, b, , d, e, f0] = plane(sOff, dx);
@@ -158,14 +175,14 @@ export function drawDeck(ctx, { theta, lift }, art, origin = { x: 0, y: 0 }) {
     }
     return convexHull(pts);
   };
-  // far → near: bottom card first when the top faces up, reversed once flipped
+  // far → near: bottom card first when the top faces up, reversed once turned over
   const order = [];
-  for (let k = COUNT; k >= 1; k--) order.push(k);
+  for (let j = n; j >= 1; j--) order.push(j);
   if (!facingUp) order.reverse();
   ctx.setTransform(base);
-  for (const k of order) {
-    const L = LOOK[k];
-    const sLow = T / 2 - k * t1;                   // the card's lower side
+  for (const j of order) {
+    const L = LOOK[ids[j - 1]];
+    const sLow = Tn / 2 - j * t1;                  // the card's lower side
     const sMid = sLow + 0.4 * t1;                  // grey gap below, white edge above
     const sTop = sLow + t1;
     const zCard = cz + sLow * ez[2];
@@ -173,7 +190,7 @@ export function drawDeck(ctx, { theta, lift }, art, origin = { x: 0, y: 0 }) {
     const f = occ * rimLight;
     const grey = [sLow, sMid, L.grey, 4], white = [sMid, sTop, L.white, -3];
     for (const [sA, sB, g, blue] of facingUp ? [grey, white] : [white, grey]) {
-      const poly = hull2(base, L.dx, sA, sB);
+      const poly = hull2(L.dx, sA, sB);
       ctx.fillStyle = `rgb(${Math.round(g * f)},${Math.round(g * f)},${Math.round((g + blue) * f)})`;
       ctx.beginPath();
       poly.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
@@ -186,11 +203,11 @@ export function drawDeck(ctx, { theta, lift }, art, origin = { x: 0, y: 0 }) {
   // relative to how the cap is lit at rest, so the rest frame is exactly the flat deck
   const capLight = (0.78 + 0.22 * Math.max(0, facingUp ? dot(ez, LIGHT) : -dot(ez, LIGHT))) / (0.78 + 0.22 * LIGHT[2]);
   if (facingUp) {
-    ctx.setTransform(base.multiply(new DOMMatrix(plane(T / 2))));
+    ctx.setTransform(base.multiply(new DOMMatrix(plane(Tn / 2))));
     if (art.back) ctx.drawImage(art.back, 0, 0, W, H);
   } else {
     // seen from below, the face would read mirrored — flip it back in card space
-    ctx.setTransform(base.multiply(new DOMMatrix(plane(-T / 2))).multiply(new DOMMatrix([-1, 0, 0, 1, W, 0])));
+    ctx.setTransform(base.multiply(new DOMMatrix(plane(-Tn / 2))).multiply(new DOMMatrix([-1, 0, 0, 1, W, 0])));
     if (art.face) ctx.drawImage(art.face, 0, 0, W, H);
   }
   if (capLight < 1) {
@@ -199,7 +216,15 @@ export function drawDeck(ctx, { theta, lift }, art, origin = { x: 0, y: 0 }) {
     ctx.roundRect(0, 0, W, H, R);
     ctx.fill();
   }
-  ctx.setTransform(base);
+  ctx.restore();
+}
+
+/**
+ * The whole 52-card deck (the flip demo). state: { theta, lift } from flipState (lift = centre
+ * height; resting = T/2). origin: screen position (units) of the flat deck's top-left at rest.
+ */
+export function drawDeck(ctx, { theta, lift }, art, origin = { x: 0, y: 0 }) {
+  drawStack(ctx, { ids: FULL_DECK, theta, fx: origin.x + W / 2, fy: origin.y + T + H / 2, rise: lift - T / 2 }, art);
 }
 
 /**
