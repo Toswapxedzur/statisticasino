@@ -21,3 +21,9 @@ of motion, to choose which sound goes with which moment. Nothing here ships with
   with the owner's OK 2026-09-25): clickable timeline of every event coloured by shape group, up to
   five examples per group (names are guesses from measured shape, not from listening), and where the
   old split clips / the game's current card sounds were cut from.
+- `clicks.html` + `clicks/` + `clicks.json` (`build_clicks.py`) — generic clicks from the licensed
+  library (Kenney Interface Sounds, BigSoundBank, Freesound, Mixkit), each labelled by its source;
+  long takes cut into single clicks aligned on the main hit; "clean" = unpitched, one hit, hit ≤12 ms.
+- `measure.py` — the shared checks (main-hit time, hit count, pitch share, zip test).
+- `synth.py` — synthesised candidates; the owner declined synthesis ("don't synthesize sound
+  yourself"), so they are NOT in the lab and their clips are not committed.
