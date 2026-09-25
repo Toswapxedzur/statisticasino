@@ -1,0 +1,132 @@
+<title>Paper Cards Recording</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,650&family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap">
+<style>
+:root{--bg:#f5efe2;--surface:#fffaf0;--well:#ebe3d1;--text:#14203b;--muted:#5b6784;--accent:#1f6fa8;--gold:#b07a00;--wave:#8a93a8;--head:#c2410c;--shadow:0 1px 2px rgba(20,32,59,.06),0 6px 18px rgba(20,32,59,.07);
+ --g-long:#2563eb;--g-run:#7c3aed;--g-rapid:#db2777;--g-heavy:#b45309;--g-cluster:#0f766e;--g-tap:#16a34a;--g-quiet:#64748b;--g-other:#a8a29e}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#0b1222;--surface:#16213a;--well:#0f172a;--text:#e5ecff;--muted:#93a3c6;--accent:#5ec8e5;--gold:#f5b60d;--wave:#62708f;--head:#fb923c;--shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.28);
+ --g-long:#60a5fa;--g-run:#a78bfa;--g-rapid:#f472b6;--g-heavy:#fbbf24;--g-cluster:#2dd4bf;--g-tap:#4ade80;--g-quiet:#94a3b8;--g-other:#d6d3d1}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#0b1222;--surface:#16213a;--well:#0f172a;--text:#e5ecff;--muted:#93a3c6;--accent:#5ec8e5;--gold:#f5b60d;--wave:#62708f;--head:#fb923c;--shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.28);
+ --g-long:#60a5fa;--g-run:#a78bfa;--g-rapid:#f472b6;--g-heavy:#fbbf24;--g-cluster:#2dd4bf;--g-tap:#4ade80;--g-quiet:#94a3b8;--g-other:#d6d3d1}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 "Hanken Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:980px;margin:0 auto;padding-inline:16px;padding-block:28px 64px;display:grid;gap:18px}
+.eyebrow{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+h1{font:650 clamp(28px,4vw,36px)/1.1 Fraunces,Georgia,serif;margin:0;text-wrap:balance}
+h2{font:700 17px/1.2 "Hanken Grotesk",sans-serif;margin:0}
+.lede{color:var(--muted);max-width:72ch;margin:0}.lede b{color:var(--text)}
+.note{background:var(--well);border-radius:12px;padding:12px 14px;font-size:14px;color:var(--muted)}.note b{color:var(--text)}
+.timeline{background:var(--surface);border-radius:14px;box-shadow:var(--shadow);padding:14px 16px;display:grid;gap:10px}
+.tl-top{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+.btn{font:700 13px/1 "Hanken Grotesk",sans-serif;border:0;border-radius:999px;padding:9px 16px;background:var(--gold);color:#1a1405;cursor:pointer}
+.clock{font-variant-numeric:tabular-nums;color:var(--muted);font-size:14px}
+.scroll{overflow-x:auto}
+#tl{display:block;height:120px;cursor:pointer;min-width:900px;width:100%}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:5px}.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.group{background:var(--surface);border-radius:14px;box-shadow:var(--shadow);padding:14px 16px;display:grid;gap:8px;border-left:5px solid var(--c)}
+.gtop{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline}
+.count{color:var(--muted);font-size:13px}
+.shape{font-size:14px;color:var(--muted);margin:0}
+.guess{font-size:14px;margin:0}.guess em{font-style:normal;font-weight:700;color:var(--c)}
+.ex{display:flex;flex-wrap:wrap;gap:8px}
+.x{display:inline-grid;gap:2px;border:0;background:var(--well);color:var(--text);border-radius:12px;padding:8px 12px;text-align:left;cursor:pointer;font:600 13px/1.25 "Hanken Grotesk",sans-serif;min-width:150px}
+.x b{font-size:14px}.x span{color:var(--muted);font-weight:500;font-size:12px;font-variant-numeric:tabular-nums}
+.x.on{box-shadow:0 0 0 2px var(--c)}
+.ctx{border:0;background:none;color:var(--accent);font:600 12px "Hanken Grotesk",sans-serif;cursor:pointer;padding:0;justify-self:start}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+</style>
+<div class="wrap">
+<header style="display:grid;gap:10px">
+ <div class="eyebrow">Bluffing Valley · sound design · ArtOrDie "Poker and Dice" · Paper Cards (Freesound 170293, CC BY 4.0)</div>
+ <h1>The whole paper-cards recording</h1>
+ <p class="lede">All <b>69.7 seconds</b>. The timeline shows every sound in the recording, coloured by group; <b>click anywhere</b> to play from that point. Below it, each group has <b>up to five examples</b>, the loudest of its kind. ▶ plays an example on its own, raised to a common volume (the boost is shown). "Hear it in context" plays it where it sits in the recording.</p>
+</header>
+<div class="note"><b>The group names are my guesses from the measured shape (length, number of taps, how loud, how fast), not from listening.</b> One clue that they can be wrong: the game's current deal-1, deal-4, board-3 and board-4 sounds were all cut from the "quick loud bursts" at 60–65 s, which I'd guessed were shuffling. Tell me what each group really is and I'll rename them.</div>
+
+<section class="timeline" aria-label="The whole recording">
+ <div class="tl-top"><button class="btn" id="playall" type="button">▶ Play the whole recording</button><span class="clock" id="clock">0.0 / 69.7 s</span></div>
+ <div class="scroll"><svg id="tl" role="img" aria-label="Waveform of the whole recording with every sound coloured by group; click to play from a point"></svg></div>
+ <div class="legend" id="legend"></div>
+</section>
+<div id="groups" style="display:grid;gap:14px"></div>
+</div>
+<script>
+const $ = (s) => document.querySelector(s);
+let D = null;
+const full = new Audio("paper-full/paper-cards-full.mp3");
+full.preload = "auto";
+let clipAudio = null;
+const fmt = (t) => t.toFixed(1);
+function stopClip() { if (clipAudio) { clipAudio.pause(); clipAudio = null; } }
+function playFrom(t, until = null) {
+  stopClip();
+  full.currentTime = Math.max(0, t);
+  full.play().catch(() => {});
+  full._until = until;
+  $("#playall").textContent = "❚❚ Pause";
+}
+full.addEventListener("timeupdate", () => { if (full._until != null && full.currentTime >= full._until) { full.pause(); full._until = null; } });
+full.addEventListener("pause", () => { $("#playall").textContent = "▶ Play the whole recording"; });
+$("#playall").addEventListener("click", () => {
+  if (!full.paused) { full.pause(); return; }
+  stopClip(); full._until = null; if (full.ended) full.currentTime = 0; full.play().catch(() => {}); $("#playall").textContent = "❚❚ Pause";
+});
+function draw() {
+  const W = 1200, H = 120, mid = 62, dur = D.duration, svg = $("#tl");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("preserveAspectRatio", "none");
+  const css = getComputedStyle(document.documentElement), col = (k) => css.getPropertyValue(`--g-${k}`).trim();
+  let s = "";
+  for (const e of D.events) {
+    const x = (e.t0 / dur) * W, w = Math.max(2, (e.dur / dur) * W);
+    s += `<rect x="${x}" y="14" width="${w}" height="${H - 28}" fill="${col(e.group)}" opacity="0.28" rx="2"><title>${e.t0.toFixed(2)} s · ${D.groups.find((g) => g.key === e.group)?.name}</title></rect>`;
+  }
+  let p = `M0 ${mid}`;
+  D.wave.forEach((v, i) => { p += ` L${i} ${mid - v * 46}`; });
+  for (let i = D.wave.length - 1; i >= 0; i--) p += ` L${i} ${mid + D.wave[i] * 46}`;
+  s += `<path d="${p} Z" fill="${css.getPropertyValue("--wave").trim()}"/>`;
+  for (let t = 0; t <= dur; t += 5) s += `<text x="${(t / dur) * W + 2}" y="${H - 2}" font-size="9" fill="${css.getPropertyValue("--muted").trim()}">${t}s</text>`;
+  D.marks.filter((m) => m.kind === "game").sort((a, b) => a.at - b.at).forEach((m, i) => {
+    const x = (m.at / dur) * W, y = 9 + (i % 4) * 10;            // staggered so neighbours don't overlap
+    s += `<line x1="${x}" y1="${y - 8}" x2="${x}" y2="${H - 12}" stroke="${css.getPropertyValue("--gold").trim()}" stroke-width="1.5"/><text x="${x - 2}" y="${y}" text-anchor="end" font-size="9" font-weight="700" fill="${css.getPropertyValue("--gold").trim()}">${m.what}</text>`;
+  });
+  s += `<line id="head" x1="0" y1="0" x2="0" y2="${H}" stroke="${css.getPropertyValue("--head").trim()}" stroke-width="2"/>`;
+  svg.innerHTML = s;
+  svg.onclick = (ev) => { const r = svg.getBoundingClientRect(); playFrom(((ev.clientX - r.left) / r.width) * dur); };
+  $("#legend").innerHTML = D.groups.filter((g) => g.count).map((g) => `<span><i style="background:${col(g.key)}"></i>${g.name} (${g.count})</span>`).join("") + `<span><i style="background:${css.getPropertyValue("--gold").trim()}"></i>where a current game sound was cut from</span>`;
+}
+function tick() {
+  if (D) {
+    const head = $("#head");
+    if (head) { const x = (full.currentTime / D.duration) * 1200; head.setAttribute("x1", x); head.setAttribute("x2", x); }
+    $("#clock").textContent = `${fmt(full.currentTime)} / ${fmt(D.duration)} s`;
+  }
+  requestAnimationFrame(tick);
+}
+fetch("paper-full.json").then((r) => r.json()).then((d) => {
+  D = d; draw(); tick();
+  const host = $("#groups");
+  for (const g of D.groups) {
+    if (!g.examples.length) continue;
+    const el = document.createElement("section");
+    el.className = "group"; el.style.setProperty("--c", `var(--g-${g.key})`);
+    el.innerHTML = `<div class="gtop"><h2>${g.name}</h2><span class="count">${g.count} in the recording${g.count > 5 ? " · the five loudest" : ""}</span></div>
+      <p class="shape">Measured shape: ${g.shape}.</p>${g.guess ? `<p class="guess">My guess: <em>${g.guess}</em></p>` : ""}<div class="ex"></div>`;
+    const ex = el.querySelector(".ex");
+    g.examples.forEach((e, i) => {
+      const wrap = document.createElement("div"); wrap.style.display = "grid"; wrap.style.gap = "4px";
+      const b = document.createElement("button"); b.type = "button"; b.className = "x";
+      b.innerHTML = `<b>▶ ${i + 1}</b><span>at ${e.t0.toFixed(2)} s · ${Math.round(e.dur * 1000)} ms · ${e.taps} tap${e.taps === 1 ? "" : "s"}</span><span>${Math.round(e.level)} dB in the recording · played +${Math.round(e.boost)} dB</span>`;
+      b.addEventListener("click", () => {
+        full.pause(); stopClip();
+        document.querySelectorAll(".x.on").forEach((x) => x.classList.remove("on")); b.classList.add("on");
+        clipAudio = new Audio(e.file); clipAudio.play().catch(() => {});
+      });
+      const c = document.createElement("button"); c.type = "button"; c.className = "ctx"; c.textContent = "Hear it in context";
+      c.addEventListener("click", () => playFrom(e.t0 - 0.8, e.t0 + e.dur + 0.8));
+      wrap.append(b, c); ex.appendChild(wrap);
+    });
+    host.appendChild(el);
+  }
+});
+</script>

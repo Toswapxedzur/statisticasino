@@ -16,3 +16,8 @@ of motion, to choose which sound goes with which moment. Nothing here ships with
   recordings: all 15 clips, every tap marked on the waveform and cut out on its own, measured
   (loudness, time to full loudness, brightness), and which of the game's current sounds each
   clip became. Published as its own private artifact.
+- `paper-full.html` + `paper-full/` + `paper-full.json` (`build_paper_full.py <preview.mp3>`) — the
+  WHOLE ArtOrDie "Paper Cards" recording (Freesound 170293, 69.7 s; the HQ preview MP3, downloaded
+  with the owner's OK 2026-09-25): clickable timeline of every event coloured by shape group, up to
+  five examples per group (names are guesses from measured shape, not from listening), and where the
+  old split clips / the game's current card sounds were cut from.
