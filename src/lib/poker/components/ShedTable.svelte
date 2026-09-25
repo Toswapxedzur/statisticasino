@@ -2,12 +2,15 @@
   import SeatRing from "./SeatRing.svelte";
   import SeatBadge from "./SeatBadge.svelte";
   import HandFan from "./HandFan.svelte";
+  import { getContext } from "svelte";
 
   // Shedding games (Crazy Eights, Big Two): the pile / last play in the middle,
   // opponents' hands as fanned backs with a count, my whole hand fanned big under
   // my badge (tappable via `pick`). No dealer, no board.
   let { view, me, hand = [], onSit = () => {}, pick = null } = $props();
 
+  const bankCtx = getContext("bank");
+  let bank = $derived(bankCtx?.current ?? null);
   const round = $derived(view?.round || {});
   const maxSeats = $derived(view?.config?.maxSeats ?? 4);
   const seatByNo = $derived(new Map((view?.seats || []).map((s) => [s.seat, s])));
@@ -42,6 +45,11 @@
           {#if round.drawCount != null}{round.currentSuit ? " · " : ""}{round.drawCount} in stock{/if}
         </div>
       {:else}<span class="muted waiting">Dealing…</span>{/if}
+      {#if bank}
+        <!-- the antes' pot: coins above, the pill below (drawn by MoneyLayer) -->
+        <div class="potcoins" data-pot-coins></div>
+        <div class="potpill"><span class="lbl">Pot</span> <b data-pot-number>{(bank.pot ?? 0).toLocaleString()}</b></div>
+      {/if}
     </div>
   {/snippet}
   {#snippet seat(seatNo)}
@@ -66,6 +74,10 @@
 <style>
   .pile { display: flex; flex-direction: column; align-items: center; gap: 8px; }
   .pilenote { font-size: 12px; color: var(--muted); }
+  .potcoins { width: 120px; height: 34px; margin-bottom: -8px; }
+  .potpill { display: inline-flex; align-items: baseline; gap: 6px; padding: 4px 13px; background: var(--surface); border-radius: var(--r-pill); box-shadow: var(--shadow-card); font-variant-numeric: tabular-nums; }
+  .potpill .lbl { font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); }
+  .potpill b { font-size: 15px; font-weight: 800; color: var(--gold-ink); }
   .red { color: var(--card-red); }
   .waiting { font-size: 15px; }
 </style>

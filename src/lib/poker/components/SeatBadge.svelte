@@ -5,6 +5,7 @@
   import HandFan from "./HandFan.svelte";
   import { scale, fade, fly } from "svelte/transition";
   import { d, DUR } from "$lib/motion.js";
+  import { getContext } from "svelte";
 
   // The one seat badge every game uses: avatar · name · stack · status line, with
   // the player's cards fanned underneath. Layout is the same for every game; games
@@ -33,6 +34,13 @@
     house = false, size = "sm", children = null,
     cardWidth = 82          // the table's card size (my hand + centre); shrinks on crowded tables
   } = $props();
+
+  // The table's bank (coin motion, every game mode): while coins move, the stack number is the
+  // bank's (it drops as a bet leaves, counts up as winnings sink in) and the coins themselves
+  // replace the bet / winnings pills. Absent under reduced motion → the pills and the view's stack.
+  const bankCtx = getContext("bank");
+  let bank = $derived(bankCtx?.current ?? null);
+  let stackShown = $derived(bank && seat ? bank.stackFor(house ? "house" : seatNo) : null);
 
   const RING_MAX_MS = 25_000;
   let nowMs = $state(Date.now());
@@ -71,17 +79,17 @@
     const total = n > 2 ? base * (1 + 0.38 * (n - 1)) : n * base + (n - 1) * 5;
     return total <= cap ? base : Math.max(MIN_W, Math.floor(base * cap / total));
   });
-  let avSize = $derived(isMine ? 44 : 34);
+  let avSize = $derived(isMine ? 36 : 28);
 </script>
 
-<div class="seat" data-seat={seatNo} class:mine={isMine} class:folded class:sitting-out={sittingOut} class:winner class:allin class:house class:toact={!!seat?.isToAct}>
+<div class="seat" data-seat={house ? undefined : seatNo} data-house={house ? "" : undefined} class:mine={isMine} class:folded class:sitting-out={sittingOut} class:winner class:allin class:house class:toact={!!seat?.isToAct}>
   {#if seat && seat.userId != null}
-    {#if winner && won > 0}
+    {#if winner && won > 0 && !bank}
       <div class="won" in:fly={{ y: d(10), duration: d(DUR.slow) }} out:fade={{ duration: d(DUR.base) }}>
         <CoinStack value={won} size={17} />+<Num value={won} />
       </div>
     {/if}
-    {#if !house && seat.committed > 0}
+    {#if !house && seat.committed > 0 && !bank}
       <div class="bet" in:scale={{ start: 0.6, duration: d(DUR.base) }} out:fade={{ duration: d(DUR.fast) }}><CoinStack value={seat.committed} size={18} /><Num value={seat.committed} /></div>
     {/if}
 
@@ -94,13 +102,12 @@
       {/if}
       <div class="av"><Avatar id={seat.userId} name={house ? "House" : seat.name} mediaId={seat.avatar ?? null} userId={isMine || house ? null : seat.userId} size={avSize} /></div>
       <div class="txt">
+        <!-- compact (owner, 2026-09-25): the stack sits right of the name -->
         <div class="row1">
           <span class="name" title={seat.name}>{house ? "House" : seat.name}</span>
+          <span class="stack">{#if stackShown != null}{stackShown.toLocaleString()}{:else}<Num value={seat.stack} />{/if}</span>
           {#if badge}<span class="badge b-{badge.toLowerCase()}">{badge}</span>{/if}
           {#if !seat.connected && !house}<span class="dot off" title="disconnected"></span>{/if}
-        </div>
-        <div class="row2">
-          <span class="stack"><Num value={seat.stack} /></span>
           {#if seat.isToAct && deadline}<span class="secs" class:urgent>{remainSec}s</span>{/if}
         </div>
         <div class="row3 {statusKind}">{statusText}</div>
@@ -140,33 +147,33 @@
     white-space: nowrap; pointer-events: none; font-variant-numeric: tabular-nums;
   }
   .plate {
-    position: relative; display: flex; align-items: center; gap: 9px;
-    padding: 7px 12px 7px 8px; min-width: 150px; max-width: 200px;
+    position: relative; display: flex; align-items: center; gap: 7px;
+    padding: 5px 10px 5px 5px; max-width: 220px;
     background: var(--surface); border-radius: 14px; box-shadow: var(--shadow-card);
     transition: box-shadow var(--dur) var(--ease);
   }
-  .mine .plate { background: var(--surface-2); box-shadow: 0 0 0 2px var(--accent-soft), var(--shadow-card); min-width: 190px; }
+  .mine .plate { background: var(--surface-2); box-shadow: 0 0 0 2px var(--accent-soft), var(--shadow-card); }
   .toact .plate { box-shadow: 0 0 0 2px var(--accent), 0 0 20px color-mix(in srgb, var(--accent) 45%, transparent); }
   .house .plate { background: color-mix(in srgb, var(--surface) 70%, var(--gold-bg) 30%); }
   .av { position: relative; z-index: 1; line-height: 0; }
-  .ring { position: absolute; left: -2px; top: 50%; width: 50px; height: 50px; transform: translateY(-50%); pointer-events: none; z-index: 0; }
-  .mine .ring { width: 60px; height: 60px; left: -3px; }
+  .ring { position: absolute; left: -2px; top: 50%; width: 42px; height: 42px; transform: translateY(-50%); pointer-events: none; z-index: 0; }
+  .mine .ring { width: 50px; height: 50px; left: -3px; }
   .ring-bg { fill: none; stroke: rgba(255,255,255,0.12); stroke-width: 5; }
   .ring-fg { fill: none; stroke: var(--accent); stroke-width: 5; stroke-linecap: round; transition: stroke-dasharray 0.12s linear; }
   .ring.urgent .ring-fg { stroke: var(--danger); }
   .txt { display: flex; flex-direction: column; min-width: 0; text-align: left; }
-  .row1 { display: flex; align-items: center; gap: 5px; }
+  .row1 { display: flex; align-items: baseline; gap: 6px; }
+  .row1 .badge, .row1 .dot { align-self: center; }
   .name { font-size: 13px; font-weight: 700; color: var(--text); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .mine .name { font-size: 14px; }
   .badge { font-size: 9px; font-weight: 800; line-height: 1; padding: 2px 4px; border-radius: 4px; color: #12202e; }
   .b-d { background: #f3f6fb; } .b-sb { background: #a9dcef; } .b-bb { background: #e7c14b; }
   .dot.off { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); opacity: 0.6; }
-  .row2 { display: flex; align-items: baseline; gap: 6px; }
   .stack { font-size: 13px; font-weight: 700; color: var(--gold-ink); font-variant-numeric: tabular-nums; }
   .mine .stack { font-size: 15px; }
   .secs { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
   .secs.urgent { color: var(--danger); font-weight: 700; }
-  .row3 { font-size: 11px; min-height: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
+  .row3 { font-size: 11px; min-height: 13px; line-height: 1.15; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
   .row3.win { color: var(--ok); font-weight: 700; }
   .row3.lose { color: var(--danger); font-weight: 700; }
   .row3.push { color: var(--gold-ink); font-weight: 700; }

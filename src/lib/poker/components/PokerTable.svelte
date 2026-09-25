@@ -5,6 +5,7 @@
   import Chip from "./Chip.svelte";
   import { reducedMotion } from "$lib/motion.js";
   import { ringPositions } from "$lib/poker/ring.js";
+  import { getContext } from "svelte";
 
   // The poker arena: seats around the ellipse (mine bottom centre, big cards),
   // community board + pot in the middle, chips flying seat→pot and pot→winner.
@@ -41,8 +42,10 @@
   let _fid = 0, _prevCommitted = new Map(), _prevResultKey = null, _seeded = false;
   const POT = { x: 50, y: 50 };
   let positions = $derived(ringPositions(seatNos, mySeatNo, false));
+  // the bank (MoneyLayer) moves the real coins when present; these single chips are its fallback
+  const bankCtx = getContext("bank");
   function spawn(x0, y0, x1, y1, value, kind, delay = 0) {
-    if (reducedMotion()) return;
+    if (reducedMotion() || bankCtx?.current) return;
     const id = ++_fid, jx = (Math.random() - 0.5) * 3, jy = (Math.random() - 0.5) * 3;
     flights.push({ id, kind, value, pos: { x: x0 + jx, y: y0 + jy }, o: 0 });
     const f = flights[flights.length - 1];

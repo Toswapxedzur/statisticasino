@@ -4,6 +4,7 @@
   import CoinStack from "./CoinStack.svelte";
   import { scale, fly } from "svelte/transition";
   import { d, DUR } from "$lib/motion.js";
+  import { getContext } from "svelte";
 
   // The community cards and the central pot pill.
   //  board     — string[] of revealed community cards (0..5).
@@ -15,6 +16,11 @@
   //              slots ≥ shown stay empty (the card is still in the air), slots ≥ faceUp show
   //              the back, and `hidden` blanks the board while the canvas collects it.
   let { board = [], potTotal = 0, street = null, result = null, size = "md", width = null, dealt = null } = $props();
+
+  // The bank (coin motion): the pot's coins stand in `.potcoins` above the pill (owner: "POT
+  // sits below all coins"), drawn by MoneyLayer; the pill shows the bank's pot number.
+  const bankCtx = getContext("bank");
+  let bank = $derived(bankCtx?.current ?? null);
 
   // Always render five slots; fill from board, leave the rest as empty slots.
   let slots = $derived(Array.from({ length: 5 }, (_, i) => board[i] ?? null));
@@ -52,16 +58,17 @@
     {/each}
   </div>
 
+  {#if bank}<div class="potcoins" data-pot-coins></div>{/if}
   <div class="pot" class:result={!!result}>
-    {#if (result ? (wonAmount || potTotal) : potTotal) > 0}
+    {#if !bank && (result ? (wonAmount || potTotal) : potTotal) > 0}
       <span class="pot-chip"><CoinStack value={result ? (wonAmount || potTotal) : potTotal} size={20} /></span>
     {/if}
     {#if result}
       <span class="pot-lbl">{result.type === "showdown" ? "Showdown" : "Winner"}</span>
-      <span class="pot-amt"><Num value={wonAmount || potTotal} /></span>
+      <span class="pot-amt" data-pot-number><Num value={wonAmount || potTotal} /></span>
     {:else}
       <span class="pot-lbl">Pot</span>
-      <span class="pot-amt"><Num value={potTotal} /></span>
+      <span class="pot-amt" data-pot-number>{#if bank && bank.pot != null}{bank.pot.toLocaleString()}{:else}<Num value={potTotal} />{/if}</span>
       {#if street}<span class="street">{street}</span>{/if}
     {/if}
   </div>
@@ -76,6 +83,7 @@
   }
   .slots { display: flex; gap: 6px; }
   .deal { line-height: 0; display: inline-flex; }
+  .potcoins { width: 120px; height: 34px; margin-bottom: -8px; }
   .bslot { line-height: 0; display: inline-flex; position: relative; }
   /* dealt cards: land face-down, then turn over (the flop's three together) */
   .flip { position: relative; display: inline-flex; line-height: 0; transform-style: preserve-3d; transition: transform 0.5s cubic-bezier(0.4, 0.85, 0.35, 1); }

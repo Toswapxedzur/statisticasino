@@ -15,7 +15,10 @@
 //           into smaller ones where a digit is short, like subtraction.
 //   return  the uncalled part of a bet flies back to the badge.
 //   award   each winner's share flies from the pot to the badge, sinks into it; the stack counts up.
+//   banked  the House pays a winner into the player's pile (a bet from the House badge), takes a
+//           loser's pile (collect), and every pile then goes home (giveBack).
 // Every move is minimum-jerk (speed and acceleration zero at both ends), with a small lift.
+// A "seat" is a seat number, or "house" for the House badge.
 //
 // Places, resolved to screen positions by the renderer every frame:
 //   { kind: "stack", seat }            the seat's badge (its stack)
@@ -72,13 +75,14 @@ export class Money {
   }
 
   // ------------------------------------------------------------------ actions
-  bet(seat, amount, t) {
+  /** `amount` onto `seat`'s pile, paid from `payer`'s badge (the seat itself, or "house"). */
+  bet(seat, amount, t, payer = seat) {
     const pile = `bet:${seat}`;
     breakdown(amount).forEach((c, i) => {
       this._at(t + i * COIN.every, (now) => {
         const value = c.denom * c.count;
-        this._setStack(seat, this.stack.get(seat) - value, null);   // leaves the badge at once
-        this._fly({ kind: "column", denom: c.denom, count: c.count, amount: value, from: { kind: "stack", seat }, to: { kind: "slot", pile, denom: c.denom }, dur: COIN.flight }, now, (tl) => {
+        this._setStack(payer, (this.stack.get(payer) ?? 0) - value, null);   // leaves the badge at once
+        this._fly({ kind: "column", denom: c.denom, count: c.count, amount: value, from: { kind: "stack", seat: payer }, to: { kind: "slot", pile, denom: c.denom }, dur: COIN.flight }, now, (tl) => {
           this._add(pile, c.denom, c.count, tl);
           if (i === 0) this.cues.push({ t: tl, name: "bet" });
         });
@@ -98,6 +102,43 @@ export class Money {
       if (!back) return;
       this._take(pile, back, now, (t1, cols) => this._flyHome(pile, cols, seat, t1, COIN.back, null));
     });
+  }
+
+  /** `amount` of a seat's pile goes to another badge (a lost bet to the House); any part the
+   *  pile doesn't hold comes straight from the seat's own badge. */
+  collect(seat, amount, t, to = "house") {
+    this._whenSettled(t, COIN.sweepAfter, (now) => {
+      const pile = `bet:${seat}`, fromPile = Math.min(this.amountOf(pile), amount), rest = amount - fromPile;
+      if (fromPile) this._take(pile, fromPile, now, (t1, cols) => this._flyHome(pile, cols, to, t1, COIN.back, null));
+      if (rest > 0) this.transfer(seat, to, rest, now);
+    });
+  }
+
+  /** Badge to badge (e.g. a hidden blind the House wins): columns leave one badge, sink into the other. */
+  transfer(from, to, amount, t) {
+    breakdown(amount).forEach((c, i) => {
+      this._at(t + i * COIN.every, (now) => {
+        const value = c.denom * c.count;
+        this._setStack(from, (this.stack.get(from) ?? 0) - value, null);
+        this._fly({ kind: "column", denom: c.denom, count: c.count, amount: value, from: { kind: "stack", seat: from }, to: { kind: "stack", seat: to }, dur: COIN.award, sink: COIN.sink }, now, (tl) => {
+          this._setStack(to, (this.stack.get(to) ?? 0) + value, tl);
+        });
+      });
+    });
+  }
+
+  /** Everything still moving lands now (a new round arrived before the last one finished). */
+  finish(t) { this.tick(t + 600000); this.flights = []; this._count.clear(); }
+
+  /** Put the table in a known state at once, no motion: stacks { seat: n }, piles { key: amount }. */
+  snap(stacks, piles) {
+    this.stack = new Map(Object.entries(stacks).map(([k, v]) => [k === "house" ? "house" : +k, v]));
+    this.piles = new Map();
+    for (const [key, amount] of Object.entries(piles)) {
+      if (!(amount > 0)) continue;
+      this.piles.set(key, new Map(breakdown(amount).map((c) => [c.denom, c.count])));
+    }
+    this._count.clear();
   }
 
   /** The pot to the winners: shares [{ seat, amount }] (a split pot has several). */
@@ -159,6 +200,8 @@ export class Money {
   }
   /** The number a badge shows at `t` (counts up after a win lands). */
   stackAt(seat, t) { return this._shown(`stack:${seat}`, this.stack.get(seat) ?? 0, t); }
+  /** Every pile's amount including its own merges / breaks in the air. */
+  pileAt(pile) { return this.amountOf(pile) + this._inPile(pile); }
   /** The pot number at `t` (counts up as the sweep lands). */
   potAt(t) { return this._shown("pot", this.amountOf("pot") + this._inPile("pot"), t); }
   /** A flight's state at `t`: progress u (0..1), eased s, lift (0..1 of the arc), sink (0..1). */
@@ -245,7 +288,7 @@ export class Money {
   _flyHome(pile, cols, seat, t, dur, cue) {
     cols.forEach(([d, n], i) => {
       this._fly({ kind: "column", denom: d, count: n, amount: d * n, from: { kind: "slot", pile, denom: d }, to: { kind: "stack", seat }, dur, sink: COIN.sink }, t, (tl) => {
-        this._setStack(seat, this.stack.get(seat) + d * n, tl);
+        this._setStack(seat, (this.stack.get(seat) ?? 0) + d * n, tl);
         if (cue && i === 0) this.cues.push({ t: tl, name: cue });
       });
     });
@@ -262,7 +305,7 @@ export class Money {
     const seq = ++this._seq;
     const run = (now) => {
       const moving = this.flights.filter((f) => !f.landed && f.to.kind !== "stack");
-      const queued = this._queue.some((q) => q.norm || (q.t <= now && (q.bet || (q.seq && q.seq < seq))));
+      const queued = this._queue.some((q) => q.norm || (q.seq && q.seq < seq) || (q.bet && q.t <= now));
       if (queued || moving.length) {
         const next = moving.length ? Math.max(...moving.map((f) => f.t0 + f.dur)) + after : now + COIN.every;
         this._queue.push({ t: Math.max(next, now + 1), fn: run, seq });

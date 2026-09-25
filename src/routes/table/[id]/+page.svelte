@@ -34,7 +34,9 @@
   import { Dealer } from "$lib/poker/dealer.svelte.js";
   import { animatesTable } from "$lib/poker/deal-anim.js";
   import { reducedMotion } from "$lib/motion.js";
-  import { untrack } from "svelte";
+  import { untrack, setContext } from "svelte";
+  import MoneyLayer from "$lib/poker/components/MoneyLayer.svelte";
+  import { Bank, moneyKind } from "$lib/poker/bank.svelte.js";
 
   let { data } = $props();
   // Reactive: a River Sprint fold-teleport navigates /table/A -> /table/B on the
@@ -238,6 +240,28 @@
     });
   });
 
+  // --- coins in motion, every game mode (see $lib/poker/bank.svelte.js) ---
+  // One Bank per table: view changes → coin flights drawn by MoneyLayer; the badges / pot read
+  // their numbers from it (context "bank") while coins move.
+  let bank = $state(null);
+  setContext("bank", { get current() { return bank; } });
+  let _bankFor = null, _bankPrev = null;
+  $effect(() => {
+    const v = view;
+    const kind = v && !reducedMotion() ? moneyKind(v) : null;
+    untrack(() => {
+      if (!kind) { bank = null; _bankFor = null; _bankPrev = null; return; }
+      if (_bankFor !== v.id || !bank || bank.kind !== kind) {
+        bank = new Bank(kind);
+        bank.init(v);
+        _bankFor = v.id; _bankPrev = v;
+        return;
+      }
+      const prev = _bankPrev; _bankPrev = v;
+      if (prev !== v) bank.onView(prev, v);
+    });
+  });
+
   // Your turn: the server sends TABLE_TURN only to the acting player.
   let _prevTurnDeadline = null;
   $effect(() => {
@@ -323,6 +347,7 @@
 <svelte:head><title>{data.table.name} — {SITE_NAME}</title></svelte:head>
 
 <div class="tablepage">
+  {#if bank}<MoneyLayer {bank} />{/if}
   {#if dealer}<DeckLayer {dealer} />{/if}
   <!-- slim overlay strip: no site bar on a table -->
   <div class="hud">
