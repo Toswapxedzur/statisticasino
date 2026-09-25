@@ -1,0 +1,785 @@
+[
+ {
+  "id": "R2",
+  "group": "ref",
+  "name": "Ours today",
+  "source": "composer.js",
+  "licence": "Ours",
+  "file": "backs/R2.svg",
+  "note": ""
+ },
+ {
+  "id": "K1",
+  "group": "cc0",
+  "name": "Kennard Goodall",
+  "source": "Adrian Kennard generator \u00b7 colour configurable",
+  "licence": "CC0",
+  "file": "backs/K1.svg",
+  "note": "1860s Victorian design"
+ },
+ {
+  "id": "K2",
+  "group": "cc0",
+  "name": "Kennard Diamond",
+  "source": "Adrian Kennard generator \u00b7 colour configurable",
+  "licence": "CC0",
+  "file": "backs/K2.svg",
+  "note": ""
+ },
+ {
+  "id": "K3",
+  "group": "cc0",
+  "name": "Kennard Maze",
+  "source": "Adrian Kennard generator \u00b7 colour configurable",
+  "licence": "CC0",
+  "file": "backs/K3.svg",
+  "note": ""
+ },
+ {
+  "id": "K4",
+  "group": "cc0",
+  "name": "Kennard Illusion",
+  "source": "Adrian Kennard generator \u00b7 colour configurable",
+  "licence": "CC0",
+  "file": "backs/K4.svg",
+  "note": ""
+ },
+ {
+  "id": "K5",
+  "group": "cc0",
+  "name": "Kennard Arrows",
+  "source": "Adrian Kennard generator \u00b7 colour configurable",
+  "licence": "CC0",
+  "file": "backs/K5.svg",
+  "note": ""
+ },
+ {
+  "id": "K6",
+  "group": "cc0",
+  "name": "Kennard Marked",
+  "source": "Adrian Kennard generator \u00b7 colour configurable",
+  "licence": "CC0",
+  "file": "backs/K6.svg",
+  "note": "Marked-deck gimmick"
+ },
+ {
+  "id": "K7",
+  "group": "cc0",
+  "name": "Kennard Plain",
+  "source": "Adrian Kennard generator \u00b7 colour configurable",
+  "licence": "CC0",
+  "file": "backs/K7.svg",
+  "note": ""
+ },
+ {
+  "id": "N1",
+  "group": "cc0",
+  "name": "Nicu fanned aces, blue",
+  "source": "Nicu Buculei \u00b7 Openclipart",
+  "licence": "CC0",
+  "file": "backs/N1.svg",
+  "note": ""
+ },
+ {
+  "id": "N2",
+  "group": "cc0",
+  "name": "Nicu fanned aces, red",
+  "source": "Nicu Buculei \u00b7 Openclipart",
+  "licence": "CC0",
+  "file": "backs/N2.svg",
+  "note": ""
+ },
+ {
+  "id": "N3",
+  "group": "cc0",
+  "name": "Nicu diamond lattice, blue",
+  "source": "Nicu Buculei \u00b7 Openclipart",
+  "licence": "CC0",
+  "file": "backs/N3.svg",
+  "note": "Looks like Bee (trademark)"
+ },
+ {
+  "id": "N4",
+  "group": "cc0",
+  "name": "Nicu diamond lattice, red",
+  "source": "Nicu Buculei \u00b7 Openclipart",
+  "licence": "CC0",
+  "file": "backs/N4.svg",
+  "note": "Looks like Bee (trademark)"
+ },
+ {
+  "id": "N5",
+  "group": "cc0",
+  "name": "Nicu abstract cards, blue",
+  "source": "Nicu Buculei \u00b7 Openclipart",
+  "licence": "CC0",
+  "file": "backs/N5.svg",
+  "note": "Faint \u201cOpenClipart\u201d text"
+ },
+ {
+  "id": "N6",
+  "group": "cc0",
+  "name": "Nicu abstract cards, red",
+  "source": "Nicu Buculei \u00b7 Openclipart",
+  "licence": "CC0",
+  "file": "backs/N6.svg",
+  "note": "Faint \u201cOpenClipart\u201d text"
+ },
+ {
+  "id": "N7",
+  "group": "cc0",
+  "name": "Nicu big suits, blue",
+  "source": "Nicu Buculei \u00b7 Openclipart",
+  "licence": "CC0",
+  "file": "backs/N7.svg",
+  "note": ""
+ },
+ {
+  "id": "N8",
+  "group": "cc0",
+  "name": "Nicu big suits, red",
+  "source": "Nicu Buculei \u00b7 Openclipart",
+  "licence": "CC0",
+  "file": "backs/N8.svg",
+  "note": ""
+ },
+ {
+  "id": "N9",
+  "group": "cc0",
+  "name": "Nicu outline suits, blue",
+  "source": "Nicu Buculei \u00b7 Openclipart",
+  "licence": "CC0",
+  "file": "backs/N9.svg",
+  "note": ""
+ },
+ {
+  "id": "N10",
+  "group": "cc0",
+  "name": "Nicu outline suits, red",
+  "source": "Nicu Buculei \u00b7 Openclipart",
+  "licence": "CC0",
+  "file": "backs/N10.svg",
+  "note": ""
+ },
+ {
+  "id": "D1",
+  "group": "cc0",
+  "name": "BdRGames 1 blue",
+  "source": "BdRGames \u00b7 recolour script included",
+  "licence": "CC0",
+  "file": "backs/D1.svg",
+  "note": ""
+ },
+ {
+  "id": "D2",
+  "group": "cc0",
+  "name": "BdRGames 1 lightblue",
+  "source": "BdRGames \u00b7 recolour script included",
+  "licence": "CC0",
+  "file": "backs/D2.svg",
+  "note": ""
+ },
+ {
+  "id": "D3",
+  "group": "cc0",
+  "name": "BdRGames 1 green",
+  "source": "BdRGames \u00b7 recolour script included",
+  "licence": "CC0",
+  "file": "backs/D3.svg",
+  "note": ""
+ },
+ {
+  "id": "D4",
+  "group": "cc0",
+  "name": "BdRGames 1 red",
+  "source": "BdRGames \u00b7 recolour script included",
+  "licence": "CC0",
+  "file": "backs/D4.svg",
+  "note": ""
+ },
+ {
+  "id": "D5",
+  "group": "cc0",
+  "name": "BdRGames 1 black",
+  "source": "BdRGames \u00b7 recolour script included",
+  "licence": "CC0",
+  "file": "backs/D5.svg",
+  "note": ""
+ },
+ {
+  "id": "D6",
+  "group": "cc0",
+  "name": "BdRGames 2 blue",
+  "source": "BdRGames \u00b7 recolour script included",
+  "licence": "CC0",
+  "file": "backs/D6.svg",
+  "note": ""
+ },
+ {
+  "id": "D7",
+  "group": "cc0",
+  "name": "BdRGames 2 lightblue",
+  "source": "BdRGames \u00b7 recolour script included",
+  "licence": "CC0",
+  "file": "backs/D7.svg",
+  "note": ""
+ },
+ {
+  "id": "D8",
+  "group": "cc0",
+  "name": "BdRGames 2 green",
+  "source": "BdRGames \u00b7 recolour script included",
+  "licence": "CC0",
+  "file": "backs/D8.svg",
+  "note": ""
+ },
+ {
+  "id": "D9",
+  "group": "cc0",
+  "name": "BdRGames 2 red",
+  "source": "BdRGames \u00b7 recolour script included",
+  "licence": "CC0",
+  "file": "backs/D9.svg",
+  "note": ""
+ },
+ {
+  "id": "D10",
+  "group": "cc0",
+  "name": "BdRGames 2 black",
+  "source": "BdRGames \u00b7 recolour script included",
+  "licence": "CC0",
+  "file": "backs/D10.svg",
+  "note": ""
+ },
+ {
+  "id": "D11",
+  "group": "cc0",
+  "name": "BdRGames 3 blue",
+  "source": "BdRGames \u00b7 recolour script included",
+  "licence": "CC0",
+  "file": "backs/D11.svg",
+  "note": ""
+ },
+ {
+  "id": "D12",
+  "group": "cc0",
+  "name": "BdRGames 3 lightblue",
+  "source": "BdRGames \u00b7 recolour script included",
+  "licence": "CC0",
+  "file": "backs/D12.svg",
+  "note": ""
+ },
+ {
+  "id": "D13",
+  "group": "cc0",
+  "name": "BdRGames 3 green",
+  "source": "BdRGames \u00b7 recolour script included",
+  "licence": "CC0",
+  "file": "backs/D13.svg",
+  "note": ""
+ },
+ {
+  "id": "D14",
+  "group": "cc0",
+  "name": "BdRGames 3 red",
+  "source": "BdRGames \u00b7 recolour script included",
+  "licence": "CC0",
+  "file": "backs/D14.svg",
+  "note": ""
+ },
+ {
+  "id": "D15",
+  "group": "cc0",
+  "name": "BdRGames 3 black",
+  "source": "BdRGames \u00b7 recolour script included",
+  "licence": "CC0",
+  "file": "backs/D15.svg",
+  "note": ""
+ },
+ {
+  "id": "Y1",
+  "group": "cc0",
+  "name": "Kenney blue 1",
+  "source": "Kenney Boardgame Pack",
+  "licence": "CC0",
+  "file": "backs/Y1.png",
+  "note": "Low-res PNG; SVG sheet in pack"
+ },
+ {
+  "id": "Y2",
+  "group": "cc0",
+  "name": "Kenney blue 2",
+  "source": "Kenney Boardgame Pack",
+  "licence": "CC0",
+  "file": "backs/Y2.png",
+  "note": "Low-res PNG; SVG sheet in pack"
+ },
+ {
+  "id": "Y3",
+  "group": "cc0",
+  "name": "Kenney blue 3",
+  "source": "Kenney Boardgame Pack",
+  "licence": "CC0",
+  "file": "backs/Y3.png",
+  "note": "Low-res PNG; SVG sheet in pack"
+ },
+ {
+  "id": "Y4",
+  "group": "cc0",
+  "name": "Kenney blue 4",
+  "source": "Kenney Boardgame Pack",
+  "licence": "CC0",
+  "file": "backs/Y4.png",
+  "note": "Low-res PNG; SVG sheet in pack"
+ },
+ {
+  "id": "Y5",
+  "group": "cc0",
+  "name": "Kenney blue 5",
+  "source": "Kenney Boardgame Pack",
+  "licence": "CC0",
+  "file": "backs/Y5.png",
+  "note": "Low-res PNG; SVG sheet in pack"
+ },
+ {
+  "id": "Y6",
+  "group": "cc0",
+  "name": "Kenney green 1",
+  "source": "Kenney Boardgame Pack",
+  "licence": "CC0",
+  "file": "backs/Y6.png",
+  "note": "Low-res PNG; SVG sheet in pack"
+ },
+ {
+  "id": "Y7",
+  "group": "cc0",
+  "name": "Kenney green 2",
+  "source": "Kenney Boardgame Pack",
+  "licence": "CC0",
+  "file": "backs/Y7.png",
+  "note": "Low-res PNG; SVG sheet in pack"
+ },
+ {
+  "id": "Y8",
+  "group": "cc0",
+  "name": "Kenney green 3",
+  "source": "Kenney Boardgame Pack",
+  "licence": "CC0",
+  "file": "backs/Y8.png",
+  "note": "Low-res PNG; SVG sheet in pack"
+ },
+ {
+  "id": "Y9",
+  "group": "cc0",
+  "name": "Kenney green 4",
+  "source": "Kenney Boardgame Pack",
+  "licence": "CC0",
+  "file": "backs/Y9.png",
+  "note": "Low-res PNG; SVG sheet in pack"
+ },
+ {
+  "id": "Y10",
+  "group": "cc0",
+  "name": "Kenney green 5",
+  "source": "Kenney Boardgame Pack",
+  "licence": "CC0",
+  "file": "backs/Y10.png",
+  "note": "Low-res PNG; SVG sheet in pack"
+ },
+ {
+  "id": "Y11",
+  "group": "cc0",
+  "name": "Kenney red 1",
+  "source": "Kenney Boardgame Pack",
+  "licence": "CC0",
+  "file": "backs/Y11.png",
+  "note": "Low-res PNG; SVG sheet in pack"
+ },
+ {
+  "id": "Y12",
+  "group": "cc0",
+  "name": "Kenney red 2",
+  "source": "Kenney Boardgame Pack",
+  "licence": "CC0",
+  "file": "backs/Y12.png",
+  "note": "Low-res PNG; SVG sheet in pack"
+ },
+ {
+  "id": "Y13",
+  "group": "cc0",
+  "name": "Kenney red 3",
+  "source": "Kenney Boardgame Pack",
+  "licence": "CC0",
+  "file": "backs/Y13.png",
+  "note": "Low-res PNG; SVG sheet in pack"
+ },
+ {
+  "id": "Y14",
+  "group": "cc0",
+  "name": "Kenney red 4",
+  "source": "Kenney Boardgame Pack",
+  "licence": "CC0",
+  "file": "backs/Y14.png",
+  "note": "Low-res PNG; SVG sheet in pack"
+ },
+ {
+  "id": "Y15",
+  "group": "cc0",
+  "name": "Kenney red 5",
+  "source": "Kenney Boardgame Pack",
+  "licence": "CC0",
+  "file": "backs/Y15.png",
+  "note": "Low-res PNG; SVG sheet in pack"
+ },
+ {
+  "id": "S1",
+  "group": "cc0",
+  "name": "Sylly blue 1",
+  "source": "Sylly (Andrew Tidey) Cards Set",
+  "licence": "CC0",
+  "file": "backs/S1.png",
+  "note": ""
+ },
+ {
+  "id": "S2",
+  "group": "cc0",
+  "name": "Sylly blue 2",
+  "source": "Sylly (Andrew Tidey) Cards Set",
+  "licence": "CC0",
+  "file": "backs/S2.png",
+  "note": ""
+ },
+ {
+  "id": "S3",
+  "group": "cc0",
+  "name": "Sylly grey 1",
+  "source": "Sylly (Andrew Tidey) Cards Set",
+  "licence": "CC0",
+  "file": "backs/S3.png",
+  "note": ""
+ },
+ {
+  "id": "S4",
+  "group": "cc0",
+  "name": "Sylly grey 2",
+  "source": "Sylly (Andrew Tidey) Cards Set",
+  "licence": "CC0",
+  "file": "backs/S4.png",
+  "note": ""
+ },
+ {
+  "id": "S5",
+  "group": "cc0",
+  "name": "Sylly red 1",
+  "source": "Sylly (Andrew Tidey) Cards Set",
+  "licence": "CC0",
+  "file": "backs/S5.png",
+  "note": ""
+ },
+ {
+  "id": "S6",
+  "group": "cc0",
+  "name": "Sylly red 2",
+  "source": "Sylly (Andrew Tidey) Cards Set",
+  "licence": "CC0",
+  "file": "backs/S6.png",
+  "note": ""
+ },
+ {
+  "id": "C1",
+  "group": "cc0",
+  "name": "Kennard lattice, dark",
+  "source": "Wikimedia Commons 1B.svg",
+  "licence": "CC0",
+  "file": "backs/C1.svg",
+  "note": ""
+ },
+ {
+  "id": "C2",
+  "group": "cc0",
+  "name": "Kennard lattice, red",
+  "source": "Wikimedia Commons 2B.svg",
+  "licence": "CC0",
+  "file": "backs/C2.svg",
+  "note": ""
+ },
+ {
+  "id": "C3",
+  "group": "cc0",
+  "name": "Atlas tartan, blue & brown",
+  "source": "Dmitry Fomin \u00b7 Commons",
+  "licence": "CC0",
+  "file": "backs/C3.svg",
+  "note": ""
+ },
+ {
+  "id": "C4",
+  "group": "cc0",
+  "name": "Atlas tartan, green & red",
+  "source": "Dmitry Fomin \u00b7 Commons",
+  "licence": "CC0",
+  "file": "backs/C4.svg",
+  "note": ""
+ },
+ {
+  "id": "C5",
+  "group": "cc0",
+  "name": "Tiled blue rhombus",
+  "source": "HFWMan \u00b7 Commons",
+  "licence": "CC0",
+  "file": "backs/C5.svg",
+  "note": ""
+ },
+ {
+  "id": "C6",
+  "group": "cc0",
+  "name": "Blue stripes (minicard)",
+  "source": "ToasterCoder \u00b7 Commons",
+  "licence": "CC0",
+  "file": "backs/C6.svg",
+  "note": ""
+ },
+ {
+  "id": "C7",
+  "group": "cc0",
+  "name": "Red rose-window rosette",
+  "source": "Trocche100 \u00b7 Commons",
+  "licence": "CC0 (claimed)",
+  "file": "backs/C7.svg",
+  "note": "Origin unverified"
+ },
+ {
+  "id": "C8",
+  "group": "cc0",
+  "name": "Russian-style ornate",
+  "source": "Historical scan \u00b7 Commons",
+  "licence": "Public domain",
+  "file": "backs/C8.jpg",
+  "note": "Scan, uneven"
+ },
+ {
+  "id": "C9",
+  "group": "cc0",
+  "name": "Screaming Brain lattice",
+  "source": "2D Poker Pack",
+  "licence": "CC0",
+  "file": "backs/C9.png",
+  "note": "Tiny PNG"
+ },
+ {
+  "id": "M1",
+  "group": "mit",
+  "name": "MattCain navy stripes",
+  "source": "MattCain/svg-playing-cards",
+  "licence": "MIT \u00b7 keep notice",
+  "file": "backs/M1.svg",
+  "note": ""
+ },
+ {
+  "id": "E1",
+  "group": "ccby",
+  "name": "Sharm navy Art Nouveau",
+  "source": "Sharm \u00b7 OpenGameArt \u00b7 3000\u00d74200 original",
+  "licence": "CC-BY \u00b7 credit",
+  "file": "backs/E1.png",
+  "note": "Highest resolution found"
+ },
+ {
+  "id": "L01",
+  "group": "lgpl",
+  "name": "Bellot 01 red ornate floral",
+  "source": "David Bellot \u00b7 Commons",
+  "licence": "LGPL",
+  "file": "backs/L01.svg",
+  "note": ""
+ },
+ {
+  "id": "L02",
+  "group": "lgpl",
+  "name": "Bellot 02 stripes",
+  "source": "David Bellot \u00b7 Commons",
+  "licence": "LGPL / PD",
+  "file": "backs/L02.svg",
+  "note": ""
+ },
+ {
+  "id": "L02a",
+  "group": "lgpl",
+  "name": "Bellot 02a stripes (alt)",
+  "source": "David Bellot \u00b7 Commons",
+  "licence": "LGPL",
+  "file": "backs/L02a.svg",
+  "note": ""
+ },
+ {
+  "id": "L03",
+  "group": "lgpl",
+  "name": "Bellot 03 red stripes",
+  "source": "David Bellot \u00b7 Commons",
+  "licence": "LGPL",
+  "file": "backs/L03.svg",
+  "note": ""
+ },
+ {
+  "id": "L03a",
+  "group": "lgpl",
+  "name": "Bellot 03a stripes a",
+  "source": "David Bellot \u00b7 Commons",
+  "licence": "LGPL",
+  "file": "backs/L03a.svg",
+  "note": ""
+ },
+ {
+  "id": "L03b",
+  "group": "lgpl",
+  "name": "Bellot 03b stripes b",
+  "source": "David Bellot \u00b7 Commons",
+  "licence": "LGPL",
+  "file": "backs/L03b.svg",
+  "note": ""
+ },
+ {
+  "id": "L03c",
+  "group": "lgpl",
+  "name": "Bellot 03c stripes c",
+  "source": "David Bellot \u00b7 Commons",
+  "licence": "LGPL",
+  "file": "backs/L03c.svg",
+  "note": ""
+ },
+ {
+  "id": "L04",
+  "group": "lgpl",
+  "name": "Bellot 04 red checker border",
+  "source": "David Bellot \u00b7 Commons",
+  "licence": "LGPL",
+  "file": "backs/L04.svg",
+  "note": ""
+ },
+ {
+  "id": "L05",
+  "group": "lgpl",
+  "name": "Bellot 05 blue geometric tile",
+  "source": "David Bellot \u00b7 Commons",
+  "licence": "LGPL",
+  "file": "backs/L05.svg",
+  "note": ""
+ },
+ {
+  "id": "L05a",
+  "group": "lgpl",
+  "name": "Bellot 05a red geometric tile",
+  "source": "David Bellot \u00b7 Commons",
+  "licence": "LGPL",
+  "file": "backs/L05a.svg",
+  "note": ""
+ },
+ {
+  "id": "L06",
+  "group": "lgpl",
+  "name": "Bellot 06 navy, rope border",
+  "source": "David Bellot \u00b7 Commons",
+  "licence": "LGPL",
+  "file": "backs/L06.svg",
+  "note": ""
+ },
+ {
+  "id": "L09",
+  "group": "lgpl",
+  "name": "Bellot 09 Bellot 09",
+  "source": "David Bellot \u00b7 Commons",
+  "licence": "LGPL",
+  "file": "backs/L09.svg",
+  "note": ""
+ },
+ {
+  "id": "L13",
+  "group": "lgpl",
+  "name": "Bellot 13 rainbow gradient",
+  "source": "David Bellot \u00b7 Commons",
+  "licence": "LGPL",
+  "file": "backs/L13.svg",
+  "note": ""
+ },
+ {
+  "id": "L14",
+  "group": "lgpl",
+  "name": "Bellot 14 yellow, frayed edge",
+  "source": "David Bellot \u00b7 Commons",
+  "licence": "LGPL",
+  "file": "backs/L14.svg",
+  "note": ""
+ },
+ {
+  "id": "L15",
+  "group": "lgpl",
+  "name": "Bellot 15 plain maroon",
+  "source": "David Bellot \u00b7 Commons",
+  "licence": "LGPL",
+  "file": "backs/L15.svg",
+  "note": ""
+ },
+ {
+  "id": "L16",
+  "group": "lgpl",
+  "name": "Bellot 16 plain green",
+  "source": "David Bellot \u00b7 Commons",
+  "licence": "LGPL",
+  "file": "backs/L16.svg",
+  "note": ""
+ },
+ {
+  "id": "L17",
+  "group": "lgpl",
+  "name": "Bellot 17 plain navy",
+  "source": "David Bellot \u00b7 Commons",
+  "licence": "LGPL",
+  "file": "backs/L17.svg",
+  "note": ""
+ },
+ {
+  "id": "HB",
+  "group": "lgpl",
+  "name": "Bellot medallion blue",
+  "source": "htdebeer/SVG-cards \u00b7 16 colours",
+  "licence": "LGPL-2.1",
+  "file": "backs/HB.png",
+  "note": ""
+ },
+ {
+  "id": "HR",
+  "group": "lgpl",
+  "name": "Bellot medallion red",
+  "source": "htdebeer/SVG-cards \u00b7 16 colours",
+  "licence": "LGPL-2.1",
+  "file": "backs/HR.png",
+  "note": ""
+ },
+ {
+  "id": "HK",
+  "group": "lgpl",
+  "name": "Bellot medallion black",
+  "source": "htdebeer/SVG-cards \u00b7 16 colours",
+  "licence": "LGPL-2.1",
+  "file": "backs/HK.png",
+  "note": ""
+ },
+ {
+  "id": "HG",
+  "group": "lgpl",
+  "name": "Bellot medallion green",
+  "source": "htdebeer/SVG-cards \u00b7 16 colours",
+  "licence": "LGPL-2.1",
+  "file": "backs/HG.png",
+  "note": ""
+ },
+ {
+  "id": "A1",
+  "group": "lgpl",
+  "name": "Aguilar backs (all, one sheet)",
+  "source": "Chris Aguilar Vector Playing Cards",
+  "licence": "LGPL-3 \u00b7 credit",
+  "file": "backs/A1.svg",
+  "note": "~13 backs in one sheet"
+ }
+]

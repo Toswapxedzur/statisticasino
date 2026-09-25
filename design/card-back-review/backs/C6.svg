@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="57" height="88">
+  <pattern id="a" width="16" height="16" x="6.5" y="6" patternUnits="userSpaceOnUse" viewBox="0 0 2 2">
+    <path fill="#00f" d="M0 0h1L0 1zm0 2 2-2v1L1 2z"/>
+  </pattern>
+  <path fill="#fff" d="M1.5 1.5h54v85h-54z"/>
+  <path d="M2 0h53l2 2v84l-2 2H2l-2-2V2zm0 2v84h53V2z"/>
+  <path fill="url(#a)" d="M7 7h43v74H7z"/>
+  <path fill="none" stroke="#00f" stroke-width="2" d="M7 7h43v74H7z"/>
+</svg>

@@ -105,16 +105,16 @@ export function renderBoard(card, width) {
   return svgWrap(boardInner(rank, suit, colorOf(suit)), width);
 }
 
-// ---- OUR ORIGINAL card back + empty slot (no casino.org art) ---------------
-// Deep-navy back with a thin keyline and the centred two-tone rhombus — the
-// same motif as the coin currency, so cards and money share one identity.
+// ---- card back + empty slot ------------------------------------------------
+// Owner's pick (2026-09-25): Sylly "Red 1" — red lattice panel with a centre
+// medallion, by Andrew Tidey, CC0 (static/deck-parts/LICENSE.txt). Only the red panel
+// is used, cut from the vector sheet: it sits inside OUR card frame (same white
+// body and hairline as the faces), so a face-down card has the face-up silhouette.
+// Margins keep Sylly's proportions (7.3% of width, 5.9% of height); "meet" never
+// stretches the lattice. One cached file instead of ~800 inline paths per card.
+const BACK_ART = "/deck-parts/back-sylly-red.svg";
 function backInner() {
-  return (
-    `<rect x="0.5" y="0.5" width="59" height="77" rx="6" fill="#1a2742" stroke="rgba(0,0,0,0.35)"/>` +
-    `<rect x="4.5" y="4.5" width="51" height="69" rx="4" fill="none" stroke="#31456e" stroke-width="1.2"/>` +
-    `<polygon points="30,25 16,39 30,53" fill="#2c3f66"/>` +
-    `<polygon points="30,25 44,39 30,53" fill="#16223c"/>`
-  );
+  return frame() + `<image href="${BACK_ART}" x="4.4" y="4.6" width="51.2" height="68.8" preserveAspectRatio="xMidYMid meet"/>`;
 }
 export function renderBack(width = 60) {
   return svgWrap(backInner(), width);

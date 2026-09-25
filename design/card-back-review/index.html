@@ -1,0 +1,441 @@
+<meta charset="utf-8">
+<title>Card Back Survey</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=Hanken+Grotesk:wght@400;500;600;700&display=swap">
+<style>
+:root{--bg:#f5efe2;--surface:#fffaf0;--well:#ebe3d1;--text:#14203b;--muted:#5b6784;--faint:#8a93a8;--accent:#1f6fa8;--gold:#b07a00;--gold-bg:#f7e7b8;
+--table:#0f172a;--shadow:0 1px 2px rgba(20,32,59,.06),0 6px 18px rgba(20,32,59,.07);
+--f-display:"Fraunces",Georgia,serif;--f-body:"Hanken Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;
+--ok:#1d7a4a;--ok-bg:#dff2e6;--warn:#8a5a00;--warn-bg:#f7e7b8;--bad:#a4332b;--bad-bg:#f8dcd8;--info:#1f6fa8;--info-bg:#dcebf6}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#0b1222;--surface:#16213a;--well:#0f172a;--text:#e5ecff;--muted:#93a3c6;--faint:#62708f;--accent:#5ec8e5;--gold:#f5b60d;--gold-bg:#3a2d0c;--shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.28);
+--ok:#6fd49b;--ok-bg:#12321f;--warn:#f5c451;--warn-bg:#3a2d0c;--bad:#f08a80;--bad-bg:#3a1714;--info:#5ec8e5;--info-bg:#173049}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#0b1222;--surface:#16213a;--well:#0f172a;--text:#e5ecff;--muted:#93a3c6;--faint:#62708f;--accent:#5ec8e5;--gold:#f5b60d;--gold-bg:#3a2d0c;--shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.28);
+--ok:#6fd49b;--ok-bg:#12321f;--warn:#f5c451;--warn-bg:#3a2d0c;--bad:#f08a80;--bad-bg:#3a1714;--info:#5ec8e5;--info-bg:#173049}
+body[data-ground="light"]{--table:#f5efe2}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font:15px/1.5 var(--f-body)}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:20px;padding-block:32px 110px;display:grid;gap:36px}
+header{display:grid;gap:10px}
+.eyebrow{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+h1{font:650 clamp(28px,4.4vw,40px)/1.1 var(--f-display);margin:0;text-wrap:balance}
+h2{font:600 24px/1.2 var(--f-display);margin:0}
+h3{font:600 15px/1.3 var(--f-body);margin:18px 0 10px;color:var(--muted);letter-spacing:.02em}
+.lede{color:var(--muted);max-width:68ch;margin:0}.lede b{color:var(--text)}
+.count{font:600 13px/1 var(--f-body);color:var(--faint);vertical-align:middle;margin-left:4px}
+.sec-head{display:grid;gap:4px}.sec-head p{margin:0;color:var(--muted);font-size:14px}
+.controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:14px;color:var(--muted)}
+.seg{display:inline-flex;background:var(--well);border-radius:999px;padding:3px}
+.seg button{font:600 13px/1 var(--f-body);border:0;background:transparent;color:var(--muted);padding:8px 14px;border-radius:999px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.tile{position:relative;display:grid;grid-template-rows:auto 1fr;background:var(--surface);border-radius:14px;box-shadow:var(--shadow);overflow:hidden;cursor:pointer;transition:box-shadow .15s ease,transform .15s ease}
+.tile.ref{cursor:default}
+.tile:not(.ref):hover{transform:translateY(-2px)}
+.tile.wide{grid-column:1/-1}
+.tile input{position:absolute;opacity:0;pointer-events:none}
+.tile:has(input:checked){box-shadow:0 0 0 3px var(--gold),var(--shadow)}
+.tile:has(input:focus-visible){box-shadow:0 0 0 3px var(--accent),var(--shadow)}
+.tile:has(input:checked)::after{content:"Shortlisted";position:absolute;top:8px;right:8px;font:700 10.5px/1 var(--f-body);letter-spacing:.06em;text-transform:uppercase;background:var(--gold);color:#1a1405;padding:5px 8px;border-radius:999px}
+.ground{background:var(--table);display:flex;align-items:flex-end;justify-content:center;gap:14px;padding:18px 12px 14px;min-height:196px;transition:background .2s ease}
+.big{width:118px;height:165px;object-fit:contain;filter:drop-shadow(0 3px 8px rgba(0,0,0,.35))}
+.tile.wide .big{width:100%;max-width:900px;height:auto;max-height:420px}
+.small{display:grid;justify-items:center;gap:4px}
+.small img{width:44px;height:62px;object-fit:contain;filter:drop-shadow(0 2px 4px rgba(0,0,0,.35))}
+.small span{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#93a3c6}
+body[data-ground="light"] .small span{color:#5b6784}
+.cap{display:grid;gap:3px;padding:10px 12px 12px;align-content:start}
+.id{font:650 13px/1 var(--f-display);color:var(--gold)}
+.nm{font-weight:600;font-size:14px;line-height:1.3}
+.src{font-size:12px;color:var(--muted);line-height:1.35}
+.lic{justify-self:start;font-size:11px;font-weight:600;padding:3px 8px;border-radius:999px;margin-top:3px}
+.l-cc0{background:var(--ok-bg);color:var(--ok)}.l-mit,.l-ours{background:var(--info-bg);color:var(--info)}.l-by{background:var(--warn-bg);color:var(--warn)}.l-gpl{background:var(--warn-bg);color:var(--warn)}.l-prop{background:var(--bad-bg);color:var(--bad)}
+.note{font-size:12px;color:var(--faint)}
+.avoid{background:var(--well);border-radius:14px;padding:16px 18px;font-size:14px;color:var(--muted);margin:0;max-width:80ch}.avoid b{color:var(--text)}
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:5;padding:12px 20px calc(12px + env(safe-area-inset-bottom,0px));background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(10px);box-shadow:0 -8px 24px rgba(0,0,0,.14)}
+.bar-in{max-width:1180px;margin:0 auto;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+#reply{font-weight:600;font-variant-numeric:tabular-nums;user-select:all}#reply.empty{color:var(--faint);font-weight:400}
+.bar button{font:600 14px/1 var(--f-body);border:0;border-radius:999px;padding:10px 16px;cursor:pointer}
+#copy{background:var(--gold);color:#1a1405}#copy:disabled{opacity:.4;cursor:default}#clear{background:var(--well);color:var(--muted)}
+.bar button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (max-width:480px){.grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}.big{width:96px;height:134px}.ground{min-height:160px}}
+@media (prefers-reduced-motion:reduce){.tile,.ground{transition:none}.tile:not(.ref):hover{transform:none}}
+</style>
+<div class="wrap">
+<header>
+ <div class="eyebrow">Bluffing Valley · card art · step 1 of the deal &amp; flip animation</div>
+ <h1>Every open-source card back we can use</h1>
+ <p class="lede"><b>86 backs</b> from 11 sources, plus our old back for reference. Each is shown large and at <b>in-game size</b> (opponents' cards on a full table), where fine detail turns to texture. Grouped by licence, most permissive first; the site is public, so the licence matters. The vector backs (all Kennard, Nicu, BdRGames, Commons SVGs, Bellot) can be recoloured to our navy and gold. Click any back to shortlist it.</p>
+ <div class="controls"><span>Show on</span><div class="seg" role="group" aria-label="Table ground"><button type="button" data-g="dark" aria-pressed="true">Dark table</button><button type="button" data-g="light" aria-pressed="false">Light table</button></div></div>
+</header>
+<section><div class="sec-head"><h2>Reference <span class="count">1</span></h2><p>The back the table used before this pick. The casino.org back isn't stored in the repo (proprietary).</p></div><div class="grid"><div class="tile ref" data-id="R2">
+  <div class="ground"><img class="big" src="backs/R2.svg" alt="Old navy back" loading="lazy"><div class="small"><img src="backs/R2.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">R2</span><span class="nm">Old navy back</span>
+  <span class="src">composer.js before 2026-09-25</span><span class="lic l-ours">Ours</span></div>
+</div></div></section><section><div class="sec-head"><h2>CC0 / public domain <span class="count">62</span></h2><p>Free to use with no credit. Vector ones can be recoloured to our palette.</p></div><h3>Adrian Kennard generator</h3><div class="grid"><label class="tile" data-id="K1"><input type="checkbox" id="pick-K1" value="K1">
+  <div class="ground"><img class="big" src="backs/K1.svg" alt="Kennard Goodall" loading="lazy"><div class="small"><img src="backs/K1.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">K1</span><span class="nm">Kennard Goodall</span>
+  <span class="src">Adrian Kennard generator · colour configurable</span><span class="lic l-cc0">CC0</span><span class="note">1860s Victorian design</span></div>
+</label><label class="tile" data-id="K2"><input type="checkbox" id="pick-K2" value="K2">
+  <div class="ground"><img class="big" src="backs/K2.svg" alt="Kennard Diamond" loading="lazy"><div class="small"><img src="backs/K2.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">K2</span><span class="nm">Kennard Diamond</span>
+  <span class="src">Adrian Kennard generator · colour configurable</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="K3"><input type="checkbox" id="pick-K3" value="K3">
+  <div class="ground"><img class="big" src="backs/K3.svg" alt="Kennard Maze" loading="lazy"><div class="small"><img src="backs/K3.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">K3</span><span class="nm">Kennard Maze</span>
+  <span class="src">Adrian Kennard generator · colour configurable</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="K4"><input type="checkbox" id="pick-K4" value="K4">
+  <div class="ground"><img class="big" src="backs/K4.svg" alt="Kennard Illusion" loading="lazy"><div class="small"><img src="backs/K4.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">K4</span><span class="nm">Kennard Illusion</span>
+  <span class="src">Adrian Kennard generator · colour configurable</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="K5"><input type="checkbox" id="pick-K5" value="K5">
+  <div class="ground"><img class="big" src="backs/K5.svg" alt="Kennard Arrows" loading="lazy"><div class="small"><img src="backs/K5.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">K5</span><span class="nm">Kennard Arrows</span>
+  <span class="src">Adrian Kennard generator · colour configurable</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="K6"><input type="checkbox" id="pick-K6" value="K6">
+  <div class="ground"><img class="big" src="backs/K6.svg" alt="Kennard Marked" loading="lazy"><div class="small"><img src="backs/K6.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">K6</span><span class="nm">Kennard Marked</span>
+  <span class="src">Adrian Kennard generator · colour configurable</span><span class="lic l-cc0">CC0</span><span class="note">Marked-deck gimmick</span></div>
+</label><label class="tile" data-id="K7"><input type="checkbox" id="pick-K7" value="K7">
+  <div class="ground"><img class="big" src="backs/K7.svg" alt="Kennard Plain" loading="lazy"><div class="small"><img src="backs/K7.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">K7</span><span class="nm">Kennard Plain</span>
+  <span class="src">Adrian Kennard generator · colour configurable</span><span class="lic l-cc0">CC0</span></div>
+</label></div><h3>Nicu Buculei (Openclipart)</h3><div class="grid"><label class="tile" data-id="N1"><input type="checkbox" id="pick-N1" value="N1">
+  <div class="ground"><img class="big" src="backs/N1.svg" alt="Nicu fanned aces, blue" loading="lazy"><div class="small"><img src="backs/N1.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">N1</span><span class="nm">Nicu fanned aces, blue</span>
+  <span class="src">Nicu Buculei · Openclipart</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="N2"><input type="checkbox" id="pick-N2" value="N2">
+  <div class="ground"><img class="big" src="backs/N2.svg" alt="Nicu fanned aces, red" loading="lazy"><div class="small"><img src="backs/N2.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">N2</span><span class="nm">Nicu fanned aces, red</span>
+  <span class="src">Nicu Buculei · Openclipart</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="N3"><input type="checkbox" id="pick-N3" value="N3">
+  <div class="ground"><img class="big" src="backs/N3.svg" alt="Nicu diamond lattice, blue" loading="lazy"><div class="small"><img src="backs/N3.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">N3</span><span class="nm">Nicu diamond lattice, blue</span>
+  <span class="src">Nicu Buculei · Openclipart</span><span class="lic l-cc0">CC0</span><span class="note">Looks like Bee (trademark)</span></div>
+</label><label class="tile" data-id="N4"><input type="checkbox" id="pick-N4" value="N4">
+  <div class="ground"><img class="big" src="backs/N4.svg" alt="Nicu diamond lattice, red" loading="lazy"><div class="small"><img src="backs/N4.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">N4</span><span class="nm">Nicu diamond lattice, red</span>
+  <span class="src">Nicu Buculei · Openclipart</span><span class="lic l-cc0">CC0</span><span class="note">Looks like Bee (trademark)</span></div>
+</label><label class="tile" data-id="N5"><input type="checkbox" id="pick-N5" value="N5">
+  <div class="ground"><img class="big" src="backs/N5.svg" alt="Nicu abstract cards, blue" loading="lazy"><div class="small"><img src="backs/N5.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">N5</span><span class="nm">Nicu abstract cards, blue</span>
+  <span class="src">Nicu Buculei · Openclipart</span><span class="lic l-cc0">CC0</span><span class="note">Faint “OpenClipart” text</span></div>
+</label><label class="tile" data-id="N6"><input type="checkbox" id="pick-N6" value="N6">
+  <div class="ground"><img class="big" src="backs/N6.svg" alt="Nicu abstract cards, red" loading="lazy"><div class="small"><img src="backs/N6.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">N6</span><span class="nm">Nicu abstract cards, red</span>
+  <span class="src">Nicu Buculei · Openclipart</span><span class="lic l-cc0">CC0</span><span class="note">Faint “OpenClipart” text</span></div>
+</label><label class="tile" data-id="N7"><input type="checkbox" id="pick-N7" value="N7">
+  <div class="ground"><img class="big" src="backs/N7.svg" alt="Nicu big suits, blue" loading="lazy"><div class="small"><img src="backs/N7.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">N7</span><span class="nm">Nicu big suits, blue</span>
+  <span class="src">Nicu Buculei · Openclipart</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="N8"><input type="checkbox" id="pick-N8" value="N8">
+  <div class="ground"><img class="big" src="backs/N8.svg" alt="Nicu big suits, red" loading="lazy"><div class="small"><img src="backs/N8.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">N8</span><span class="nm">Nicu big suits, red</span>
+  <span class="src">Nicu Buculei · Openclipart</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="N9"><input type="checkbox" id="pick-N9" value="N9">
+  <div class="ground"><img class="big" src="backs/N9.svg" alt="Nicu outline suits, blue" loading="lazy"><div class="small"><img src="backs/N9.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">N9</span><span class="nm">Nicu outline suits, blue</span>
+  <span class="src">Nicu Buculei · Openclipart</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="N10"><input type="checkbox" id="pick-N10" value="N10">
+  <div class="ground"><img class="big" src="backs/N10.svg" alt="Nicu outline suits, red" loading="lazy"><div class="small"><img src="backs/N10.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">N10</span><span class="nm">Nicu outline suits, red</span>
+  <span class="src">Nicu Buculei · Openclipart</span><span class="lic l-cc0">CC0</span></div>
+</label></div><h3>BdRGames</h3><div class="grid"><label class="tile" data-id="D1"><input type="checkbox" id="pick-D1" value="D1">
+  <div class="ground"><img class="big" src="backs/D1.svg" alt="BdRGames 1 blue" loading="lazy"><div class="small"><img src="backs/D1.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">D1</span><span class="nm">BdRGames 1 blue</span>
+  <span class="src">BdRGames · recolour script included</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="D2"><input type="checkbox" id="pick-D2" value="D2">
+  <div class="ground"><img class="big" src="backs/D2.svg" alt="BdRGames 1 lightblue" loading="lazy"><div class="small"><img src="backs/D2.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">D2</span><span class="nm">BdRGames 1 lightblue</span>
+  <span class="src">BdRGames · recolour script included</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="D3"><input type="checkbox" id="pick-D3" value="D3">
+  <div class="ground"><img class="big" src="backs/D3.svg" alt="BdRGames 1 green" loading="lazy"><div class="small"><img src="backs/D3.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">D3</span><span class="nm">BdRGames 1 green</span>
+  <span class="src">BdRGames · recolour script included</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="D4"><input type="checkbox" id="pick-D4" value="D4">
+  <div class="ground"><img class="big" src="backs/D4.svg" alt="BdRGames 1 red" loading="lazy"><div class="small"><img src="backs/D4.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">D4</span><span class="nm">BdRGames 1 red</span>
+  <span class="src">BdRGames · recolour script included</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="D5"><input type="checkbox" id="pick-D5" value="D5">
+  <div class="ground"><img class="big" src="backs/D5.svg" alt="BdRGames 1 black" loading="lazy"><div class="small"><img src="backs/D5.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">D5</span><span class="nm">BdRGames 1 black</span>
+  <span class="src">BdRGames · recolour script included</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="D6"><input type="checkbox" id="pick-D6" value="D6">
+  <div class="ground"><img class="big" src="backs/D6.svg" alt="BdRGames 2 blue" loading="lazy"><div class="small"><img src="backs/D6.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">D6</span><span class="nm">BdRGames 2 blue</span>
+  <span class="src">BdRGames · recolour script included</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="D7"><input type="checkbox" id="pick-D7" value="D7">
+  <div class="ground"><img class="big" src="backs/D7.svg" alt="BdRGames 2 lightblue" loading="lazy"><div class="small"><img src="backs/D7.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">D7</span><span class="nm">BdRGames 2 lightblue</span>
+  <span class="src">BdRGames · recolour script included</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="D8"><input type="checkbox" id="pick-D8" value="D8">
+  <div class="ground"><img class="big" src="backs/D8.svg" alt="BdRGames 2 green" loading="lazy"><div class="small"><img src="backs/D8.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">D8</span><span class="nm">BdRGames 2 green</span>
+  <span class="src">BdRGames · recolour script included</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="D9"><input type="checkbox" id="pick-D9" value="D9">
+  <div class="ground"><img class="big" src="backs/D9.svg" alt="BdRGames 2 red" loading="lazy"><div class="small"><img src="backs/D9.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">D9</span><span class="nm">BdRGames 2 red</span>
+  <span class="src">BdRGames · recolour script included</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="D10"><input type="checkbox" id="pick-D10" value="D10">
+  <div class="ground"><img class="big" src="backs/D10.svg" alt="BdRGames 2 black" loading="lazy"><div class="small"><img src="backs/D10.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">D10</span><span class="nm">BdRGames 2 black</span>
+  <span class="src">BdRGames · recolour script included</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="D11"><input type="checkbox" id="pick-D11" value="D11">
+  <div class="ground"><img class="big" src="backs/D11.svg" alt="BdRGames 3 blue" loading="lazy"><div class="small"><img src="backs/D11.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">D11</span><span class="nm">BdRGames 3 blue</span>
+  <span class="src">BdRGames · recolour script included</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="D12"><input type="checkbox" id="pick-D12" value="D12">
+  <div class="ground"><img class="big" src="backs/D12.svg" alt="BdRGames 3 lightblue" loading="lazy"><div class="small"><img src="backs/D12.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">D12</span><span class="nm">BdRGames 3 lightblue</span>
+  <span class="src">BdRGames · recolour script included</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="D13"><input type="checkbox" id="pick-D13" value="D13">
+  <div class="ground"><img class="big" src="backs/D13.svg" alt="BdRGames 3 green" loading="lazy"><div class="small"><img src="backs/D13.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">D13</span><span class="nm">BdRGames 3 green</span>
+  <span class="src">BdRGames · recolour script included</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="D14"><input type="checkbox" id="pick-D14" value="D14">
+  <div class="ground"><img class="big" src="backs/D14.svg" alt="BdRGames 3 red" loading="lazy"><div class="small"><img src="backs/D14.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">D14</span><span class="nm">BdRGames 3 red</span>
+  <span class="src">BdRGames · recolour script included</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="D15"><input type="checkbox" id="pick-D15" value="D15">
+  <div class="ground"><img class="big" src="backs/D15.svg" alt="BdRGames 3 black" loading="lazy"><div class="small"><img src="backs/D15.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">D15</span><span class="nm">BdRGames 3 black</span>
+  <span class="src">BdRGames · recolour script included</span><span class="lic l-cc0">CC0</span></div>
+</label></div><h3>Kenney Boardgame Pack</h3><div class="grid"><label class="tile" data-id="Y1"><input type="checkbox" id="pick-Y1" value="Y1">
+  <div class="ground"><img class="big" src="backs/Y1.png" alt="Kenney blue 1" loading="lazy"><div class="small"><img src="backs/Y1.png" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">Y1</span><span class="nm">Kenney blue 1</span>
+  <span class="src">Kenney Boardgame Pack</span><span class="lic l-cc0">CC0</span><span class="note">Low-res PNG; SVG sheet in pack</span></div>
+</label><label class="tile" data-id="Y2"><input type="checkbox" id="pick-Y2" value="Y2">
+  <div class="ground"><img class="big" src="backs/Y2.png" alt="Kenney blue 2" loading="lazy"><div class="small"><img src="backs/Y2.png" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">Y2</span><span class="nm">Kenney blue 2</span>
+  <span class="src">Kenney Boardgame Pack</span><span class="lic l-cc0">CC0</span><span class="note">Low-res PNG; SVG sheet in pack</span></div>
+</label><label class="tile" data-id="Y3"><input type="checkbox" id="pick-Y3" value="Y3">
+  <div class="ground"><img class="big" src="backs/Y3.png" alt="Kenney blue 3" loading="lazy"><div class="small"><img src="backs/Y3.png" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">Y3</span><span class="nm">Kenney blue 3</span>
+  <span class="src">Kenney Boardgame Pack</span><span class="lic l-cc0">CC0</span><span class="note">Low-res PNG; SVG sheet in pack</span></div>
+</label><label class="tile" data-id="Y4"><input type="checkbox" id="pick-Y4" value="Y4">
+  <div class="ground"><img class="big" src="backs/Y4.png" alt="Kenney blue 4" loading="lazy"><div class="small"><img src="backs/Y4.png" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">Y4</span><span class="nm">Kenney blue 4</span>
+  <span class="src">Kenney Boardgame Pack</span><span class="lic l-cc0">CC0</span><span class="note">Low-res PNG; SVG sheet in pack</span></div>
+</label><label class="tile" data-id="Y5"><input type="checkbox" id="pick-Y5" value="Y5">
+  <div class="ground"><img class="big" src="backs/Y5.png" alt="Kenney blue 5" loading="lazy"><div class="small"><img src="backs/Y5.png" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">Y5</span><span class="nm">Kenney blue 5</span>
+  <span class="src">Kenney Boardgame Pack</span><span class="lic l-cc0">CC0</span><span class="note">Low-res PNG; SVG sheet in pack</span></div>
+</label><label class="tile" data-id="Y6"><input type="checkbox" id="pick-Y6" value="Y6">
+  <div class="ground"><img class="big" src="backs/Y6.png" alt="Kenney green 1" loading="lazy"><div class="small"><img src="backs/Y6.png" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">Y6</span><span class="nm">Kenney green 1</span>
+  <span class="src">Kenney Boardgame Pack</span><span class="lic l-cc0">CC0</span><span class="note">Low-res PNG; SVG sheet in pack</span></div>
+</label><label class="tile" data-id="Y7"><input type="checkbox" id="pick-Y7" value="Y7">
+  <div class="ground"><img class="big" src="backs/Y7.png" alt="Kenney green 2" loading="lazy"><div class="small"><img src="backs/Y7.png" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">Y7</span><span class="nm">Kenney green 2</span>
+  <span class="src">Kenney Boardgame Pack</span><span class="lic l-cc0">CC0</span><span class="note">Low-res PNG; SVG sheet in pack</span></div>
+</label><label class="tile" data-id="Y8"><input type="checkbox" id="pick-Y8" value="Y8">
+  <div class="ground"><img class="big" src="backs/Y8.png" alt="Kenney green 3" loading="lazy"><div class="small"><img src="backs/Y8.png" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">Y8</span><span class="nm">Kenney green 3</span>
+  <span class="src">Kenney Boardgame Pack</span><span class="lic l-cc0">CC0</span><span class="note">Low-res PNG; SVG sheet in pack</span></div>
+</label><label class="tile" data-id="Y9"><input type="checkbox" id="pick-Y9" value="Y9">
+  <div class="ground"><img class="big" src="backs/Y9.png" alt="Kenney green 4" loading="lazy"><div class="small"><img src="backs/Y9.png" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">Y9</span><span class="nm">Kenney green 4</span>
+  <span class="src">Kenney Boardgame Pack</span><span class="lic l-cc0">CC0</span><span class="note">Low-res PNG; SVG sheet in pack</span></div>
+</label><label class="tile" data-id="Y10"><input type="checkbox" id="pick-Y10" value="Y10">
+  <div class="ground"><img class="big" src="backs/Y10.png" alt="Kenney green 5" loading="lazy"><div class="small"><img src="backs/Y10.png" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">Y10</span><span class="nm">Kenney green 5</span>
+  <span class="src">Kenney Boardgame Pack</span><span class="lic l-cc0">CC0</span><span class="note">Low-res PNG; SVG sheet in pack</span></div>
+</label><label class="tile" data-id="Y11"><input type="checkbox" id="pick-Y11" value="Y11">
+  <div class="ground"><img class="big" src="backs/Y11.png" alt="Kenney red 1" loading="lazy"><div class="small"><img src="backs/Y11.png" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">Y11</span><span class="nm">Kenney red 1</span>
+  <span class="src">Kenney Boardgame Pack</span><span class="lic l-cc0">CC0</span><span class="note">Low-res PNG; SVG sheet in pack</span></div>
+</label><label class="tile" data-id="Y12"><input type="checkbox" id="pick-Y12" value="Y12">
+  <div class="ground"><img class="big" src="backs/Y12.png" alt="Kenney red 2" loading="lazy"><div class="small"><img src="backs/Y12.png" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">Y12</span><span class="nm">Kenney red 2</span>
+  <span class="src">Kenney Boardgame Pack</span><span class="lic l-cc0">CC0</span><span class="note">Low-res PNG; SVG sheet in pack</span></div>
+</label><label class="tile" data-id="Y13"><input type="checkbox" id="pick-Y13" value="Y13">
+  <div class="ground"><img class="big" src="backs/Y13.png" alt="Kenney red 3" loading="lazy"><div class="small"><img src="backs/Y13.png" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">Y13</span><span class="nm">Kenney red 3</span>
+  <span class="src">Kenney Boardgame Pack</span><span class="lic l-cc0">CC0</span><span class="note">Low-res PNG; SVG sheet in pack</span></div>
+</label><label class="tile" data-id="Y14"><input type="checkbox" id="pick-Y14" value="Y14">
+  <div class="ground"><img class="big" src="backs/Y14.png" alt="Kenney red 4" loading="lazy"><div class="small"><img src="backs/Y14.png" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">Y14</span><span class="nm">Kenney red 4</span>
+  <span class="src">Kenney Boardgame Pack</span><span class="lic l-cc0">CC0</span><span class="note">Low-res PNG; SVG sheet in pack</span></div>
+</label><label class="tile" data-id="Y15"><input type="checkbox" id="pick-Y15" value="Y15">
+  <div class="ground"><img class="big" src="backs/Y15.png" alt="Kenney red 5" loading="lazy"><div class="small"><img src="backs/Y15.png" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">Y15</span><span class="nm">Kenney red 5</span>
+  <span class="src">Kenney Boardgame Pack</span><span class="lic l-cc0">CC0</span><span class="note">Low-res PNG; SVG sheet in pack</span></div>
+</label></div><h3>Sylly Cards Set</h3><div class="grid"><label class="tile" data-id="S1"><input type="checkbox" id="pick-S1" value="S1">
+  <div class="ground"><img class="big" src="backs/S1.png" alt="Sylly blue 1" loading="lazy"><div class="small"><img src="backs/S1.png" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">S1</span><span class="nm">Sylly blue 1</span>
+  <span class="src">Sylly (Andrew Tidey) Cards Set</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="S2"><input type="checkbox" id="pick-S2" value="S2">
+  <div class="ground"><img class="big" src="backs/S2.png" alt="Sylly blue 2" loading="lazy"><div class="small"><img src="backs/S2.png" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">S2</span><span class="nm">Sylly blue 2</span>
+  <span class="src">Sylly (Andrew Tidey) Cards Set</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="S3"><input type="checkbox" id="pick-S3" value="S3">
+  <div class="ground"><img class="big" src="backs/S3.png" alt="Sylly grey 1" loading="lazy"><div class="small"><img src="backs/S3.png" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">S3</span><span class="nm">Sylly grey 1</span>
+  <span class="src">Sylly (Andrew Tidey) Cards Set</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="S4"><input type="checkbox" id="pick-S4" value="S4">
+  <div class="ground"><img class="big" src="backs/S4.png" alt="Sylly grey 2" loading="lazy"><div class="small"><img src="backs/S4.png" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">S4</span><span class="nm">Sylly grey 2</span>
+  <span class="src">Sylly (Andrew Tidey) Cards Set</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="S5"><input type="checkbox" id="pick-S5" value="S5">
+  <div class="ground"><img class="big" src="backs/S5.png" alt="Sylly red 1" loading="lazy"><div class="small"><img src="backs/S5.png" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">S5</span><span class="nm">Sylly red 1</span>
+  <span class="src">Sylly (Andrew Tidey) Cards Set</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="S6"><input type="checkbox" id="pick-S6" value="S6">
+  <div class="ground"><img class="big" src="backs/S6.png" alt="Sylly red 2" loading="lazy"><div class="small"><img src="backs/S6.png" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">S6</span><span class="nm">Sylly red 2</span>
+  <span class="src">Sylly (Andrew Tidey) Cards Set</span><span class="lic l-cc0">CC0</span></div>
+</label></div><h3>Wikimedia Commons & others</h3><div class="grid"><label class="tile" data-id="C1"><input type="checkbox" id="pick-C1" value="C1">
+  <div class="ground"><img class="big" src="backs/C1.svg" alt="Kennard lattice, dark" loading="lazy"><div class="small"><img src="backs/C1.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">C1</span><span class="nm">Kennard lattice, dark</span>
+  <span class="src">Wikimedia Commons 1B.svg</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="C2"><input type="checkbox" id="pick-C2" value="C2">
+  <div class="ground"><img class="big" src="backs/C2.svg" alt="Kennard lattice, red" loading="lazy"><div class="small"><img src="backs/C2.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">C2</span><span class="nm">Kennard lattice, red</span>
+  <span class="src">Wikimedia Commons 2B.svg</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="C3"><input type="checkbox" id="pick-C3" value="C3">
+  <div class="ground"><img class="big" src="backs/C3.svg" alt="Atlas tartan, blue &amp; brown" loading="lazy"><div class="small"><img src="backs/C3.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">C3</span><span class="nm">Atlas tartan, blue &amp; brown</span>
+  <span class="src">Dmitry Fomin · Commons</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="C4"><input type="checkbox" id="pick-C4" value="C4">
+  <div class="ground"><img class="big" src="backs/C4.svg" alt="Atlas tartan, green &amp; red" loading="lazy"><div class="small"><img src="backs/C4.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">C4</span><span class="nm">Atlas tartan, green &amp; red</span>
+  <span class="src">Dmitry Fomin · Commons</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="C5"><input type="checkbox" id="pick-C5" value="C5">
+  <div class="ground"><img class="big" src="backs/C5.svg" alt="Tiled blue rhombus" loading="lazy"><div class="small"><img src="backs/C5.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">C5</span><span class="nm">Tiled blue rhombus</span>
+  <span class="src">HFWMan · Commons</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="C6"><input type="checkbox" id="pick-C6" value="C6">
+  <div class="ground"><img class="big" src="backs/C6.svg" alt="Blue stripes (minicard)" loading="lazy"><div class="small"><img src="backs/C6.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">C6</span><span class="nm">Blue stripes (minicard)</span>
+  <span class="src">ToasterCoder · Commons</span><span class="lic l-cc0">CC0</span></div>
+</label><label class="tile" data-id="C7"><input type="checkbox" id="pick-C7" value="C7">
+  <div class="ground"><img class="big" src="backs/C7.svg" alt="Red rose-window rosette" loading="lazy"><div class="small"><img src="backs/C7.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">C7</span><span class="nm">Red rose-window rosette</span>
+  <span class="src">Trocche100 · Commons</span><span class="lic l-cc0">CC0 (claimed)</span><span class="note">Origin unverified</span></div>
+</label><label class="tile" data-id="C8"><input type="checkbox" id="pick-C8" value="C8">
+  <div class="ground"><img class="big" src="backs/C8.jpg" alt="Russian-style ornate" loading="lazy"><div class="small"><img src="backs/C8.jpg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">C8</span><span class="nm">Russian-style ornate</span>
+  <span class="src">Historical scan · Commons</span><span class="lic l-cc0">Public domain</span><span class="note">Scan, uneven</span></div>
+</label><label class="tile" data-id="C9"><input type="checkbox" id="pick-C9" value="C9">
+  <div class="ground"><img class="big" src="backs/C9.png" alt="Screaming Brain lattice" loading="lazy"><div class="small"><img src="backs/C9.png" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">C9</span><span class="nm">Screaming Brain lattice</span>
+  <span class="src">2D Poker Pack</span><span class="lic l-cc0">CC0</span><span class="note">Tiny PNG</span></div>
+</label></div></section><section><div class="sec-head"><h2>MIT <span class="count">1</span></h2><p>Free; keep the copyright notice.</p></div><div class="grid"><label class="tile" data-id="M1"><input type="checkbox" id="pick-M1" value="M1">
+  <div class="ground"><img class="big" src="backs/M1.svg" alt="MattCain navy stripes" loading="lazy"><div class="small"><img src="backs/M1.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">M1</span><span class="nm">MattCain navy stripes</span>
+  <span class="src">MattCain/svg-playing-cards</span><span class="lic l-mit">MIT · keep notice</span></div>
+</label></div></section><section><div class="sec-head"><h2>CC-BY <span class="count">1</span></h2><p>Free with a credit line in Settings.</p></div><div class="grid"><label class="tile" data-id="E1"><input type="checkbox" id="pick-E1" value="E1">
+  <div class="ground"><img class="big" src="backs/E1.png" alt="Sharm navy Art Nouveau" loading="lazy"><div class="small"><img src="backs/E1.png" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">E1</span><span class="nm">Sharm navy Art Nouveau</span>
+  <span class="src">Sharm · OpenGameArt · 3000×4200 original</span><span class="lic l-by">CC-BY · credit</span><span class="note">Highest resolution found</span></div>
+</label></div></section><section><div class="sec-head"><h2>LGPL <span class="count">22</span></h2><p>Usable, but we must ship the licence text and point to the source.</p></div><h3>David Bellot (Commons)</h3><div class="grid"><label class="tile" data-id="L01"><input type="checkbox" id="pick-L01" value="L01">
+  <div class="ground"><img class="big" src="backs/L01.svg" alt="Bellot 01 red ornate floral" loading="lazy"><div class="small"><img src="backs/L01.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">L01</span><span class="nm">Bellot 01 red ornate floral</span>
+  <span class="src">David Bellot · Commons</span><span class="lic l-gpl">LGPL</span></div>
+</label><label class="tile" data-id="L02"><input type="checkbox" id="pick-L02" value="L02">
+  <div class="ground"><img class="big" src="backs/L02.svg" alt="Bellot 02 stripes" loading="lazy"><div class="small"><img src="backs/L02.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">L02</span><span class="nm">Bellot 02 stripes</span>
+  <span class="src">David Bellot · Commons</span><span class="lic l-gpl">LGPL / PD</span></div>
+</label><label class="tile" data-id="L02a"><input type="checkbox" id="pick-L02a" value="L02a">
+  <div class="ground"><img class="big" src="backs/L02a.svg" alt="Bellot 02a stripes (alt)" loading="lazy"><div class="small"><img src="backs/L02a.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">L02a</span><span class="nm">Bellot 02a stripes (alt)</span>
+  <span class="src">David Bellot · Commons</span><span class="lic l-gpl">LGPL</span></div>
+</label><label class="tile" data-id="L03"><input type="checkbox" id="pick-L03" value="L03">
+  <div class="ground"><img class="big" src="backs/L03.svg" alt="Bellot 03 red stripes" loading="lazy"><div class="small"><img src="backs/L03.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">L03</span><span class="nm">Bellot 03 red stripes</span>
+  <span class="src">David Bellot · Commons</span><span class="lic l-gpl">LGPL</span></div>
+</label><label class="tile" data-id="L03a"><input type="checkbox" id="pick-L03a" value="L03a">
+  <div class="ground"><img class="big" src="backs/L03a.svg" alt="Bellot 03a stripes a" loading="lazy"><div class="small"><img src="backs/L03a.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">L03a</span><span class="nm">Bellot 03a stripes a</span>
+  <span class="src">David Bellot · Commons</span><span class="lic l-gpl">LGPL</span></div>
+</label><label class="tile" data-id="L03b"><input type="checkbox" id="pick-L03b" value="L03b">
+  <div class="ground"><img class="big" src="backs/L03b.svg" alt="Bellot 03b stripes b" loading="lazy"><div class="small"><img src="backs/L03b.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">L03b</span><span class="nm">Bellot 03b stripes b</span>
+  <span class="src">David Bellot · Commons</span><span class="lic l-gpl">LGPL</span></div>
+</label><label class="tile" data-id="L03c"><input type="checkbox" id="pick-L03c" value="L03c">
+  <div class="ground"><img class="big" src="backs/L03c.svg" alt="Bellot 03c stripes c" loading="lazy"><div class="small"><img src="backs/L03c.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">L03c</span><span class="nm">Bellot 03c stripes c</span>
+  <span class="src">David Bellot · Commons</span><span class="lic l-gpl">LGPL</span></div>
+</label><label class="tile" data-id="L04"><input type="checkbox" id="pick-L04" value="L04">
+  <div class="ground"><img class="big" src="backs/L04.svg" alt="Bellot 04 red checker border" loading="lazy"><div class="small"><img src="backs/L04.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">L04</span><span class="nm">Bellot 04 red checker border</span>
+  <span class="src">David Bellot · Commons</span><span class="lic l-gpl">LGPL</span></div>
+</label><label class="tile" data-id="L05"><input type="checkbox" id="pick-L05" value="L05">
+  <div class="ground"><img class="big" src="backs/L05.svg" alt="Bellot 05 blue geometric tile" loading="lazy"><div class="small"><img src="backs/L05.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">L05</span><span class="nm">Bellot 05 blue geometric tile</span>
+  <span class="src">David Bellot · Commons</span><span class="lic l-gpl">LGPL</span></div>
+</label><label class="tile" data-id="L05a"><input type="checkbox" id="pick-L05a" value="L05a">
+  <div class="ground"><img class="big" src="backs/L05a.svg" alt="Bellot 05a red geometric tile" loading="lazy"><div class="small"><img src="backs/L05a.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">L05a</span><span class="nm">Bellot 05a red geometric tile</span>
+  <span class="src">David Bellot · Commons</span><span class="lic l-gpl">LGPL</span></div>
+</label><label class="tile" data-id="L06"><input type="checkbox" id="pick-L06" value="L06">
+  <div class="ground"><img class="big" src="backs/L06.svg" alt="Bellot 06 navy, rope border" loading="lazy"><div class="small"><img src="backs/L06.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">L06</span><span class="nm">Bellot 06 navy, rope border</span>
+  <span class="src">David Bellot · Commons</span><span class="lic l-gpl">LGPL</span></div>
+</label><label class="tile" data-id="L09"><input type="checkbox" id="pick-L09" value="L09">
+  <div class="ground"><img class="big" src="backs/L09.svg" alt="Bellot 09 Bellot 09" loading="lazy"><div class="small"><img src="backs/L09.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">L09</span><span class="nm">Bellot 09 Bellot 09</span>
+  <span class="src">David Bellot · Commons</span><span class="lic l-gpl">LGPL</span></div>
+</label><label class="tile" data-id="L13"><input type="checkbox" id="pick-L13" value="L13">
+  <div class="ground"><img class="big" src="backs/L13.svg" alt="Bellot 13 rainbow gradient" loading="lazy"><div class="small"><img src="backs/L13.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">L13</span><span class="nm">Bellot 13 rainbow gradient</span>
+  <span class="src">David Bellot · Commons</span><span class="lic l-gpl">LGPL</span></div>
+</label><label class="tile" data-id="L14"><input type="checkbox" id="pick-L14" value="L14">
+  <div class="ground"><img class="big" src="backs/L14.svg" alt="Bellot 14 yellow, frayed edge" loading="lazy"><div class="small"><img src="backs/L14.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">L14</span><span class="nm">Bellot 14 yellow, frayed edge</span>
+  <span class="src">David Bellot · Commons</span><span class="lic l-gpl">LGPL</span></div>
+</label><label class="tile" data-id="L15"><input type="checkbox" id="pick-L15" value="L15">
+  <div class="ground"><img class="big" src="backs/L15.svg" alt="Bellot 15 plain maroon" loading="lazy"><div class="small"><img src="backs/L15.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">L15</span><span class="nm">Bellot 15 plain maroon</span>
+  <span class="src">David Bellot · Commons</span><span class="lic l-gpl">LGPL</span></div>
+</label><label class="tile" data-id="L16"><input type="checkbox" id="pick-L16" value="L16">
+  <div class="ground"><img class="big" src="backs/L16.svg" alt="Bellot 16 plain green" loading="lazy"><div class="small"><img src="backs/L16.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">L16</span><span class="nm">Bellot 16 plain green</span>
+  <span class="src">David Bellot · Commons</span><span class="lic l-gpl">LGPL</span></div>
+</label><label class="tile" data-id="L17"><input type="checkbox" id="pick-L17" value="L17">
+  <div class="ground"><img class="big" src="backs/L17.svg" alt="Bellot 17 plain navy" loading="lazy"><div class="small"><img src="backs/L17.svg" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">L17</span><span class="nm">Bellot 17 plain navy</span>
+  <span class="src">David Bellot · Commons</span><span class="lic l-gpl">LGPL</span></div>
+</label></div><h3>Bellot SVG-cards medallion</h3><div class="grid"><label class="tile" data-id="HB"><input type="checkbox" id="pick-HB" value="HB">
+  <div class="ground"><img class="big" src="backs/HB.png" alt="Bellot medallion blue" loading="lazy"><div class="small"><img src="backs/HB.png" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">HB</span><span class="nm">Bellot medallion blue</span>
+  <span class="src">htdebeer/SVG-cards · 16 colours</span><span class="lic l-gpl">LGPL-2.1</span></div>
+</label><label class="tile" data-id="HR"><input type="checkbox" id="pick-HR" value="HR">
+  <div class="ground"><img class="big" src="backs/HR.png" alt="Bellot medallion red" loading="lazy"><div class="small"><img src="backs/HR.png" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">HR</span><span class="nm">Bellot medallion red</span>
+  <span class="src">htdebeer/SVG-cards · 16 colours</span><span class="lic l-gpl">LGPL-2.1</span></div>
+</label><label class="tile" data-id="HK"><input type="checkbox" id="pick-HK" value="HK">
+  <div class="ground"><img class="big" src="backs/HK.png" alt="Bellot medallion black" loading="lazy"><div class="small"><img src="backs/HK.png" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">HK</span><span class="nm">Bellot medallion black</span>
+  <span class="src">htdebeer/SVG-cards · 16 colours</span><span class="lic l-gpl">LGPL-2.1</span></div>
+</label><label class="tile" data-id="HG"><input type="checkbox" id="pick-HG" value="HG">
+  <div class="ground"><img class="big" src="backs/HG.png" alt="Bellot medallion green" loading="lazy"><div class="small"><img src="backs/HG.png" alt="" loading="lazy"><span>in game</span></div></div>
+  <div class="cap"><span class="id">HG</span><span class="nm">Bellot medallion green</span>
+  <span class="src">htdebeer/SVG-cards · 16 colours</span><span class="lic l-gpl">LGPL-2.1</span></div>
+</label></div><h3>Chris Aguilar</h3><div class="grid"><label class="tile wide" data-id="A1"><input type="checkbox" id="pick-A1" value="A1">
+  <div class="ground"><img class="big" src="backs/A1.svg" alt="Aguilar backs (all, one sheet)" loading="lazy"></div>
+  <div class="cap"><span class="id">A1</span><span class="nm">Aguilar backs (all, one sheet)</span>
+  <span class="src">Chris Aguilar Vector Playing Cards</span><span class="lic l-gpl">LGPL-3 · credit</span><span class="note">~13 backs in one sheet</span></div>
+</label></div></section>
+<p class="avoid"><b>Not included, on purpose:</b> the Bicycle “Rider” back and the Bee diamond back (registered US Playing Card Co. trademarks); Bellot 07, 08, 10 and 12 (Olympic rings, GNOME foot, Mozilla-style dinosaur, Tux); a “colorful poker card back” pack that is a scan of a commercial deck; and the GPL themes from GNOME Aisleriot, KDE and PySolFC (mostly low resolution; several licences unverified).</p>
+</div>
+<div class="bar" role="region" aria-label="Your shortlist"><div class="bar-in"><span id="reply" class="empty">Click backs to shortlist them</span><span><button id="clear" type="button">Clear</button> <button id="copy" type="button" disabled>Copy</button></span></div></div>
+<script>
+(()=>{const KEY="cardback-picks",GK="cardback-ground";
+const reply=document.getElementById("reply"),copy=document.getElementById("copy"),clear=document.getElementById("clear");
+const boxes=[...document.querySelectorAll('.tile input[type=checkbox]')];
+function render(){const p=boxes.filter(b=>b.checked).map(b=>b.value);
+ if(!p.length){reply.textContent="Click backs to shortlist them";reply.classList.add("empty");copy.disabled=true;}
+ else{reply.textContent="Shortlist: "+p.join(", ");reply.classList.remove("empty");copy.disabled=false;}
+ try{localStorage.setItem(KEY,JSON.stringify(p))}catch{}}
+try{const s=JSON.parse(localStorage.getItem(KEY)||"[]");boxes.forEach(b=>{if(s.includes(b.value))b.checked=true})}catch{}
+document.addEventListener("change",e=>{if(e.target.matches('.tile input'))render()});render();
+clear.addEventListener("click",()=>{boxes.forEach(b=>b.checked=false);render()});
+copy.addEventListener("click",()=>{const t=reply.textContent,done=()=>{copy.textContent="Copied";setTimeout(()=>copy.textContent="Copy",1600)},
+ fb=()=>{const r=document.createRange();r.selectNodeContents(reply);const s=getSelection();s.removeAllRanges();s.addRange(r);copy.textContent="Selected — copy it";setTimeout(()=>copy.textContent="Copy",2200)};
+ try{navigator.clipboard.writeText(t).then(done,fb)}catch{fb()}});
+const segs=[...document.querySelectorAll('.seg button')];
+function ground(g){document.body.dataset.ground=g;segs.forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.g===g)));try{localStorage.setItem(GK,g)}catch{}}
+segs.forEach(b=>b.addEventListener("click",()=>ground(b.dataset.g)));
+let g="dark";try{g=localStorage.getItem(GK)||"dark"}catch{};ground(g);})();
+</script>

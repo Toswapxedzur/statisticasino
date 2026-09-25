@@ -10,5 +10,13 @@ Bluffing Valley modifications: individual glyphs/figures were extracted from the
 cards and recomposed (resized/repositioned) into the app's own card layout. These
 modified SVG sources are distributed here in full, as required by the LGPL.
 
-The card back, the corner-index layout, and the pip arrangement are original
+The corner-index layout and the pip arrangement are original
 Bluffing Valley work.
+
+back-sylly-red.svg — the red panel of the "Back Red 1" card from "Card Pack" / "Cards Set"
+by Andrew Tidey (Sylly), https://opengameart.org/content/cards-set
+Licence: Creative Commons Zero (CC0), http://creativecommons.org/publicdomain/zero/1.0/
+("Credit to me via name (Andrew Tidey) or link to website (andrewtidey.blogspot.co.uk) is
+appreciated but not necessary.")
+Cut from Vector/Cards.svg (group g43887, panel only, the black-bordered card body dropped)
+and optimised with svgo; chosen 2026-09-25.
