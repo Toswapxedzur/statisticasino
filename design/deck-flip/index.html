@@ -1,0 +1,86 @@
+<meta charset="utf-8">
+<title>Deck Flip</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,650&family=Hanken+Grotesk:wght@400;500;600;700&display=swap">
+<style>
+:root{--bg:#f5efe2;--surface:#fffaf0;--well:#ebe3d1;--text:#14203b;--muted:#5b6784;--faint:#8a93a8;--accent:#1f6fa8;--gold:#b07a00;
+--grid:rgba(20,32,59,.12);--c1:#1f6fa8;--c2:#b07a00;--c3:#a4332b;--c4:#1d7a4a;--shadow:0 1px 2px rgba(20,32,59,.06),0 6px 18px rgba(20,32,59,.07)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#0b1222;--surface:#16213a;--well:#0f172a;--text:#e5ecff;--muted:#93a3c6;--faint:#62708f;--accent:#5ec8e5;--gold:#f5b60d;
+--grid:rgba(229,236,255,.10);--c1:#5ec8e5;--c2:#f5b60d;--c3:#f08a80;--c4:#6fd49b;--shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.28)}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#0b1222;--surface:#16213a;--well:#0f172a;--text:#e5ecff;--muted:#93a3c6;--faint:#62708f;--accent:#5ec8e5;--gold:#f5b60d;
+--grid:rgba(229,236,255,.10);--c1:#5ec8e5;--c2:#f5b60d;--c3:#f08a80;--c4:#6fd49b;--shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.28)}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font:15px/1.5 "Hanken Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding-inline:20px;padding-block:32px 60px;display:grid;gap:24px}
+.eyebrow{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+h1{font:650 clamp(28px,4vw,38px)/1.1 Fraunces,Georgia,serif;margin:0;text-wrap:balance}
+h2{font:600 18px/1.2 Fraunces,Georgia,serif;margin:0}
+.lede{color:var(--muted);max-width:72ch;margin:0}.lede b{color:var(--text)}
+.table{background:#0f172a;border-radius:18px;padding:18px;display:flex;flex-wrap:wrap;gap:28px;align-items:flex-end;justify-content:center}
+.table figure{margin:0;display:grid;justify-items:center;gap:6px}
+.table figcaption{font-size:12px;color:#93a3c6}
+#face-name{font-size:13px;color:#e5ecff;font-weight:600;min-height:1.4em;text-align:center;width:100%}
+.controls{display:flex;flex-wrap:wrap;gap:14px 18px;align-items:center}
+#flip{font:700 15px/1 "Hanken Grotesk",system-ui,sans-serif;border:0;border-radius:999px;padding:12px 22px;background:var(--gold);color:#1a1405;cursor:pointer}
+#flip:focus-visible,.toggle input:focus-visible+span,#scrub:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.toggle{display:inline-flex;align-items:center;gap:8px;color:var(--muted);font-size:14px;cursor:pointer}
+.toggle input{position:absolute;opacity:0}
+.toggle span{width:38px;height:22px;border-radius:999px;background:var(--well);position:relative;transition:background .15s}
+.toggle span::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:var(--muted);transition:transform .15s}
+.toggle input:checked+span{background:var(--accent)}.toggle input:checked+span::after{transform:translateX(16px);background:#fff}
+.scrub{display:flex;align-items:center;gap:10px;flex:1 1 280px;color:var(--muted);font-size:14px}
+#scrub{flex:1;accent-color:var(--accent)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.cell{background:var(--surface);border-radius:12px;padding:10px 12px;box-shadow:var(--shadow)}
+.cell b{display:block;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.cell span{font-variant-numeric:tabular-nums;font-size:17px;font-weight:600}
+.cell small{display:block;color:var(--faint);font-size:12px;font-variant-numeric:tabular-nums}
+.chart{background:var(--surface);border-radius:14px;padding:12px 14px;box-shadow:var(--shadow);display:grid;gap:8px}
+#curves{width:100%;height:170px;display:block}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--muted)}
+.legend i{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-right:6px}
+.notes{background:var(--well);border-radius:14px;padding:14px 16px;color:var(--muted);font-size:14px;margin:0;display:grid;gap:6px}.notes b{color:var(--text)}
+@media (prefers-reduced-motion:reduce){.toggle span,.toggle span::after{transition:none}}
+</style>
+<div class="wrap">
+<header style="display:grid;gap:10px">
+ <div class="eyebrow">Bluffing Valley · deal animation · the dealer's deck</div>
+ <h1>Turning the whole deck over</h1>
+ <p class="lede">Your spec: the <b>52-card stack</b> turns over <b>side-over, like a page</b>, <b>lifted and flipped in place</b>, with <b>a random card face</b> on the bottom, in about <b>0.9 s</b>. The motion is <b>computed</b>: angular speed and acceleration start and end at exactly zero, and the lift keeps the lowest corner clear of the table the whole way. Mid-flip, the stack's <b>side face</b> turns toward you. It isn't a picture: it's the 52 card edges seen edge-on, so it's correct at every angle. Use the scrubber to stop on any frame.</p>
+</header>
+
+<div class="table">
+ <figure><canvas id="big" aria-label="The deck, large"></canvas><figcaption>display size</figcaption></figure>
+ <figure><canvas id="small" aria-label="The deck at table size"></canvas><figcaption>table size (82 px card)</figcaption></figure>
+ <div id="face-name" aria-live="polite"></div>
+</div>
+
+<div class="controls">
+ <button id="flip" type="button">Flip face up</button>
+ <label class="toggle"><input id="slow" type="checkbox"><span></span>Slow motion ×¼</label>
+ <label class="scrub" for="scrub">Frame <input id="scrub" type="range" min="0" max="1000" value="0"></label>
+</div>
+
+<div class="grid" role="group" aria-label="Live physics">
+ <div class="cell"><b>Angle turned</b><span id="r-theta">0°</span></div>
+ <div class="cell"><b>Angular speed ω</b><span id="r-omega">0</span><small id="r-omega2"></small></div>
+ <div class="cell"><b>Angular accel. α</b><span id="r-alpha">0</span></div>
+ <div class="cell"><b>Angular momentum</b><span id="r-L">0</span><small>kg·m²/s · L = Iω</small></div>
+ <div class="cell"><b>Torque</b><span id="r-torque">0</span><small>N·m · τ = Iα</small></div>
+ <div class="cell"><b>Lift</b><span id="r-lift">0</span><small>centre above rest</small></div>
+ <div class="cell"><b>Table clearance</b><span id="r-clear">0</span><small>lowest corner</small></div>
+</div>
+
+<div class="chart">
+ <h2>One flip, start to finish</h2>
+ <canvas id="curves" aria-label="Angle, angular speed, angular acceleration and lift over one flip"></canvas>
+ <div class="legend"><span><i style="background:var(--c1)"></i>angle</span><span><i style="background:var(--c2)"></i>angular speed</span><span><i style="background:var(--c3)"></i>angular acceleration</span><span><i style="background:var(--c4)"></i>lift</span><span>dashed line = the current frame</span></div>
+</div>
+
+<div class="notes">
+ <span><b>The motion</b> is the minimum-jerk curve, the standard model of a hand-driven move: θ(t) = π(10τ³ − 15τ⁴ + 6τ⁵). Speed peaks at 6.5 rad/s (375°/s) halfway through; acceleration and deceleration are mirror images, so the deck spins up and settles without a jolt.</span>
+ <span><b>The physics</b> uses a real deck: 94 g, 63.5 mm wide, 17 mm thick, spinning about its own long axis: I = m(W² + T²)/12 = 3.4 × 10⁻⁵ kg·m². Angular momentum and torque follow from ω and α.</span>
+ <span><b>The lift</b> rises and falls on a smooth bump, 37 mm at its peak, sized so the deck's lowest corner clears the table (about 5 mm at the tightest point) and it lands exactly where it started.</span>
+</div>
+</div>
+<script src="demo.bundle.js"></script>

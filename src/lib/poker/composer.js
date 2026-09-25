@@ -119,6 +119,45 @@ function backInner() {
 export function renderBack(width = 60) {
   return svgWrap(backInner(), width);
 }
+// ---- the dealer's deck: one top card + the stack's front edge ------------------
+// Owner's spec (2026-09-25): only the top card (true flat shape, like every card on
+// the table) and the stack's exposed FRONT edge are drawn — not 52 cards. The edge band
+// is 0.21 × card height for a full deck (owner: 0.3, then each card 30% thinner) and
+// shrinks with the cards left; each card shows
+// as one thin strip, white edge over a grey gap. Every lower card is a real rounded card
+// shifted down by one strip, so each strip curves up at its ends like a real deck. A
+// seeded jitter (±0.25 wide, tone ±) keeps it from looking machine-cut, and is stable
+// across re-renders so the deck never shimmers.
+const DECK_FULL = 52, DECK_BAND = 0.21 * H;
+export function deckBand(count) {
+  return (DECK_BAND * Math.max(0, Math.min(count, DECK_FULL))) / DECK_FULL;
+}
+function deckInner(count) {
+  const n = Math.max(1, Math.min(Math.round(count), DECK_FULL));
+  const band = deckBand(n), t = band / n;
+  let seed = 0x5eed ^ n;
+  const rnd = () => ((seed = (seed * 1103515245 + 12345) >>> 0) / 4294967296);
+  let out = "";
+  // n edge strips (one per card, the top card's own edge included) fill the band exactly
+  for (let k = n; k >= 1; k--) {
+    const y = k * t, dx = f((rnd() - 0.5) * 0.5);
+    const grey = Math.round(160 + rnd() * 26), white = Math.round(236 + rnd() * 16);
+    out +=
+      `<rect x="${dx}" y="${f(y)}" width="${W}" height="${H}" rx="6" fill="rgb(${grey},${grey},${grey + 4})"/>` +
+      `<rect x="${dx}" y="${f(y - t * 0.4)}" width="${W}" height="${H}" rx="6" fill="rgb(${white},${white},${white - 3})"/>`;
+  }
+  // soft shade on the band: light from above, darker toward the table
+  const shade = n > 1
+    ? `<defs><linearGradient id="deck-shade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.22"/></linearGradient></defs>` +
+      `<rect x="0" y="${H - 6}" width="${W}" height="${f(band + 6)}" rx="6" fill="url(#deck-shade)"/>`
+    : "";
+  return out + shade + backInner();
+}
+export function renderDeck(count = DECK_FULL, width = 60) {
+  const h = H + deckBand(count);
+  const w = Math.round(width), ph = Math.round((width * h) / W);
+  return `<span class="card-wrap deck"><svg class="card-svg" width="${w}" height="${ph}" viewBox="0 0 ${W} ${f(h)}" xmlns="http://www.w3.org/2000/svg">${deckInner(count)}</svg></span>`;
+}
 export function renderEmpty(width = 60) {
   const w = Math.round(width), h = Math.round((width * H) / W);
   return `<span class="card-wrap empty" aria-hidden="true"><svg class="card-svg" width="${w}" height="${h}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="58" height="76" rx="6" fill="none" stroke="rgba(255,255,255,0.15)" stroke-dasharray="3 3"/></svg></span>`;
