@@ -30,7 +30,15 @@ function place(name, cx, cy, targetH, color, rot = 0, boldW = 0) {
   const bold = boldW ? ` stroke="${color}" stroke-width="${boldW}" stroke-linejoin="round"` : "";
   return `<g transform="translate(${f(cx)} ${f(cy)})${r} scale(${f(s)}) translate(${f(-(vx + vw / 2))} ${f(-(vy + vh / 2))})"${bold}>${body}</g>`;
 }
-const frame = () => `<rect x="0.5" y="0.5" width="59" height="77" rx="6" fill="#fff" stroke="rgba(0,0,0,0.18)"/>`;
+// edge=false drops the hairline: a loose card needs it to stand off the table, but the top
+// card of the deck does not — its edge is the white card edge the strip band already draws,
+// and at large sizes the hairline reads as a dark rim (owner, 2026-09-25).
+// (With the hairline the body sits 0.5 in and the 1-unit stroke covers the rim; without it
+// the body must fill the whole card, or the layer beneath shows through that half unit.)
+const frame = (edge = true) =>
+  edge
+    ? `<rect x="0.5" y="0.5" width="59" height="77" rx="6" fill="#fff" stroke="rgba(0,0,0,0.18)"/>`
+    : `<rect x="0" y="0" width="60" height="78" rx="6" fill="#fff"/>`;
 
 // Numeral weight is defined as a fraction of the numeral's own height, so every
 // form (#1 big, #2 small, #3 board) reads at the SAME perceived boldness
@@ -94,15 +102,15 @@ function svgWrap(inner, width) {
 }
 
 // ---- #3: OUR OWN Replay-style board card ----------------------------------
-function boardInner(rank, suit, color) {
+function boardInner(rank, suit, color, edge = true) {
   // corner index (number + its own suit size) top-left; bigger asymmetric pips.
-  return frame() + cornerLabel(rank, suit, color, 18, 13) + centre(rank, suit, color);
+  return frame(edge) + cornerLabel(rank, suit, color, 18, 13) + centre(rank, suit, color);
 }
-export function renderBoard(card, width) {
+export function renderBoard(card, width, { edge = true } = {}) {
   if (!card || card.length < 2) return "";
   const rank = card[0].toUpperCase(), suit = card[1].toLowerCase();
   if (!RANK_OK.has(rank) || !SUITNAME[suit]) return "";
-  return svgWrap(boardInner(rank, suit, colorOf(suit)), width);
+  return svgWrap(boardInner(rank, suit, colorOf(suit), edge), width);
 }
 
 // ---- card back + empty slot ------------------------------------------------
@@ -113,11 +121,11 @@ export function renderBoard(card, width) {
 // Margins keep Sylly's proportions (7.3% of width, 5.9% of height); "meet" never
 // stretches the lattice. One cached file instead of ~800 inline paths per card.
 const BACK_ART = "/deck-parts/back-sylly-red.svg";
-function backInner() {
-  return frame() + `<image href="${BACK_ART}" x="4.4" y="4.6" width="51.2" height="68.8" preserveAspectRatio="xMidYMid meet"/>`;
+function backInner(edge = true) {
+  return frame(edge) + `<image href="${BACK_ART}" x="4.4" y="4.6" width="51.2" height="68.8" preserveAspectRatio="xMidYMid meet"/>`;
 }
-export function renderBack(width = 60) {
-  return svgWrap(backInner(), width);
+export function renderBack(width = 60, { edge = true } = {}) {
+  return svgWrap(backInner(edge), width);
 }
 // ---- the dealer's deck: one top card + the stack's front edge ------------------
 // Owner's spec (2026-09-25): only the top card (true flat shape, like every card on
@@ -151,7 +159,7 @@ function deckInner(count) {
     ? `<defs><linearGradient id="deck-shade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.22"/></linearGradient></defs>` +
       `<rect x="0" y="${H - 6}" width="${W}" height="${f(band + 6)}" rx="6" fill="url(#deck-shade)"/>`
     : "";
-  return out + shade + backInner();
+  return out + shade + backInner(false);
 }
 export function renderDeck(count = DECK_FULL, width = 60) {
   const h = H + deckBand(count);

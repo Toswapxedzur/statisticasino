@@ -95,9 +95,9 @@ function drawCurves(u) {
 
 // ---- app -----------------------------------------------------------------------------
 (async () => {
-  const back = await toImage(renderBack(60));
+  const back = await toImage(renderBack(60, { edge: false }));
   let faceCard = randomCard();
-  let face = await toImage(renderBoard(faceCard, 60));
+  let face = await toImage(renderBoard(faceCard, 60, { edge: false }));
   const big = stage($("big"), 220), small = stage($("small"), 82);
   let theta0 = 0;                   // resting angle: 0 = face down, π = face up
   let anim = null, lastU = 0;
@@ -116,7 +116,7 @@ function drawCurves(u) {
 
   async function flip() {
     if (anim) return;
-    if (Math.cos(theta0) > 0) { faceCard = randomCard(); face = await toImage(renderBoard(faceCard, 60)); }
+    if (Math.cos(theta0) > 0) { faceCard = randomCard(); face = await toImage(renderBoard(faceCard, 60, { edge: false })); }
     $("scrub").value = 0;
     log.length = 0;
     const speed = $("slow").checked ? 4 : 1;
