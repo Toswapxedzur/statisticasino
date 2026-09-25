@@ -1,0 +1,98 @@
+<title>Table Sound Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,650&family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap">
+<style>
+:root{--bg:#f5efe2;--surface:#fffaf0;--well:#ebe3d1;--text:#14203b;--muted:#5b6784;--faint:#8a93a8;--accent:#1f6fa8;--gold:#b07a00;--line:rgba(20,32,59,.10);--shadow:0 1px 2px rgba(20,32,59,.06),0 6px 18px rgba(20,32,59,.07)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#0b1222;--surface:#16213a;--well:#0f172a;--text:#e5ecff;--muted:#93a3c6;--faint:#62708f;--accent:#5ec8e5;--gold:#f5b60d;--line:rgba(229,236,255,.10);--shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.28)}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#0b1222;--surface:#16213a;--well:#0f172a;--text:#e5ecff;--muted:#93a3c6;--faint:#62708f;--accent:#5ec8e5;--gold:#f5b60d;--line:rgba(229,236,255,.10);--shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.28)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 "Hanken Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1000px;margin:0 auto;padding-inline:16px;padding-block:28px 64px;display:grid;gap:22px}
+.eyebrow{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+h1{font:650 clamp(28px,4vw,38px)/1.1 Fraunces,Georgia,serif;margin:0;text-wrap:balance}
+h2{font:650 22px/1.2 Fraunces,Georgia,serif;margin:0}
+.lede{color:var(--muted);max-width:72ch;margin:0}.lede b{color:var(--text)}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;padding:10px 14px;background:var(--surface);border-radius:14px;box-shadow:var(--shadow)}
+.bar label{color:var(--muted);font-size:14px;display:inline-flex;gap:8px;align-items:center}
+.bar select,.bar input[type=range]{accent-color:var(--accent)}
+select{font:600 14px/1 "Hanken Grotesk",system-ui,sans-serif;background:var(--well);color:var(--text);border:0;border-radius:999px;padding:7px 11px}
+#status{color:var(--gold);font-weight:600;font-size:14px}
+#copy{margin-left:auto}
+.btn{font:700 14px/1 "Hanken Grotesk",system-ui,sans-serif;border:0;border-radius:999px;padding:10px 18px;background:var(--gold);color:#1a1405;cursor:pointer}
+.btn.ghost{background:var(--well);color:var(--text)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+section{display:grid;gap:12px}
+.head{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:baseline}
+.head p{margin:0;color:var(--muted);font-size:14px;flex:1 1 320px}
+.table{background:#0f172a;border-radius:16px;padding:10px;overflow:hidden}
+.cvbox{display:grid;justify-items:center}
+canvas{display:block;max-width:100%}
+.tools{display:flex;gap:12px;align-items:center}
+.time{font-variant-numeric:tabular-nums;color:var(--muted);font-size:14px}
+.events{display:grid;gap:8px}
+.ev{display:grid;grid-template-columns:minmax(200px,1fr) 2fr;gap:8px 16px;padding:10px 12px;background:var(--surface);border-radius:12px;box-shadow:var(--shadow)}
+.evh{display:grid;gap:2px}.evh b{font-size:15px}.evh span{font-size:13px;color:var(--muted)}
+.opts{display:grid;gap:4px}
+.opt{display:flex;align-items:center;gap:8px;justify-content:space-between;padding:4px 8px;border-radius:8px}
+.opt:has(input:checked){background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.opt label{display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;flex:1}
+.opt .letter{font-weight:800;width:1.1em;color:var(--muted)}
+.opt em{font-style:normal;font-size:11px;color:var(--gold);border:1px solid color-mix(in srgb,var(--gold) 50%,transparent);border-radius:999px;padding:0 6px}
+.try{border:0;background:var(--well);color:var(--text);border-radius:999px;width:30px;height:26px;cursor:pointer;font-size:11px}
+#picks-text{width:100%;min-height:9em;font:13px/1.5 ui-monospace,Menlo,monospace;background:var(--surface);color:var(--text);border:0;border-radius:12px;padding:12px}
+/* the money stage: the real table's arena, 900×560, scaled to fit */
+.fitbox{position:relative;width:100%}
+#mstage{position:absolute;left:0;top:0;width:900px;height:560px;transform-origin:0 0;background:radial-gradient(ellipse 60% 55% at 50% 48%,#1b2a4d 0%,#101a31 70%,#0f172a 100%);border-radius:12px;color:#e5ecff;font-family:"Hanken Grotesk",system-ui,sans-serif}
+.badge{position:absolute;z-index:2;transform:translate(-50%,-50%);display:flex;align-items:center;gap:6px;padding:4px 9px 4px 4px;background:#1e2c4c;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.35);transition:opacity .2s,box-shadow .2s;white-space:nowrap}
+.badge .av{width:24px;height:24px;border-radius:50%;background:#4d6fb8;display:grid;place-items:center;font-weight:800;font-size:11px}
+.badge .txt{display:grid;line-height:1.15}.badge .row1{display:flex;align-items:baseline;gap:6px}.badge b{font-size:12px}
+.badge .stack{font-size:12px;font-weight:800;color:#f5b60d;font-variant-numeric:tabular-nums}.badge .say{font-size:10px;color:#93a3c6;min-height:11px}
+.badge.folded{opacity:.42}.badge.won{box-shadow:0 0 0 2px #36c47a,0 2px 8px rgba(0,0,0,.35)}
+.potpill{position:absolute;transform:translate(-50%,0);background:#16213a;border-radius:999px;padding:3px 11px;font-size:12px;box-shadow:0 2px 6px rgba(0,0,0,.4);font-variant-numeric:tabular-nums;white-space:nowrap}
+.potpill .lbl{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#93a3c6}.potpill b{color:#f5b60d}
+.street{position:absolute;transform:translate(-50%,0);font-size:13px;font-weight:600;color:#93a3c6;white-space:nowrap}
+.coins{position:absolute;inset:0;z-index:1;pointer-events:none}
+.col,.flight{position:absolute;left:0;top:0;line-height:0}.flight{z-index:5}
+.amt{position:absolute;left:0;top:0;z-index:4;white-space:nowrap;line-height:1;font:800 12px/1 "Hanken Grotesk",sans-serif;color:#f5b60d;background:#16213a;border-radius:999px;padding:3px 7px;box-shadow:0 1px 3px rgba(0,0,0,.45);font-variant-numeric:tabular-nums}
+.ccol{position:relative;display:block;width:18px}.cc{position:absolute;left:0;display:block;line-height:0}
+.coin{display:inline-block;line-height:0;filter:drop-shadow(0 1px 1px rgba(0,0,0,.45))}.coin svg{display:block}
+@media (max-width:640px){.ev{grid-template-columns:1fr}}
+</style>
+<div class="wrap">
+<header style="display:grid;gap:10px">
+ <div class="eyebrow">Bluffing Valley · sound design</div>
+ <h1>Every sound on the table, tied to its motion</h1>
+ <p class="lede">Each animation below is the <b>real one from the game</b>. Every sound is scheduled on the audio clock for the <b>exact moment</b> something lands, flips, merges or sinks, so what you hear is what the table will do. Under each animation, pick <b>A, B or C</b> (or Off) for each moment. <b>▶</b> plays one alone, and a change applies straight away, even while it plays. When you're done, <b>Copy my picks</b> and send them to me.</p>
+</header>
+
+<div class="bar">
+ <label for="speed">Speed <select id="speed"><option value="1">1×</option><option value="0.5">½×</option><option value="0.25">¼×</option></select></label>
+ <label for="vol">Volume <input id="vol" type="range" min="0" max="1.5" step="0.05" value="0.9"></label>
+ <label><input id="pan" type="checkbox" checked> Left / right follows the table</label>
+ <span id="status" aria-live="polite"></span>
+ <button id="copy" class="btn ghost" type="button">Copy my picks</button>
+</div>
+<textarea id="picks-text" hidden aria-label="Your picks"></textarea>
+
+<section aria-labelledby="h-deal">
+ <div class="head"><h2 id="h-deal">Dealing a hand</h2><p>The deal from the deck (top-left), your cards turning over, the flop, turn and river, a fold, and the end-of-hand collection into the used pile (top-right).</p></div>
+ <div class="table"><div class="cvbox"><canvas id="cv-deal" aria-label="Dealing a hand"></canvas></div></div>
+ <div class="tools"><button id="play-deal" class="btn" type="button">Play</button><span class="time" id="time-deal"></span></div>
+ <div class="events" id="events-deal"></div>
+</section>
+
+<section aria-labelledby="h-shuffle">
+ <div class="head"><h2 id="h-shuffle">The shuffle</h2><p>The used pile flies in and turns over, three middle-section cuts, the split, the triangle shuffle, and the deck flies back to its corner.</p></div>
+ <div class="table"><div class="cvbox"><canvas id="cv-shuffle" aria-label="The shuffle routine"></canvas></div></div>
+ <div class="tools"><button id="play-shuffle" class="btn" type="button">Play</button><span class="time" id="time-shuffle"></span></div>
+ <div class="events" id="events-shuffle"></div>
+</section>
+
+<section aria-labelledby="h-money">
+ <div class="head"><h2 id="h-money">A money hand</h2><p>Blinds, bets and calls landing on piles, checks, sweeps into the pot (with its coins merging), and a split pot, whose coins break to make change before each share sinks into its winner.</p></div>
+ <div class="table"><div class="fitbox"><div id="mstage" aria-label="A money hand"></div></div></div>
+ <div class="tools"><button id="play-money" class="btn" type="button">Play</button><span class="time" id="time-money"></span></div>
+ <div class="events" id="events-money"></div>
+</section>
+</div>
+<script src="demo.bundle.js"></script>

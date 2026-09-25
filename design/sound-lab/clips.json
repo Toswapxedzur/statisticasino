@@ -1,0 +1,732 @@
+{
+ "cardLand": [
+  {
+   "label": "Game now (ArtOrDie paper cards)",
+   "clips": [
+    {
+     "file": "clips/cardLand-0-s0.wav",
+     "src": "game:deal-1",
+     "dur": 0.229,
+     "pitch": 0.28
+    },
+    {
+     "file": "clips/cardLand-0-s1.wav",
+     "src": "game:deal-2",
+     "dur": 0.282,
+     "pitch": 0.59
+    },
+    {
+     "file": "clips/cardLand-0-s2.wav",
+     "src": "game:deal-3",
+     "dur": 0.22,
+     "pitch": 0.17
+    },
+    {
+     "file": "clips/cardLand-0-s3.wav",
+     "src": "game:deal-4",
+     "dur": 0.3,
+     "pitch": 0.17
+    }
+   ]
+  },
+  {
+   "label": "Kenney card place",
+   "clips": [
+    {
+     "file": "clips/cardLand-1-s0.wav",
+     "src": "kenney-casino-card-place-1",
+     "dur": 0.655,
+     "pitch": 0.33
+    },
+    {
+     "file": "clips/cardLand-1-s1.wav",
+     "src": "kenney-casino-card-place-2",
+     "dur": 0.478,
+     "pitch": 0.07
+    },
+    {
+     "file": "clips/cardLand-1-s2.wav",
+     "src": "kenney-casino-card-place-3",
+     "dur": 0.66,
+     "pitch": 0.13
+    },
+    {
+     "file": "clips/cardLand-1-s3.wav",
+     "src": "kenney-casino-card-place-4",
+     "dur": 0.66,
+     "pitch": 0.14
+    }
+   ]
+  },
+  {
+   "label": "Single deals (Freesound)",
+   "clips": [
+    {
+     "file": "clips/cardLand-2-s0.wav",
+     "src": "fs-571577",
+     "dur": 0.62,
+     "pitch": 0.08
+    },
+    {
+     "file": "clips/cardLand-2-s1.wav",
+     "src": "fs-787405",
+     "dur": 0.66,
+     "pitch": 0.1
+    },
+    {
+     "file": "clips/cardLand-2-s2.wav",
+     "src": "fs-638697",
+     "dur": 0.66,
+     "pitch": 0.05
+    }
+   ]
+  }
+ ],
+ "flip": [
+  {
+   "label": "Card flick (Mixkit)",
+   "clips": [
+    {
+     "file": "clips/flip-0-s0.wav",
+     "src": "mixkit-2002",
+     "dur": 0.66,
+     "pitch": 0.11
+    }
+   ]
+  },
+  {
+   "label": "flipCard (Splashdust)",
+   "clips": [
+    {
+     "file": "clips/flip-1-s0.wav",
+     "src": "fs-84322",
+     "dur": 0.66,
+     "pitch": 0.08
+    }
+   ]
+  },
+  {
+   "label": "Card sound (memes_hodachy)",
+   "clips": [
+    {
+     "file": "clips/flip-2-s0.wav",
+     "src": "fs-554208",
+     "dur": 0.66,
+     "pitch": 0.46
+    }
+   ]
+  }
+ ],
+ "pileTap": [
+  {
+   "label": "Game now (fold)",
+   "clips": [
+    {
+     "file": "clips/pileTap-0-s0.wav",
+     "src": "game:fold-1",
+     "dur": 0.551,
+     "pitch": 0.15
+    },
+    {
+     "file": "clips/pileTap-0-s1.wav",
+     "src": "game:fold-2",
+     "dur": 0.591,
+     "pitch": 0.08
+    }
+   ]
+  },
+  {
+   "label": "Kenney card shove",
+   "clips": [
+    {
+     "file": "clips/pileTap-1-s0.wav",
+     "src": "kenney-casino-card-shove-1",
+     "dur": 0.66,
+     "pitch": 0.07
+    },
+    {
+     "file": "clips/pileTap-1-s1.wav",
+     "src": "kenney-casino-card-shove-2",
+     "dur": 0.66,
+     "pitch": 0.09
+    },
+    {
+     "file": "clips/pileTap-1-s2.wav",
+     "src": "kenney-casino-card-shove-3",
+     "dur": 0.66,
+     "pitch": 0.15
+    },
+    {
+     "file": "clips/pileTap-1-s3.wav",
+     "src": "kenney-casino-card-shove-4",
+     "dur": 0.66,
+     "pitch": 0.39
+    }
+   ]
+  },
+  {
+   "label": "Card contact tap",
+   "clips": [
+    {
+     "file": "clips/pileTap-2-s0.wav",
+     "src": "fs-96127",
+     "dur": 0.141,
+     "pitch": 0.29
+    }
+   ]
+  }
+ ],
+ "pileDone": [
+  {
+   "label": "Deck hit (Mixkit)",
+   "clips": [
+    {
+     "file": "clips/pileDone-0-s0.wav",
+     "src": "mixkit-1994",
+     "dur": 0.56,
+     "pitch": 0.08
+    }
+   ]
+  },
+  {
+   "label": "Pounding cards",
+   "clips": [
+    {
+     "file": "clips/pileDone-1-s0.wav",
+     "src": "fs-466789",
+     "dur": 0.56,
+     "pitch": 0.11
+    }
+   ]
+  },
+  {
+   "label": "Pack take-out (Kenney)",
+   "clips": [
+    {
+     "file": "clips/pileDone-2-s0.wav",
+     "src": "kenney-casino-cards-pack-take-out-1",
+     "dur": 0.553,
+     "pitch": 0.06
+    }
+   ]
+  }
+ ],
+ "deckSlide": [
+  {
+   "label": "Kenney card fan",
+   "clips": [
+    {
+     "file": "clips/deckSlide-0-s0.wav",
+     "src": "kenney-casino-card-fan-1",
+     "dur": 0.66,
+     "pitch": 0.3
+    }
+   ]
+  },
+  {
+   "label": "Kenney card slide",
+   "clips": [
+    {
+     "file": "clips/deckSlide-1-s0.wav",
+     "src": "kenney-casino-card-slide-5",
+     "dur": 0.66,
+     "pitch": 0.4
+    }
+   ]
+  },
+  {
+   "label": "Card slide (BapttX)",
+   "clips": [
+    {
+     "file": "clips/deckSlide-2-s0.wav",
+     "src": "fs-843344",
+     "dur": 0.589,
+     "pitch": 0.49
+    }
+   ]
+  }
+ ],
+ "cutDrop": [
+  {
+   "label": "Card contact tap",
+   "clips": [
+    {
+     "file": "clips/cutDrop-0-s0.wav",
+     "src": "fs-96127",
+     "dur": 0.141,
+     "pitch": 0.29
+    }
+   ]
+  },
+  {
+   "label": "Deck hit (Mixkit)",
+   "clips": [
+    {
+     "file": "clips/cutDrop-1-s0.wav",
+     "src": "mixkit-1994",
+     "dur": 0.66,
+     "pitch": 0.08
+    }
+   ]
+  },
+  {
+   "label": "Kenney card place",
+   "clips": [
+    {
+     "file": "clips/cutDrop-2-s0.wav",
+     "src": "kenney-casino-card-place-3",
+     "dur": 0.66,
+     "pitch": 0.13
+    }
+   ]
+  }
+ ],
+ "riffle": [
+  {
+   "label": "Riffle \u2014 Kodack (one continuous)",
+   "clips": [
+    {
+     "file": "clips/riffle-0-s0.wav",
+     "src": "fs-256508",
+     "dur": 2.86,
+     "pitch": 0.06
+    }
+   ]
+  },
+  {
+   "label": "Riffle \u2014 ailett (one continuous)",
+   "clips": [
+    {
+     "file": "clips/riffle-1-s0.wav",
+     "src": "fs-445031",
+     "dur": 2.86,
+     "pitch": 0.62
+    }
+   ]
+  },
+  {
+   "label": "A tick per card (card contact)",
+   "clips": [
+    {
+     "file": "clips/riffle-2-s0.wav",
+     "src": "fs-96127",
+     "dur": 0.141,
+     "pitch": 0.29
+    }
+   ]
+  }
+ ],
+ "deckLand": [
+  {
+   "label": "Deck hit (Mixkit)",
+   "clips": [
+    {
+     "file": "clips/deckLand-0-s0.wav",
+     "src": "mixkit-1994",
+     "dur": 0.66,
+     "pitch": 0.08
+    }
+   ]
+  },
+  {
+   "label": "Pounding cards",
+   "clips": [
+    {
+     "file": "clips/deckLand-1-s0.wav",
+     "src": "fs-466789",
+     "dur": 0.66,
+     "pitch": 0.11
+    }
+   ]
+  },
+  {
+   "label": "Kenney card place",
+   "clips": [
+    {
+     "file": "clips/deckLand-2-s0.wav",
+     "src": "kenney-casino-card-place-1",
+     "dur": 0.655,
+     "pitch": 0.33
+    }
+   ]
+  }
+ ],
+ "coinsLand": [
+  {
+   "label": "Game now (ArtOrDie ceramic chips)",
+   "clips": [
+    {
+     "file": "clips/coinsLand-0-s0.wav",
+     "src": "game:bet-1",
+     "dur": 0.172,
+     "pitch": 0.15
+    },
+    {
+     "file": "clips/coinsLand-0-s1.wav",
+     "src": "game:bet-2",
+     "dur": 0.192,
+     "pitch": 0.24
+    },
+    {
+     "file": "clips/coinsLand-0-s2.wav",
+     "src": "game:bet-3",
+     "dur": 0.157,
+     "pitch": 0.22
+    }
+   ]
+  },
+  {
+   "label": "Kenney chips stack",
+   "clips": [
+    {
+     "file": "clips/coinsLand-1-s0.wav",
+     "src": "kenney-casino-chips-stack-1",
+     "dur": 0.27,
+     "pitch": 0.09
+    },
+    {
+     "file": "clips/coinsLand-1-s1.wav",
+     "src": "kenney-casino-chips-stack-2",
+     "dur": 0.228,
+     "pitch": 0.14
+    },
+    {
+     "file": "clips/coinsLand-1-s2.wav",
+     "src": "kenney-casino-chips-stack-3",
+     "dur": 0.418,
+     "pitch": 0.12
+    },
+    {
+     "file": "clips/coinsLand-1-s3.wav",
+     "src": "kenney-casino-chips-stack-4",
+     "dur": 0.254,
+     "pitch": 0.19
+    },
+    {
+     "file": "clips/coinsLand-1-s4.wav",
+     "src": "kenney-casino-chips-stack-5",
+     "dur": 0.213,
+     "pitch": 0.11
+    }
+   ]
+  },
+  {
+   "label": "Metal coins",
+   "clips": [
+    {
+     "file": "clips/coinsLand-2-s0.wav",
+     "src": "fs-349283",
+     "dur": 0.66,
+     "pitch": 0.09
+    },
+    {
+     "file": "clips/coinsLand-2-s1.wav",
+     "src": "fs-343462",
+     "dur": 0.224,
+     "pitch": 0.54
+    }
+   ],
+   "many": [
+    {
+     "file": "clips/coinsLand-2-m0.wav",
+     "src": "fs-223344",
+     "dur": 0.536,
+     "pitch": 0.17
+    }
+   ]
+  }
+ ],
+ "merge": [
+  {
+   "label": "Kenney chips collide",
+   "clips": [
+    {
+     "file": "clips/merge-0-s0.wav",
+     "src": "kenney-casino-chips-collide-1",
+     "dur": 0.241,
+     "pitch": 0.23
+    },
+    {
+     "file": "clips/merge-0-s1.wav",
+     "src": "kenney-casino-chips-collide-2",
+     "dur": 0.264,
+     "pitch": 0.13
+    },
+    {
+     "file": "clips/merge-0-s2.wav",
+     "src": "kenney-casino-chips-collide-3",
+     "dur": 0.199,
+     "pitch": 0.14
+    },
+    {
+     "file": "clips/merge-0-s3.wav",
+     "src": "kenney-casino-chips-collide-4",
+     "dur": 0.236,
+     "pitch": 0.14
+    }
+   ]
+  },
+  {
+   "label": "Chip clicks (SilverDubloons)",
+   "clips": [
+    {
+     "file": "clips/merge-1-s0.wav",
+     "src": "fs-817552",
+     "dur": 0.379,
+     "pitch": 0.57
+    },
+    {
+     "file": "clips/merge-1-s1.wav",
+     "src": "fs-817553",
+     "dur": 0.372,
+     "pitch": 0.36
+    },
+    {
+     "file": "clips/merge-1-s2.wav",
+     "src": "fs-817554",
+     "dur": 0.391,
+     "pitch": 0.44
+    }
+   ]
+  },
+  {
+   "label": "Chip clack (fartheststar)",
+   "clips": [
+    {
+     "file": "clips/merge-2-s0.wav",
+     "src": "fs-201808",
+     "dur": 0.27,
+     "pitch": 0.31
+    }
+   ]
+  }
+ ],
+ "break": [
+  {
+   "label": "Kenney chips handle",
+   "clips": [
+    {
+     "file": "clips/break-0-s0.wav",
+     "src": "kenney-casino-chips-handle-3",
+     "dur": 0.286,
+     "pitch": 0.19
+    },
+    {
+     "file": "clips/break-0-s1.wav",
+     "src": "kenney-casino-chips-handle-4",
+     "dur": 0.416,
+     "pitch": 0.15
+    }
+   ]
+  },
+  {
+   "label": "Coins scatter (Anthousai)",
+   "clips": [
+    {
+     "file": "clips/break-1-s0.wav",
+     "src": "fs-336571",
+     "dur": 0.607,
+     "pitch": 0.07
+    }
+   ]
+  },
+  {
+   "label": "5 coins (jalastram)",
+   "clips": [
+    {
+     "file": "clips/break-2-s0.wav",
+     "src": "fs-223344",
+     "dur": 0.536,
+     "pitch": 0.17
+    }
+   ]
+  }
+ ],
+ "sweepStart": [
+  {
+   "label": "Push chips (Joma86)",
+   "clips": [
+    {
+     "file": "clips/sweepStart-0-s0.wav",
+     "src": "fs-532860",
+     "dur": 0.76,
+     "pitch": 0.05
+    }
+   ]
+  },
+  {
+   "label": "Kenney chips handle",
+   "clips": [
+    {
+     "file": "clips/sweepStart-1-s0.wav",
+     "src": "kenney-casino-chips-handle-1",
+     "dur": 0.645,
+     "pitch": 0.08
+    }
+   ]
+  },
+  {
+   "label": "Coins slide (Faulkin)",
+   "clips": [
+    {
+     "file": "clips/sweepStart-2-s0.wav",
+     "src": "fs-336481",
+     "dur": 0.76,
+     "pitch": 0.04
+    }
+   ]
+  }
+ ],
+ "sweepLand": [
+  {
+   "label": "Game now (pot)",
+   "clips": [
+    {
+     "file": "clips/sweepLand-0-s0.wav",
+     "src": "game:pot",
+     "dur": 0.602,
+     "pitch": 0.12
+    }
+   ]
+  },
+  {
+   "label": "Kenney chips stack",
+   "clips": [
+    {
+     "file": "clips/sweepLand-1-s0.wav",
+     "src": "kenney-casino-chips-stack-3",
+     "dur": 0.418,
+     "pitch": 0.12
+    }
+   ]
+  },
+  {
+   "label": "Clinking coins (Mixkit)",
+   "clips": [
+    {
+     "file": "clips/sweepLand-2-s0.wav",
+     "src": "mixkit-1993",
+     "dur": 0.86,
+     "pitch": 0.1
+    }
+   ]
+  }
+ ],
+ "collect": [
+  {
+   "label": "Game now (win chips)",
+   "clips": [
+    {
+     "file": "clips/collect-0-s0.wav",
+     "src": "game:win-chips",
+     "dur": 0.663,
+     "pitch": 0.07
+    }
+   ]
+  },
+  {
+   "label": "Push chips (Joma86)",
+   "clips": [
+    {
+     "file": "clips/collect-1-s0.wav",
+     "src": "fs-532861",
+     "dur": 0.913,
+     "pitch": 0.05
+    }
+   ]
+  },
+  {
+   "label": "Bag of coins (Mixkit)",
+   "clips": [
+    {
+     "file": "clips/collect-2-s0.wav",
+     "src": "mixkit-3187",
+     "dur": 0.96,
+     "pitch": 0.05
+    }
+   ]
+  }
+ ],
+ "sink": [
+  {
+   "label": "Kenney chip lay",
+   "clips": [
+    {
+     "file": "clips/sink-0-s0.wav",
+     "src": "kenney-casino-chip-lay-1",
+     "dur": 0.191,
+     "pitch": 0.39
+    },
+    {
+     "file": "clips/sink-0-s1.wav",
+     "src": "kenney-casino-chip-lay-2",
+     "dur": 0.287,
+     "pitch": 0.08
+    },
+    {
+     "file": "clips/sink-0-s2.wav",
+     "src": "kenney-casino-chip-lay-3",
+     "dur": 0.243,
+     "pitch": 0.52
+    }
+   ]
+  },
+  {
+   "label": "Coin in cup",
+   "clips": [
+    {
+     "file": "clips/sink-1-s0.wav",
+     "src": "bsb-0339",
+     "dur": 0.66,
+     "pitch": 0.32
+    }
+   ]
+  },
+  {
+   "label": "Chip drop (Za-Games)",
+   "clips": [
+    {
+     "file": "clips/sink-2-s0.wav",
+     "src": "fs-540369",
+     "dur": 0.66,
+     "pitch": 0.06
+    }
+   ]
+  }
+ ],
+ "check": [
+  {
+   "label": "Game now (a 7 ms click)",
+   "clips": [
+    {
+     "file": "clips/check-0-s0.wav",
+     "src": "game:check",
+     "dur": 0.067,
+     "pitch": 0.55
+    }
+   ]
+  },
+  {
+   "label": "Double knock (card contact \u00d72)",
+   "clips": [
+    {
+     "file": "clips/check-1-s0.wav",
+     "src": "fs-96127",
+     "dur": 0.251,
+     "pitch": 0.18
+    }
+   ]
+  },
+  {
+   "label": "Double knock (deck hit \u00d72)",
+   "clips": [
+    {
+     "file": "clips/check-2-s0.wav",
+     "src": "mixkit-1994",
+     "dur": 0.36,
+     "pitch": 0.22
+    }
+   ]
+  }
+ ]
+}

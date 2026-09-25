@@ -57,6 +57,12 @@ export const COIN = {
   arc: 0.16,        // lift at mid-flight, as a share of the distance (capped by the renderer)
 };
 
+/** Sound cues, each at the exact moment of its motion: coins (a column lands on a pile, `count`
+ *  coins), bet (a bet's first column lands), merge / break (a carry / borrow lands), sweep (the
+ *  piles start for the pot), pot (they land), collect (winnings leave the pot), winChips (they
+ *  land), sink (they're inside the badge), check (a knock — nothing moves). `at` = the place. */
+export const CUES = ["coins", "bet", "merge", "break", "sweep", "pot", "collect", "winChips", "sink", "check"];
+
 export const mj = (u) => { const k = Math.min(1, Math.max(0, u)); return k * k * k * (10 + k * (-15 + 6 * k)); };
 export const bump = (u) => { const k = Math.min(1, Math.max(0, u)); return 64 * (k * (1 - k)) ** 3; };
 
@@ -66,7 +72,7 @@ export class Money {
     this.stack = new Map(Object.entries(stacks).map(([s, v]) => [+s, v]));  // settled values
     this.piles = new Map();        // "bet:<seat>" | "pot" → Map(denom → count) of landed coins
     this.flights = [];             // { id, kind: "column"|"merge"|"break", denom, count, toDenom, toCount, amount, from, to, t0, dur, arc, sink }
-    this.cues = [];                // { t, name } sound cues, at the moment coins land
+    this.cues = [];                // { t, name, at?, count? } sound cues at the exact moment (see CUES)
     this.sweeps = [];              // { seat, amount, cols, t0, dur } — for the bet numbers riding into the pot
     this._count = new Map();       // "stack:<seat>" | "pot" → { from, t0 } running count-ups
     this._queue = [];              // [{ t, fn, bet?, seq?, norm? }] timed actions
@@ -84,13 +90,14 @@ export class Money {
         this._setStack(payer, (this.stack.get(payer) ?? 0) - value, null);   // leaves the badge at once
         this._fly({ kind: "column", denom: c.denom, count: c.count, amount: value, from: { kind: "stack", seat: payer }, to: { kind: "slot", pile, denom: c.denom }, dur: COIN.flight }, now, (tl) => {
           this._add(pile, c.denom, c.count, tl);
+          this.cues.push({ t: tl, name: "coins", count: c.count, at: { kind: "slot", pile, denom: c.denom } });
           if (i === 0) this.cues.push({ t: tl, name: "bet" });
         });
       }, { bet: true });
     });
   }
 
-  check(seat, t) { this._at(t, (now) => this.cues.push({ t: now, name: "check" })); }
+  check(seat, t) { this._at(t, (now) => this.cues.push({ t: now, name: "check", at: { kind: "stack", seat } })); }
 
   /** The street is over: every pile's columns into the pot's same-value columns. */
   sweep(t) { this._whenSettled(t, COIN.sweepAfter, (now) => this._sweep(now)); }
@@ -122,6 +129,7 @@ export class Money {
         this._setStack(from, (this.stack.get(from) ?? 0) - value, null);
         this._fly({ kind: "column", denom: c.denom, count: c.count, amount: value, from: { kind: "stack", seat: from }, to: { kind: "stack", seat: to }, dur: COIN.award, sink: COIN.sink }, now, (tl) => {
           this._setStack(to, (this.stack.get(to) ?? 0) + value, tl);
+          if (i === 0) this.cues.push({ t: tl + COIN.sink, name: "sink", at: { kind: "stack", seat: to } });
         });
       });
     });
@@ -220,6 +228,7 @@ export class Money {
       this.piles.delete(key);
       if (!amount) continue;
       this.sweeps.push({ seat, amount, cols, t0: now, dur: COIN.sweep });
+      if (first) this.cues.push({ t: now, name: "sweep", at: { kind: "pot" } });
       const isFirst = first;
       first = false;
       // every column to the pot's same-value column; all piles leave together and land together
@@ -253,7 +262,10 @@ export class Money {
           const q = this.piles.get(pile);
           if (!q || (q.get(d) || 0) < r) return;           // the coins left meanwhile (a sweep)
           q.set(d, q.get(d) - r);                         // they leave the column as they merge
-          this._fly({ kind: "merge", denom: d, count: r, toDenom: UP.get(d), toCount: 1, amount: d * r, from: { kind: "slot", pile, denom: d }, to: { kind: "slot", pile, denom: UP.get(d) }, dur: COIN.merge, arc: 0.5 }, t1, (tl) => this._add(pile, UP.get(d), 1, tl));
+          this._fly({ kind: "merge", denom: d, count: r, toDenom: UP.get(d), toCount: 1, amount: d * r, from: { kind: "slot", pile, denom: d }, to: { kind: "slot", pile, denom: UP.get(d) }, dur: COIN.merge, arc: 0.5 }, t1, (tl) => {
+            this._add(pile, UP.get(d), 1, tl);
+            this.cues.push({ t: tl, name: "merge", at: { kind: "slot", pile, denom: UP.get(d) } });
+          });
         }, { norm: true });
       }
     }
@@ -275,6 +287,7 @@ export class Money {
         p.set(e, p.get(e) - 1);
         this._fly({ kind: "break", denom: e, count: 1, toDenom: below, toCount: r, amount: e, from: { kind: "slot", pile, denom: e }, to: { kind: "slot", pile, denom: below }, dur: COIN.break, arc: 0.5 }, t, (tl) => {
           p.set(below, (p.get(below) || 0) + r);
+          this.cues.push({ t: tl, name: "break", count: r, at: { kind: "slot", pile, denom: below } });
           this._at(tl + COIN.settle, step, { norm: true });
         });
         return;
@@ -286,6 +299,8 @@ export class Money {
   }
   /** Columns leave a pile for a badge together; they sink into it and the stack counts up. */
   _flyHome(pile, cols, seat, t, dur, cue) {
+    if (pile === "pot") this.cues.push({ t, name: "collect", at: { kind: "pot" } });
+    if (cols.length) this.cues.push({ t: t + dur + COIN.sink, name: "sink", at: { kind: "stack", seat } });
     cols.forEach(([d, n], i) => {
       this._fly({ kind: "column", denom: d, count: n, amount: d * n, from: { kind: "slot", pile, denom: d }, to: { kind: "stack", seat }, dur, sink: COIN.sink }, t, (tl) => {
         this._setStack(seat, (this.stack.get(seat) ?? 0) + d * n, tl);
