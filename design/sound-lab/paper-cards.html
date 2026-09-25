@@ -1,0 +1,80 @@
+<title>Paper Card Sounds</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,650&family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap">
+<style>
+:root{--bg:#f5efe2;--surface:#fffaf0;--well:#ebe3d1;--text:#14203b;--muted:#5b6784;--accent:#1f6fa8;--gold:#b07a00;--wave:#1f6fa8;--mark:#c2410c;--shadow:0 1px 2px rgba(20,32,59,.06),0 6px 18px rgba(20,32,59,.07)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#0b1222;--surface:#16213a;--well:#0f172a;--text:#e5ecff;--muted:#93a3c6;--accent:#5ec8e5;--gold:#f5b60d;--wave:#5ec8e5;--mark:#fb923c;--shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.28)}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#0b1222;--surface:#16213a;--well:#0f172a;--text:#e5ecff;--muted:#93a3c6;--accent:#5ec8e5;--gold:#f5b60d;--wave:#5ec8e5;--mark:#fb923c;--shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.28)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 "Hanken Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:900px;margin:0 auto;padding-inline:16px;padding-block:28px 64px;display:grid;gap:18px}
+.eyebrow{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+h1{font:650 clamp(28px,4vw,36px)/1.1 Fraunces,Georgia,serif;margin:0;text-wrap:balance}
+.lede{color:var(--muted);max-width:70ch;margin:0}.lede b{color:var(--text)}
+.seg{background:var(--surface);border-radius:14px;box-shadow:var(--shadow);padding:14px 16px;display:grid;gap:10px}
+.top{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+.top h2{font:700 16px/1.2 "Hanken Grotesk",sans-serif;margin:0}
+.meta{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
+.game{font-size:12px;font-weight:700;color:var(--gold);border:1px solid color-mix(in srgb,var(--gold) 55%,transparent);border-radius:999px;padding:1px 8px}
+.play{margin-left:auto;font:700 13px/1 "Hanken Grotesk",sans-serif;border:0;border-radius:999px;padding:8px 14px;background:var(--gold);color:#1a1405;cursor:pointer}
+.wave{width:100%;height:64px;display:block;background:var(--well);border-radius:8px}
+.wave path{fill:var(--wave);opacity:.85}
+.wave line{stroke:var(--mark);stroke-width:1.5}
+.wave text{fill:var(--mark);font:700 10px "Hanken Grotesk",sans-serif}
+.taps{display:flex;flex-wrap:wrap;gap:6px}
+.tap{display:inline-flex;align-items:center;gap:6px;border:0;background:var(--well);color:var(--text);border-radius:999px;padding:5px 10px 5px 6px;font:600 12px/1 "Hanken Grotesk",sans-serif;cursor:pointer;font-variant-numeric:tabular-nums}
+.tap b{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:var(--mark);color:#fff;font-size:10px}
+.tap span{color:var(--muted);font-weight:500}
+.tap.slow b{background:transparent;color:var(--mark);box-shadow:inset 0 0 0 1.5px var(--mark)}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.key{background:var(--well);border-radius:12px;padding:12px 14px;font-size:14px;color:var(--muted);display:grid;gap:4px}.key b{color:var(--text)}
+</style>
+<div class="wrap">
+<header style="display:grid;gap:10px">
+ <div class="eyebrow">Bluffing Valley · sound design · ArtOrDie "Poker and Dice" (CC BY 4.0)</div>
+ <h1>Paper card sounds</h1>
+ <p class="lede">The pack's <b>paper cards</b> recordings, as the 15 clips they were split into. Each clip is a quick burst of <b>2–14 taps</b>. The waveform marks every tap, and each tap is also cut out on its own, so you can hear <b>single taps</b>. Where a clip became one of the game's current sounds, it says so.</p>
+</header>
+<div class="key">
+ <span><b>Measured, not listened to.</b> A "tap" is a sudden rise in loudness. For each tap you get: when it starts in the clip; its loudness, with 0 dB the loudest tap in that clip; how long after its start it reaches full loudness (≤ 20 ms is a crisp tap, more means it builds up and will sound late if used for a landing); and its brightness, where higher is thinner and snappier and lower is duller and weightier.</span>
+ <span><b>Tap chips:</b> ● a crisp tap · ○ one that builds up (> 30 ms to full loudness).</span>
+</div>
+<div id="list" style="display:grid;gap:14px"></div>
+</div>
+<script>
+const $ = (s) => document.querySelector(s);
+const players = new Map();
+function play(file) {
+  let a = players.get(file);
+  if (!a) { a = new Audio(file); a.preload = "auto"; players.set(file, a); }
+  a.currentTime = 0; a.play().catch(() => {});
+}
+fetch("paper.json").then((r) => r.json()).then((segs) => {
+  const list = $("#list");
+  for (const s of segs) {
+    const el = document.createElement("section");
+    el.className = "seg";
+    const W = 600, Hh = 60;
+    const marks = s.hits.map((h, i) => { const x = (h.at / s.dur) * W; return `<line x1="${x}" y1="0" x2="${x}" y2="${Hh}"/><text x="${x + 3}" y="11">${i + 1}</text>`; }).join("");
+    const game = s.game.map((g) => `<span class="game">in the game now: ${g.sound}${g.at > 0.03 ? ` (from ${Math.round(g.at * 1000)} ms)` : ""}</span>`).join(" ");
+    el.innerHTML = `
+      <div class="top"><h2>${s.id.replace("paper-cards-", "Clip ")}</h2>
+        <span class="meta">${Math.round(s.dur * 1000)} ms · ${s.hits.length} taps</span> ${game}
+        <button class="play" type="button">▶ Whole clip</button></div>
+      <svg class="wave" viewBox="0 0 ${W} ${Hh}" preserveAspectRatio="none" role="img" aria-label="Waveform with ${s.hits.length} taps marked"><path d="${s.path}"/>${marks}</svg>
+      <div class="taps"></div>`;
+    el.querySelector(".play").addEventListener("click", () => play(s.file));
+    const taps = el.querySelector(".taps");
+    s.hits.forEach((h, i) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "tap" + (h.peakAt > 30 ? " slow" : "");
+      b.innerHTML = `<b>${i + 1}</b>${Math.round(h.at * 1000)} ms <span>· ${Math.abs(h.level) < 0.5 ? 0 : Math.round(h.level)} dB · full at ${h.peakAt} ms · ${(h.bright / 1000).toFixed(1)} kHz</span>`;
+      b.setAttribute("aria-label", `Play tap ${i + 1} of ${s.id}`);
+      b.addEventListener("click", () => play(h.file));
+      taps.appendChild(b);
+    });
+    list.appendChild(el);
+  }
+});
+</script>

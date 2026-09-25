@@ -12,3 +12,7 @@ of motion, to choose which sound goes with which moment. Nothing here ships with
 - `build_clips.py` → `clips/*.wav` + `clips.json`: cuts the candidates from `design/sfx-library/`
   and `static/sfx/` — each clip starts on its transient, capped, faded, tail-padded, peak −3 dBFS,
   and measured for pitch (owner's no-pitch rule; anything over 0.45 is marked "rings a little").
+- `paper-cards.html` + `paper/` + `paper.json` (`build_paper.py`) — the ArtOrDie "paper cards"
+  recordings: all 15 clips, every tap marked on the waveform and cut out on its own, measured
+  (loudness, time to full loudness, brightness), and which of the game's current sounds each
+  clip became. Published as its own private artifact.
