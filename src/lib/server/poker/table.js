@@ -14,6 +14,7 @@
 // reconnect "just work".
 
 import { encode, S2C } from "../../poker/protocol.js";
+import { animatesConfig, SHUFFLE_HAND_DELAY_MS } from "../../poker/deal-anim.js";
 import {
   createHand,
   legalActions,
@@ -427,10 +428,14 @@ export class LiveTable {
     if (!this.autoStart) return; // tests drive beginHand() manually
     if (this.startTimer != null) return; // already scheduled
     if (this.eligibleSeats().length < 2) return;
+    // After a hand on a table whose clients animate the deck (regular poker, flop games), wait
+    // long enough for the collection + the full shuffle routine; the first hand, tournaments /
+    // River Sprint and Stud/Draw keep the short pause.
+    const delay = this.result && animatesConfig(this.config) ? SHUFFLE_HAND_DELAY_MS : NEW_HAND_DELAY_MS;
     this.startTimer = this.setTimer(() => {
       this.startTimer = null;
       return this._run(() => this.beginHand());
-    }, NEW_HAND_DELAY_MS);
+    }, delay);
   }
 
   async beginHand() {

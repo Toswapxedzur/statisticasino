@@ -36,7 +36,7 @@
       {@const sel = !!selectable?.selected?.has(k)}
       {@const legal = selectable ? (selectable.legal ? selectable.legal.has(k) : true) : false}
       {#if selectable}
-        <button type="button" class="slot pick" class:sel class:dim={selectable.legal && !legal} style="left:{i * step}px;--i:{i}" onclick={() => onSelect(k, i, c)} data-sfx="none" disabled={selectable.legal ? !legal : false}>
+        <button type="button" data-slot={i} class="slot pick" class:sel class:dim={selectable.legal && !legal} style="left:{i * step}px;--i:{i}" onclick={() => onSelect(k, i, c)} data-sfx="none" disabled={selectable.legal ? !legal : false}>
           <span class="flip" class:up={!!c && reveal}>
             <span class="face back"><Card faceDown width={width} /></span>
             <span class="face front">{#if c}<Card card={c} width={width} />{/if}</span>
@@ -44,7 +44,7 @@
           {#if sel && labelOf}<span class="lbl">{labelOf(i, c)}</span>{/if}
         </button>
       {:else}
-        <span class="slot" style="left:{i * step}px;--i:{i}">
+        <span class="slot" data-slot={i} style="left:{i * step}px;--i:{i}">
           <span class="flip" class:up={!!c && reveal}>
             <span class="face back"><Card faceDown width={width} /></span>
             <span class="face front">{#if c}<Card card={c} width={width} />{/if}</span>

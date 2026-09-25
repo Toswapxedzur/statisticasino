@@ -30,6 +30,11 @@
   import { d, DUR } from "$lib/motion.js";
   import { play, playBurst, soundEnabled, setSoundEnabled } from "$lib/sfx.js";
   import { tableSoundCues } from "$lib/poker/table-sfx.js";
+  import DeckLayer from "$lib/poker/components/DeckLayer.svelte";
+  import { Dealer } from "$lib/poker/dealer.svelte.js";
+  import { animatesTable } from "$lib/poker/deal-anim.js";
+  import { reducedMotion } from "$lib/motion.js";
+  import { untrack } from "svelte";
 
   let { data } = $props();
   // Reactive: a River Sprint fold-teleport navigates /table/A -> /table/B on the
@@ -211,6 +216,28 @@
       else play(c.name, { delay: c.delay, volume: c.volume });
     }
   });
+  // --- the dealt / shuffled deck (flop poker, see $lib/poker/deal-anim.js) ---
+  // One Dealer per table: it turns view changes into card flights drawn by DeckLayer, and
+  // tells the DOM hands / board when to stay hidden (in the air) and when to flip.
+  let dealer = $state(null);
+  let _dealerFor = null, _dealerPrev = null;
+  $effect(() => {
+    const v = view;
+    const on = animatesTable(v) && !reducedMotion();
+    untrack(() => {
+      if (!on) { dealer = null; _dealerFor = null; _dealerPrev = null; return; }
+      if (_dealerFor !== v.id || !dealer) {
+        dealer = new Dealer({ variant: v.config.variant, mySeat: mySeat?.seat ?? null });
+        dealer.init(v);
+        _dealerFor = v.id; _dealerPrev = v;
+        return;
+      }
+      dealer.mySeat = mySeat?.seat ?? null;
+      const prev = _dealerPrev; _dealerPrev = v;
+      if (prev !== v) dealer.onView(prev, v, privates);
+    });
+  });
+
   // Your turn: the server sends TABLE_TURN only to the acting player.
   let _prevTurnDeadline = null;
   $effect(() => {
@@ -296,6 +323,7 @@
 <svelte:head><title>{data.table.name} — {SITE_NAME}</title></svelte:head>
 
 <div class="tablepage">
+  {#if dealer}<DeckLayer {dealer} />{/if}
   <!-- slim overlay strip: no site bar on a table -->
   <div class="hud">
     <a href="/" class="back" aria-label="Back to lobby" title="Lobby">‹</a>
@@ -351,7 +379,7 @@
       {:else if banked}
         <BankedTable {view} {me} onSit={openBuyIn} {pick} />
       {:else}
-        <PokerTable {view} {me} {privates} onSit={openBuyIn} {pick} />
+        <PokerTable {view} {me} {privates} onSit={openBuyIn} {pick} {dealer} />
       {/if}
     {:else}
       <div class="loading"><p class="muted">{poker.connected ? "Loading table…" : "Connecting…"}</p></div>

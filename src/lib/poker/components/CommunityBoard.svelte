@@ -11,7 +11,10 @@
   //  street    — current street label for context (optional).
   //  result    — null | { type, board, winners:[{seat,amount}], revealed:[] }.
   //              When present the pot pill shows the outcome briefly.
-  let { board = [], potTotal = 0, street = null, result = null, size = "md", width = null } = $props();
+  //  dealt     — null (cards just appear) | { shown, faceUp, hidden } from the table's Dealer:
+  //              slots ≥ shown stay empty (the card is still in the air), slots ≥ faceUp show
+  //              the back, and `hidden` blanks the board while the canvas collects it.
+  let { board = [], potTotal = 0, street = null, result = null, size = "md", width = null, dealt = null } = $props();
 
   // Always render five slots; fill from board, leave the rest as empty slots.
   let slots = $derived(Array.from({ length: 5 }, (_, i) => board[i] ?? null));
@@ -30,11 +33,22 @@
 <div class="board">
   <div class="slots">
     {#each slots as c, i}
-      {#if c}
-        <span class="deal" in:scale={{ start: 0.6, duration: d(DUR.base), delay: d(i * 45) }}><Card card={c} {size} {width} /></span>
-      {:else}
-        <Card {size} {width} />
-      {/if}
+      <span class="bslot" data-board-slot={i}>
+        {#if c && dealt}
+          {#if i < dealt.shown && !dealt.hidden}
+            <span class="flip" class:up={i < dealt.faceUp}>
+              <span class="face back"><Card faceDown {size} {width} /></span>
+              <span class="face front"><Card card={c} {size} {width} /></span>
+            </span>
+          {:else}
+            <Card {size} {width} />
+          {/if}
+        {:else if c}
+          <span class="deal" in:scale={{ start: 0.6, duration: d(DUR.base), delay: d(i * 45) }}><Card card={c} {size} {width} /></span>
+        {:else}
+          <Card {size} {width} />
+        {/if}
+      </span>
     {/each}
   </div>
 
@@ -62,6 +76,13 @@
   }
   .slots { display: flex; gap: 6px; }
   .deal { line-height: 0; display: inline-flex; }
+  .bslot { line-height: 0; display: inline-flex; position: relative; }
+  /* dealt cards: land face-down, then turn over (the flop's three together) */
+  .flip { position: relative; display: inline-flex; line-height: 0; transform-style: preserve-3d; transition: transform 0.5s cubic-bezier(0.4, 0.85, 0.35, 1); }
+  .flip.up { transform: rotateY(180deg); }
+  .face { line-height: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+  .face.front { position: absolute; inset: 0; transform: rotateY(180deg); }
+  @media (prefers-reduced-motion: reduce) { .flip { transition: none; } }
 
   .pot {
     display: inline-flex;

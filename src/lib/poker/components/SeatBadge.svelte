@@ -20,10 +20,12 @@
   //   winner/won — highlight + floating winnings.
   //   canSit/onSit/seatNo — empty-seat button.
   //   selectable/onSelect/labelOf — forwarded to HandFan for pick-a-card turns.
+  //   reveal     — false: my own cards show their backs (just dealt, about to flip).
+  //   hideCards  — the hand is on the dealer's canvas (in the air / collected): keep its place, hide it.
   //   house      — render as the House (dealer) badge: label + bankroll, no ring.
   let {
     seat = null, isMine = false, me = null,
-    cards = null, cardCount = 0, reveal = true,
+    cards = null, cardCount = 0, reveal = true, hideCards = false,
     line = null, lineKind = "",
     deadline = null, winner = false, won = 0,
     canSit = false, onSit = () => {}, seatNo = 0,
@@ -72,7 +74,7 @@
   let avSize = $derived(isMine ? 44 : 34);
 </script>
 
-<div class="seat" class:mine={isMine} class:folded class:sitting-out={sittingOut} class:winner class:allin class:house class:toact={!!seat?.isToAct}>
+<div class="seat" data-seat={seatNo} class:mine={isMine} class:folded class:sitting-out={sittingOut} class:winner class:allin class:house class:toact={!!seat?.isToAct}>
   {#if seat && seat.userId != null}
     {#if winner && won > 0}
       <div class="won" in:fly={{ y: d(10), duration: d(DUR.slow) }} out:fade={{ duration: d(DUR.base) }}>
@@ -106,7 +108,7 @@
     </div>
 
     {#if children}<div class="extra">{@render children()}</div>{/if}
-    <div class="hand" class:has={(cards && cards.length) || cardCount > 0}>
+    <div class="hand" class:dealt-away={hideCards} class:has={(cards && cards.length) || cardCount > 0}>
       <HandFan {cards} count={cardCount} width={cardW} fan={isMine ? "auto" : (cardCount > 3 || (cards?.length ?? 0) > 3 ? "stack" : "auto")} {selectable} {onSelect} {labelOf} {reveal} />
     </div>
   {:else}
@@ -170,6 +172,7 @@
   .row3.push { color: var(--gold-ink); font-weight: 700; }
   .row3.allin { color: var(--danger); font-weight: 800; letter-spacing: 0.4px; }
   .hand { line-height: 0; }
+  .hand.dealt-away { visibility: hidden; }
   .extra { display: flex; justify-content: center; }
   .hand:not(.has) { display: none; }
   .seat.folded .plate, .seat.folded .hand { opacity: 0.42; filter: grayscale(0.4); }

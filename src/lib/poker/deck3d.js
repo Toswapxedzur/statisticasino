@@ -224,7 +224,11 @@ export function drawStack(ctx, { ids, theta = 0, fx, fy, baseZ = 0, rise = 0, sc
   } else {
     // seen from below, the face would read mirrored — flip it back in card space
     ctx.setTransform(base.multiply(new DOMMatrix(plane(-Tn / 2))).multiply(new DOMMatrix([-1, 0, 0, 1, W, 0])));
-    if (art.face) ctx.drawImage(art.face, 0, 0, W, H);
+    // the showing card's own face (art.faceOf, per card id) or the stack's one face; a card whose
+    // face isn't public shows its back even when the stack lies face-up
+    const faceArt = art.faceOf ? art.faceOf(ids[n - 1]) : art.face;
+    if (faceArt) ctx.drawImage(faceArt, 0, 0, W, H);
+    else if (art.back) ctx.drawImage(art.back, 0, 0, W, H);
   }
   if (capLight < 1) {
     ctx.fillStyle = `rgba(0,0,0,${((1 - capLight) * 0.6).toFixed(3)})`;

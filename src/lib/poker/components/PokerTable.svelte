@@ -10,7 +10,9 @@
   // community board + pot in the middle, chips flying seat→pot and pot→winner.
   //  view / me / privates / onSit as before; `pick` = { selected:Set, legal, onSelect, labelOf }
   //  applied to MY hand when the turn asks me to choose cards (draw discards).
-  let { view = null, me = null, privates = null, onSit = () => {}, pick = null } = $props();
+  //  dealer = the table's Dealer (flop poker): cards arrive from the deck on its canvas, so the
+  //  DOM hands / board stay hidden until they land, and my cards flip after landing.
+  let { view = null, me = null, privates = null, onSit = () => {}, pick = null, dealer = null } = $props();
 
   let maxSeats = $derived(view?.config?.maxSeats ?? 0);
   let seatNos = $derived(Array.from({ length: maxSeats }, (_, i) => i));
@@ -70,7 +72,8 @@
   <SeatRing {seatNos} {mySeatNo}>
     {#snippet center()}
       {#if view}
-        <CommunityBoard board={view.board || []} potTotal={view.potTotal || 0} street={view.street} result={view.result} width={cardW} />
+        <CommunityBoard board={view.board || []} potTotal={view.potTotal || 0} street={view.street} result={view.result} width={cardW}
+          dealt={dealer ? { shown: dealer.boardShown, faceUp: dealer.boardFaceUp, hidden: dealer.tableHidden } : null} />
       {:else}
         <p class="muted">Loading table…</p>
       {/if}
@@ -83,6 +86,8 @@
         seat={s} {seatNo} {me} isMine={mine}
         cards={cards}
         cardCount={s && !cards && s.hasCards ? holeCount : 0}
+        hideCards={dealer ? dealer.seatHidden(seatNo) : false}
+        reveal={mine && dealer ? dealer.ownRevealed : true}
         canSit={!!me && !iAmSeated && (!s || s.userId == null)}
         deadline={s?.isToAct ? view?.actionDeadline ?? null : null}
         winner={winnerSet.has(seatNo)} won={wonByNo.get(seatNo) ?? 0}
