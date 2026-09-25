@@ -171,9 +171,16 @@ export async function ensureMigrated() {
 // v23 -> v24 (rename: Riverside → Bluffing Valley): bot shell accounts carry the
 // site name in their synthetic email domain. Idempotent REPLACE.
 async function migrateToV24() {
+  // Collision-safe: a dev server that ran the new code before this migration may already have
+  // created the new-domain bot (e.g. both milo@bot.riverside.invalid and
+  // milo@bot.bluffingvalley.invalid exist). Renaming the old row then hits the unique email and
+  // — since ensureMigrated runs per request — 500s every page. Rename only the rows whose new
+  // address is still free; an old-domain duplicate is left as an inert bot shell.
   await execute(
-    "UPDATE user SET email = REPLACE(email, '@bot.riverside.invalid', '@bot.bluffingvalley.invalid') "
-    + "WHERE email LIKE '%@bot.riverside.invalid'"
+    "UPDATE user u LEFT JOIN user x "
+    + "ON x.email = REPLACE(u.email, '@bot.riverside.invalid', '@bot.bluffingvalley.invalid') "
+    + "SET u.email = REPLACE(u.email, '@bot.riverside.invalid', '@bot.bluffingvalley.invalid') "
+    + "WHERE u.email LIKE '%@bot.riverside.invalid' AND x.id IS NULL"
   );
 }
 
