@@ -17,28 +17,26 @@ h1{font:650 clamp(26px,4vw,36px)/1.1 Fraunces,Georgia,serif;margin:0;text-wrap:b
 #stage{position:absolute;left:0;top:0;width:900px;height:560px;transform-origin:0 0;
   background:radial-gradient(ellipse 60% 55% at 50% 48%,#1b2a4d 0%,#101a31 70%,#0f172a 100%);border-radius:12px;
   font-family:"Hanken Grotesk",system-ui,sans-serif;color:#e5ecff}
-.badge{position:absolute;transform:translate(-50%,-50%);display:flex;align-items:center;gap:8px;min-width:132px;padding:7px 12px 7px 8px;
-  background:#1e2c4c;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.35);transition:opacity .2s,box-shadow .2s}
-.badge .av{width:30px;height:30px;border-radius:50%;background:#4d6fb8;display:grid;place-items:center;font-weight:800;font-size:13px}
-.badge .txt{display:grid;line-height:1.2}
+/* compact badge: avatar · name + stack on one row · the last action under it */
+.badge{position:absolute;z-index:2;transform:translate(-50%,-50%);display:flex;align-items:center;gap:6px;padding:4px 9px 4px 4px;
+  background:#1e2c4c;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.35);transition:opacity .2s,box-shadow .2s;white-space:nowrap}
+.badge .av{width:24px;height:24px;border-radius:50%;background:#4d6fb8;display:grid;place-items:center;font-weight:800;font-size:11px;flex:none}
+.badge .txt{display:grid;line-height:1.15}
+.badge .row1{display:flex;align-items:baseline;gap:6px}
 .badge b{font-size:12px}
-.badge .stack{font-size:13px;font-weight:800;color:#f5b60d;font-variant-numeric:tabular-nums}
-.badge .say{font-size:10px;color:#93a3c6;min-height:12px}
+.badge .stack{font-size:12px;font-weight:800;color:#f5b60d;font-variant-numeric:tabular-nums}
+.badge .say{font-size:10px;color:#93a3c6;min-height:11px}
 .badge.folded{opacity:.42}
 .badge.won{box-shadow:0 0 0 2px #36c47a,0 2px 8px rgba(0,0,0,.35)}
-.potpill{position:absolute;transform:translate(-50%,0);background:#16213a;border-radius:999px;padding:4px 13px;font-size:13px;box-shadow:0 2px 6px rgba(0,0,0,.4);font-variant-numeric:tabular-nums;white-space:nowrap}
+.potpill{position:absolute;transform:translate(-50%,0);background:#16213a;border-radius:999px;padding:3px 11px;font-size:12px;box-shadow:0 2px 6px rgba(0,0,0,.4);font-variant-numeric:tabular-nums;white-space:nowrap}
 .potpill .lbl{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#93a3c6}
 .potpill b{color:#f5b60d}
 .street{position:absolute;transform:translate(-50%,0);font-size:13px;font-weight:600;color:#93a3c6;white-space:nowrap}
-.coins{position:absolute;inset:0;pointer-events:none}
-.pile{position:absolute;transform:translate(-50%,-100%);display:block;line-height:0}
-.amt{position:absolute;left:0;top:0;white-space:nowrap;line-height:1;will-change:transform,opacity;font:800 12px/1 "Hanken Grotesk",sans-serif;color:#f5b60d;background:#16213a;border-radius:999px;padding:3px 7px;box-shadow:0 1px 3px rgba(0,0,0,.45);font-variant-numeric:tabular-nums}
-.flight{position:absolute;left:0;top:0;line-height:0;will-change:transform,opacity}
-/* CoinStack's pile: columns at half-coin pitch, alternate columns raised 0.6·size behind */
-.cstack{display:inline-flex;align-items:flex-end;padding-top:calc(var(--sz)*.6)}
-.ccol{position:relative;width:var(--sz);display:inline-block;flex:0 0 auto;z-index:2}
-.ccol+.ccol{margin-left:calc(var(--sz)*-.5)}
-.ccol.hi{transform:translateY(calc(var(--sz)*-.6));z-index:1}
+.coins{position:absolute;inset:0;z-index:1;pointer-events:none}   /* under the badges: coins slide out of / sink into them */
+.col,.flight{position:absolute;left:0;top:0;line-height:0;will-change:transform}
+.flight{z-index:5;will-change:transform,opacity}
+.amt{position:absolute;left:0;top:0;z-index:4;white-space:nowrap;line-height:1;will-change:transform,opacity;font:800 12px/1 "Hanken Grotesk",sans-serif;color:#f5b60d;background:#16213a;border-radius:999px;padding:3px 7px;box-shadow:0 1px 3px rgba(0,0,0,.45);font-variant-numeric:tabular-nums}
+.ccol{position:relative;display:block;width:18px}
 .cc{position:absolute;left:0;display:block;line-height:0}
 .coin{display:inline-block;line-height:0;filter:drop-shadow(0 1px 1px rgba(0,0,0,.45))}
 .coin svg{display:block}
@@ -54,15 +52,15 @@ select{font:600 14px/1 "Hanken Grotesk",system-ui,sans-serif;background:var(--su
 <div class="wrap">
 <header style="display:grid;gap:10px">
  <div class="eyebrow">Bluffing Valley · currency animation · demo</div>
- <h1>Bets stream in, the pot sweeps up, the winner collects</h1>
- <p class="lede">A <b>bet</b> leaves the badge <b>one coin column at a time</b> (highest value first) and stacks onto a <b>pile in front of the seat</b>; a raise adds to it, a <b>check moves nothing</b>. When the street ends, <b>every pile slides into the pot together, its number riding along and merging into the pot's number</b>, which counts up. An <b>uncalled bet slides back</b>. The <b>pot flies to the winner</b> (a split pot: one share each), <b>sinks into the badge</b>, and the stack counts up.</p>
+ <h1>Coins that add up like digits</h1>
+ <p class="lede">Each player's coins sit <b>right beside their badge</b>, on the side facing the table, and read like a number: the <b>most valuable coin next to the badge</b>, the smallest farthest out, then the amount. A bet's coins land on their <b>own-value column</b>. When a column fills up (5 coppers, 4 golds…) those coins <b>merge into one bigger coin</b>, which steps toward the badge. When the street ends, every column flies to the pot's same-value column and the bet numbers <b>ride into the pot's number</b>. Splitting a pot or returning a bet <b>breaks a bigger coin into smaller ones</b> first, like borrowing in subtraction.</p>
 </header>
 
 <div class="table"><div class="fitbox"><div id="stage" aria-label="Poker table with coins in motion"></div></div></div>
 
 <div class="controls">
  <button id="play" type="button">Play</button>
- <label for="hand">Hand <select id="hand"><option value="h1">1 · raise, sweep, uncalled bet, win</option><option value="h2">2 · checked street, split pot</option></select></label>
+ <label for="hand">Hand <select id="hand"><option value="h1">1 · raise, sweep, uncalled bet, win</option><option value="h2">2 · checked street, split pot</option><option value="h3">3 · big pot, carries up the ladder</option></select></label>
  <label for="speed">Speed <select id="speed"><option value="1">1×</option><option value="0.5">½×</option><option value="0.25">¼×</option></select></label>
  <label><input id="sound" type="checkbox" checked> Sound</label>
  <label class="scrub" for="scrub">Frame <input id="scrub" type="range" min="0" max="1000" value="0"></label>
@@ -70,9 +68,10 @@ select{font:600 14px/1 "Hanken Grotesk",system-ui,sans-serif;background:var(--su
 </div>
 
 <div class="notes">
- <span><b>Timing</b>: a bet's columns leave 40 ms apart and land 0.38 s later · the sweep waits for the last bet to land (+0.15 s) and takes 0.52 s, all piles landing at the same instant · an uncalled bet slides home in 0.46 s · the win flies 0.6 s, sinks 0.22 s, and the number counts up over 0.52 s. The actions come faster here than at a real table, so the whole hand fits in about 15 s.</span>
- <span><b>Motion</b>: every move is minimum-jerk, like the cards: speed and acceleration are zero at both ends. Coins lift slightly in flight (16% of the distance, 60 px at most), with no bounce. The piles are the table's own coin piles (60° zig-zag), in the table's real coin sizes.</span>
- <span><b>Sound</b>: the game's own sounds, each played when coins <i>land</i>: a chip push per bet, one pot sound per sweep, the win sound when the winnings land, and the check knock on a check. A street where everyone checks makes no chip sound at all.</span>
+ <span><b>The coins are a number</b>: 1 · 5 · 25 · 100 · 500 · 2.5K · 10K · 50K · 250K · 1M · 5M, each worth 5, 5, then 4 of the one below (repeating). A pile never holds a full set of any coin: it merges them up first, so every pile reads as one proper number.</span>
+ <span><b>Timing</b>: a bet's columns leave 40 ms apart and land 0.38 s later · merges wait a 0.06 s beat, then take 0.26 s each (chains follow one another) · the sweep waits for the last bet and its merges, then takes 0.52 s, all piles landing at once · a break takes 0.26 s · the win flies 0.6 s, sinks 0.22 s, and the number counts up over 0.52 s.</span>
+ <span><b>Motion</b>: every move is minimum-jerk, like the cards: speed and acceleration are zero at both ends. Coins lift a little in flight, and a merge or break hops over its neighbour; there's no bounce. Columns keep the 60° zig-zag, at the table's real coin size.</span>
+ <span><b>Sound</b>: the game's own sounds, played when coins <i>land</i>: a chip push per bet, one pot sound per sweep, the win sound as the winnings land, a knock on a check. A checked-through street makes no chip sound.</span>
 </div>
 </div>
 <script src="demo.bundle.js"></script>
