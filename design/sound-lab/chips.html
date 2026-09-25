@@ -1,0 +1,77 @@
+<title>Chip Sounds by Material</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,650&family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap">
+<style>
+:root{--bg:#f5efe2;--surface:#fffaf0;--well:#ebe3d1;--text:#14203b;--muted:#5b6784;--accent:#1f6fa8;--gold:#b07a00;
+ --m-ceramic:#0f766e;--m-clay:#b45309;--m-poker:#7c3aed;--m-metal:#475569;--shadow:0 1px 2px rgba(20,32,59,.06),0 6px 18px rgba(20,32,59,.07)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#0b1222;--surface:#16213a;--well:#0f172a;--text:#e5ecff;--muted:#93a3c6;--accent:#5ec8e5;--gold:#f5b60d;
+ --m-ceramic:#2dd4bf;--m-clay:#fbbf24;--m-poker:#a78bfa;--m-metal:#cbd5e1;--shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.28)}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#0b1222;--surface:#16213a;--well:#0f172a;--text:#e5ecff;--muted:#93a3c6;--accent:#5ec8e5;--gold:#f5b60d;
+ --m-ceramic:#2dd4bf;--m-clay:#fbbf24;--m-poker:#a78bfa;--m-metal:#cbd5e1;--shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.28)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 "Hanken Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:28px 64px;display:grid;gap:18px}
+.eyebrow{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+h1{font:650 clamp(28px,4vw,36px)/1.1 Fraunces,Georgia,serif;margin:0;text-wrap:balance}
+.lede{color:var(--muted);max-width:74ch;margin:0}.lede b{color:var(--text)}
+.note{background:var(--well);border-radius:12px;padding:12px 14px;font-size:14px;color:var(--muted);display:grid;gap:4px}.note b{color:var(--text)}
+.scroll{overflow-x:auto}
+table{border-collapse:separate;border-spacing:8px;min-width:900px;width:100%}
+th{font:700 13px/1.2 "Hanken Grotesk",sans-serif;text-align:left;color:var(--muted);padding:0 4px}
+th.m{color:var(--c)} th.row{font:700 15px/1.2 "Hanken Grotesk",sans-serif;color:var(--text);width:110px;vertical-align:top;padding-top:10px}
+td{background:var(--surface);border-radius:12px;box-shadow:var(--shadow);padding:8px;vertical-align:top;border-top:3px solid var(--c)}
+.t{display:grid;grid-template-columns:auto 1fr;gap:1px 8px;align-items:center;width:100%;border:0;background:var(--well);color:var(--text);border-radius:10px;padding:6px 9px;text-align:left;cursor:pointer;font:600 12px/1.3 "Hanken Grotesk",sans-serif;margin-bottom:6px}
+.t:last-child{margin-bottom:0}
+.t .p{grid-row:span 2;display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--c);color:#111;font-size:11px}
+.t .n{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.t .m{color:var(--muted);font-weight:500;font-size:11px;font-variant-numeric:tabular-nums}
+.t.on{box-shadow:0 0 0 2px var(--c)}
+.none{color:var(--muted);font-size:12px}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+</style>
+<div class="wrap">
+<header style="display:grid;gap:10px">
+ <div class="eyebrow">Bluffing Valley · sound design · chips</div>
+ <h1>Chip sounds by material</h1>
+ <p class="lede">The chip recordings we already have, laid out as <b>amount</b> (rows: one chip, a few, a pile, all-in) by <b>material</b> (columns). <b>Ceramic</b> and <b>clay</b> are ArtOrDie's two chip recordings, from the same pack as the paper cards; <b>other poker chips</b> are Kenney's casino chips and Freesound recordings; <b>metal coins</b> are last round's style, for comparison. Up to three per cell, one per source recording, and no sound appears twice. Press a tile to hear it.</p>
+</header>
+<div class="note">
+ <span><b>How they were chosen:</b> every recording was split into single sound events. ArtOrDie's clips are bursts of several clicks, so their single clicks were also cut out. Each event was measured, filtered by hit count for its amount (1 · 2–4 · 5+ · a long 6+ push for all-in) and for at most a light ring, then ranked by CLAP against descriptions of poker chips (or coins, for the metal column). CLAP pre-sorts; your ears decide.</span>
+ <span><b>Empty cells:</b> the short ArtOrDie clips don't contain a long push, so there's no ceramic all-in and only one clay one. The full original recordings on Freesound (3:08 of ceramic, 2:37 of clay) would.</span>
+</div>
+<div class="scroll"><table id="grid"></table></div>
+</div>
+<script>
+let current = null;
+function play(file, el) {
+  if (current) current.pause();
+  document.querySelectorAll(".t.on").forEach((x) => x.classList.remove("on")); el.classList.add("on");
+  current = new Audio(file); current.play().catch(() => {});
+}
+fetch("chips.json").then((r) => r.json()).then((d) => {
+  const t = document.getElementById("grid");
+  const head = document.createElement("tr");
+  head.innerHTML = `<th></th>` + d.materials.map((m) => `<th class="m" style="--c:var(--m-${m.key})">${m.name}</th>`).join("");
+  t.appendChild(head);
+  for (const slot of d.slots) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<th class="row">${slot.name}</th>`;
+    for (const m of d.materials) {
+      const td = document.createElement("td"); td.style.setProperty("--c", `var(--m-${m.key})`);
+      const cell = slot.by[m.key];
+      if (!cell.items.length) td.innerHTML = `<span class="none">None in our clips.</span>`;
+      cell.items.forEach((it, i) => {
+        const b = document.createElement("button"); b.type = "button"; b.className = "t";
+        const name = it.title.replace(/^(ceramic|clay)-chips segment /, "clip ").replace(/ \(\d+ hits?\)/, "");
+        b.innerHTML = `<span class="p">▶</span><span class="n" title="${it.title} · ${it.lib}, ${it.license}">${name}</span>
+          <span class="m">${it.hits} hit${it.hits === 1 ? "" : "s"} · ${Math.round(it.dur * 1000)} ms · ring ${it.pitch.toFixed(2)}</span>`;
+        b.setAttribute("aria-label", `Play ${slot.name}, ${m.name}, option ${i + 1}`);
+        b.addEventListener("click", () => play(it.file, b));
+        td.appendChild(b);
+      });
+      tr.appendChild(td);
+    }
+    t.appendChild(tr);
+  }
+});
+</script>

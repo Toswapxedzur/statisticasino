@@ -1,0 +1,699 @@
+{
+ "materials": [
+  {
+   "key": "ceramic",
+   "name": "Ceramic chips (ArtOrDie)"
+  },
+  {
+   "key": "clay",
+   "name": "Clay chips (ArtOrDie)"
+  },
+  {
+   "key": "poker",
+   "name": "Other poker chips (Kenney, Freesound)"
+  },
+  {
+   "key": "metal",
+   "name": "Metal coins"
+  }
+ ],
+ "slots": [
+  {
+   "key": "one",
+   "name": "One chip",
+   "by": {
+    "ceramic": {
+     "eligible": 131,
+     "items": [
+      {
+       "file": "chips/one-ceramic-1.wav",
+       "src": "aod-ceramic-chips-79#tap2",
+       "title": "ceramic-chips segment 79 (4 hits) \u2014 click 2",
+       "lib": "ArtOrDie",
+       "license": "CC BY 4.0",
+       "at": 0.135,
+       "dur": 0.054,
+       "hits": 1,
+       "attack": 12.5,
+       "bright": 4472,
+       "pitch": 0.52,
+       "match": 0.161
+      },
+      {
+       "file": "chips/one-ceramic-2.wav",
+       "src": "aod-ceramic-chips-26#tap3",
+       "title": "ceramic-chips segment 26 (5 hits) \u2014 click 3",
+       "lib": "ArtOrDie",
+       "license": "CC BY 4.0",
+       "at": 0.17,
+       "dur": 0.095,
+       "hits": 1,
+       "attack": 13.1,
+       "bright": 5717,
+       "pitch": 0.2,
+       "match": 0.154
+      },
+      {
+       "file": "chips/one-ceramic-3.wav",
+       "src": "aod-ceramic-chips-41#tap4",
+       "title": "ceramic-chips segment 41 (9 hits) \u2014 click 4",
+       "lib": "ArtOrDie",
+       "license": "CC BY 4.0",
+       "at": 0.282,
+       "dur": 0.054,
+       "hits": 1,
+       "attack": 1.5,
+       "bright": 6710,
+       "pitch": 0.57,
+       "match": 0.148
+      }
+     ]
+    },
+    "clay": {
+     "eligible": 146,
+     "items": [
+      {
+       "file": "chips/one-clay-1.wav",
+       "src": "aod-clay-chips-01#tap2",
+       "title": "clay-chips segment 01 (12 hits) \u2014 click 2",
+       "lib": "ArtOrDie",
+       "license": "CC BY 4.0",
+       "at": 0.14,
+       "dur": 0.044,
+       "hits": 1,
+       "attack": 2.8,
+       "bright": 4519,
+       "pitch": 0.69,
+       "match": 0.163
+      },
+      {
+       "file": "chips/one-clay-2.wav",
+       "src": "aod-clay-chips-17#tap3",
+       "title": "clay-chips segment 17 (5 hits) \u2014 click 3",
+       "lib": "ArtOrDie",
+       "license": "CC BY 4.0",
+       "at": 0.177,
+       "dur": 0.05,
+       "hits": 1,
+       "attack": 3.3,
+       "bright": 4569,
+       "pitch": 0.32,
+       "match": 0.157
+      },
+      {
+       "file": "chips/one-clay-3.wav",
+       "src": "aod-clay-chips-27#tap1",
+       "title": "clay-chips segment 27 (10 hits) \u2014 click 1",
+       "lib": "ArtOrDie",
+       "license": "CC BY 4.0",
+       "at": 0.052,
+       "dur": 0.04,
+       "hits": 1,
+       "attack": 1.3,
+       "bright": 5267,
+       "pitch": 0.56,
+       "match": 0.153
+      }
+     ]
+    },
+    "poker": {
+     "eligible": 8,
+     "items": [
+      {
+       "file": "chips/one-poker-1.wav",
+       "src": "kenney-casino-chips-stack-6",
+       "title": "chips stack 6",
+       "lib": "Kenney",
+       "license": "CC0",
+       "at": 0.055,
+       "dur": 0.14,
+       "hits": 1,
+       "attack": 1.9,
+       "bright": 7305,
+       "pitch": 0.31,
+       "match": 0.035
+      },
+      {
+       "file": "chips/one-poker-2.wav",
+       "src": "kenney-casino-chips-stack-1",
+       "title": "chips stack 1",
+       "lib": "Kenney",
+       "license": "CC0",
+       "at": 0.075,
+       "dur": 0.15,
+       "hits": 1,
+       "attack": 9.0,
+       "bright": 6933,
+       "pitch": 0.13,
+       "match": 0.03
+      },
+      {
+       "file": "chips/one-poker-3.wav",
+       "src": "kenney-casino-chips-collide-2",
+       "title": "chips collide 2",
+       "lib": "Kenney",
+       "license": "CC0",
+       "at": 0.025,
+       "dur": 0.135,
+       "hits": 1,
+       "attack": 1.6,
+       "bright": 6798,
+       "pitch": 0.2,
+       "match": 0.027
+      }
+     ]
+    },
+    "metal": {
+     "eligible": 9,
+     "items": [
+      {
+       "file": "chips/one-metal-1.wav",
+       "src": "fs-608793",
+       "title": "coins_drop_on_table (anglaisavecunanglophone)",
+       "lib": "Freesound",
+       "license": "Creative Commons 0",
+       "at": 6.105,
+       "dur": 0.14,
+       "hits": 1,
+       "attack": 6.2,
+       "bright": 5644,
+       "pitch": 0.23,
+       "match": 0.278
+      },
+      {
+       "file": "chips/one-metal-2.wav",
+       "src": "fs-458399",
+       "title": "Coin sounds (Breviceps)",
+       "lib": "Freesound",
+       "license": "Creative Commons 0",
+       "at": 2.295,
+       "dur": 0.075,
+       "hits": 1,
+       "attack": 1.2,
+       "bright": 7490,
+       "pitch": 0.25,
+       "match": 0.15
+      },
+      {
+       "file": "chips/one-metal-3.wav",
+       "src": "fs-728430",
+       "title": "Doudar41 light coin shower (Sadiquecat)",
+       "lib": "Freesound",
+       "license": "Creative Commons 0",
+       "at": 7.96,
+       "dur": 0.04,
+       "hits": 1,
+       "attack": 2.3,
+       "bright": 7967,
+       "pitch": 0.45,
+       "match": 0.147
+      }
+     ]
+    }
+   }
+  },
+  {
+   "key": "few",
+   "name": "A few (2\u20134)",
+   "by": {
+    "ceramic": {
+     "eligible": 31,
+     "items": [
+      {
+       "file": "chips/few-ceramic-1.wav",
+       "src": "aod-ceramic-chips-69#tap1",
+       "title": "ceramic-chips segment 69 (8 hits) \u2014 click 1",
+       "lib": "ArtOrDie",
+       "license": "CC BY 4.0",
+       "at": 0.028,
+       "dur": 0.147,
+       "hits": 3,
+       "attack": 1.0,
+       "bright": 6235,
+       "pitch": 0.37,
+       "match": 0.076
+      },
+      {
+       "file": "chips/few-ceramic-2.wav",
+       "src": "aod-ceramic-chips-31",
+       "title": "ceramic-chips segment 31 (4 hits)",
+       "lib": "ArtOrDie",
+       "license": "CC BY 4.0",
+       "at": 0.015,
+       "dur": 0.235,
+       "hits": 3,
+       "attack": 2.8,
+       "bright": 5610,
+       "pitch": 0.17,
+       "match": 0.076
+      },
+      {
+       "file": "chips/few-ceramic-3.wav",
+       "src": "aod-ceramic-chips-38#tap1",
+       "title": "ceramic-chips segment 38 (2 hits) \u2014 click 1",
+       "lib": "ArtOrDie",
+       "license": "CC BY 4.0",
+       "at": 0.035,
+       "dur": 0.135,
+       "hits": 2,
+       "attack": 35.6,
+       "bright": 6769,
+       "pitch": 0.26,
+       "match": 0.074
+      }
+     ]
+    },
+    "clay": {
+     "eligible": 27,
+     "items": [
+      {
+       "file": "chips/few-clay-1.wav",
+       "src": "aod-clay-chips-64#tap2",
+       "title": "clay-chips segment 64 (3 hits) \u2014 click 2",
+       "lib": "ArtOrDie",
+       "license": "CC BY 4.0",
+       "at": 0.102,
+       "dur": 0.082,
+       "hits": 2,
+       "attack": 11.6,
+       "bright": 5817,
+       "pitch": 0.41,
+       "match": 0.073
+      },
+      {
+       "file": "chips/few-clay-2.wav",
+       "src": "aod-clay-chips-26#tap11",
+       "title": "clay-chips segment 26 (10 hits) \u2014 click 11",
+       "lib": "ArtOrDie",
+       "license": "CC BY 4.0",
+       "at": 0.973,
+       "dur": 0.109,
+       "hits": 2,
+       "attack": 8.5,
+       "bright": 5481,
+       "pitch": 0.39,
+       "match": 0.042
+      },
+      {
+       "file": "chips/few-clay-3.wav",
+       "src": "aod-clay-chips-03#tap3",
+       "title": "clay-chips segment 03 (8 hits) \u2014 click 3",
+       "lib": "ArtOrDie",
+       "license": "CC BY 4.0",
+       "at": 0.11,
+       "dur": 0.237,
+       "hits": 2,
+       "attack": 1.7,
+       "bright": 5468,
+       "pitch": 0.3,
+       "match": 0.041
+      }
+     ]
+    },
+    "poker": {
+     "eligible": 6,
+     "items": [
+      {
+       "file": "chips/few-poker-1.wav",
+       "src": "fs-562942",
+       "title": "Poker chips - calm.wav (Yajhaira)",
+       "lib": "Freesound",
+       "license": "Creative Commons 0",
+       "at": 3.89,
+       "dur": 0.305,
+       "hits": 5,
+       "attack": 7.0,
+       "bright": 4297,
+       "pitch": 0.1,
+       "match": 0.043
+      },
+      {
+       "file": "chips/few-poker-2.wav",
+       "src": "bsb-0945",
+       "title": "poker chips 4",
+       "lib": "BigSoundBank",
+       "license": "CC0",
+       "at": 0.045,
+       "dur": 0.295,
+       "hits": 3,
+       "attack": 12.0,
+       "bright": 8385,
+       "pitch": 0.12,
+       "match": 0.023
+      },
+      {
+       "file": "chips/few-poker-3.wav",
+       "src": "fs-817554",
+       "title": "chip02 (SilverDubloons)",
+       "lib": "Freesound",
+       "license": "Creative Commons 0",
+       "at": 0.0,
+       "dur": 0.175,
+       "hits": 2,
+       "attack": 3.3,
+       "bright": 5368,
+       "pitch": 0.2,
+       "match": 0.017
+      }
+     ]
+    },
+    "metal": {
+     "eligible": 29,
+     "items": [
+      {
+       "file": "chips/few-metal-1.wav",
+       "src": "fs-363090",
+       "title": "Coins Being Dropped-Assorted (TheWoodlandNomad)",
+       "lib": "Freesound",
+       "license": "Creative Commons 0",
+       "at": 6.44,
+       "dur": 0.315,
+       "hits": 4,
+       "attack": 2.1,
+       "bright": 7617,
+       "pitch": 0.31,
+       "match": 0.315
+      },
+      {
+       "file": "chips/few-metal-2.wav",
+       "src": "bsb-0194",
+       "title": "coins 2",
+       "lib": "BigSoundBank",
+       "license": "CC0",
+       "at": 5.34,
+       "dur": 0.315,
+       "hits": 4,
+       "attack": 4.1,
+       "bright": 9527,
+       "pitch": 0.29,
+       "match": 0.266
+      },
+      {
+       "file": "chips/few-metal-3.wav",
+       "src": "fs-349283",
+       "title": "Coin on coins_09.wav (deleted_user_2104797)",
+       "lib": "Freesound",
+       "license": "Creative Commons 0",
+       "at": 0.13,
+       "dur": 0.325,
+       "hits": 3,
+       "attack": 1.0,
+       "bright": 5466,
+       "pitch": 0.13,
+       "match": 0.25
+      }
+     ]
+    }
+   }
+  },
+  {
+   "key": "pile",
+   "name": "A pile (5+)",
+   "by": {
+    "ceramic": {
+     "eligible": 22,
+     "items": [
+      {
+       "file": "chips/pile-ceramic-1.wav",
+       "src": "aod-ceramic-chips-40",
+       "title": "ceramic-chips segment 40 (2 hits)",
+       "lib": "ArtOrDie",
+       "license": "CC BY 4.0",
+       "at": 0.04,
+       "dur": 0.215,
+       "hits": 5,
+       "attack": 22.5,
+       "bright": 6637,
+       "pitch": 0.18,
+       "match": 0.171
+      },
+      {
+       "file": "chips/pile-ceramic-2.wav",
+       "src": "aod-ceramic-chips-45",
+       "title": "ceramic-chips segment 45 (6 hits)",
+       "lib": "ArtOrDie",
+       "license": "CC BY 4.0",
+       "at": 0.025,
+       "dur": 0.482,
+       "hits": 9,
+       "attack": 4.9,
+       "bright": 6493,
+       "pitch": 0.14,
+       "match": 0.136
+      },
+      {
+       "file": "chips/pile-ceramic-3.wav",
+       "src": "aod-ceramic-chips-69",
+       "title": "ceramic-chips segment 69 (8 hits)",
+       "lib": "ArtOrDie",
+       "license": "CC BY 4.0",
+       "at": 0.025,
+       "dur": 0.589,
+       "hits": 10,
+       "attack": 3.0,
+       "bright": 4819,
+       "pitch": 0.12,
+       "match": 0.106
+      }
+     ]
+    },
+    "clay": {
+     "eligible": 32,
+     "items": [
+      {
+       "file": "chips/pile-clay-1.wav",
+       "src": "aod-clay-chips-52",
+       "title": "clay-chips segment 52 (2 hits)",
+       "lib": "ArtOrDie",
+       "license": "CC BY 4.0",
+       "at": 0.0,
+       "dur": 0.305,
+       "hits": 8,
+       "attack": 20.6,
+       "bright": 6103,
+       "pitch": 0.15,
+       "match": 0.157
+      },
+      {
+       "file": "chips/pile-clay-2.wav",
+       "src": "aod-clay-chips-33",
+       "title": "clay-chips segment 33 (8 hits)",
+       "lib": "ArtOrDie",
+       "license": "CC BY 4.0",
+       "at": 0.175,
+       "dur": 0.735,
+       "hits": 13,
+       "attack": 6.5,
+       "bright": 5013,
+       "pitch": 0.15,
+       "match": 0.15
+      },
+      {
+       "file": "chips/pile-clay-3.wav",
+       "src": "aod-clay-chips-65",
+       "title": "clay-chips segment 65 (3 hits)",
+       "lib": "ArtOrDie",
+       "license": "CC BY 4.0",
+       "at": 0.025,
+       "dur": 0.378,
+       "hits": 6,
+       "attack": 10.2,
+       "bright": 6055,
+       "pitch": 0.17,
+       "match": 0.148
+      }
+     ]
+    },
+    "poker": {
+     "eligible": 13,
+     "items": [
+      {
+       "file": "chips/pile-poker-1.wav",
+       "src": "fs-850377",
+       "title": "Poker Chips Handling (Flip_Book)",
+       "lib": "Freesound",
+       "license": "Creative Commons 0",
+       "at": 3.05,
+       "dur": 0.89,
+       "hits": 9,
+       "attack": 10.6,
+       "bright": 6198,
+       "pitch": 0.23,
+       "match": 0.073
+      },
+      {
+       "file": "chips/pile-poker-2.wav",
+       "src": "fs-532861",
+       "title": "AllInPushChips.wav (Joma86)",
+       "lib": "Freesound",
+       "license": "Creative Commons 0",
+       "at": 0.11,
+       "dur": 0.54,
+       "hits": 11,
+       "attack": 17.3,
+       "bright": 5919,
+       "pitch": 0.05,
+       "match": 0.061
+      },
+      {
+       "file": "chips/pile-poker-3.wav",
+       "src": "fs-540368",
+       "title": "Handfull of Poker Chips (Za-Games)",
+       "lib": "Freesound",
+       "license": "Creative Commons 0",
+       "at": 0.0,
+       "dur": 0.295,
+       "hits": 6,
+       "attack": 1.8,
+       "bright": 5328,
+       "pitch": 0.26,
+       "match": 0.051
+      }
+     ]
+    },
+    "metal": {
+     "eligible": 58,
+     "items": [
+      {
+       "file": "chips/pile-metal-1.wav",
+       "src": "fs-823147",
+       "title": "Coin drop (SpinOpel)",
+       "lib": "Freesound",
+       "license": "Creative Commons 0",
+       "at": 0.03,
+       "dur": 0.58,
+       "hits": 7,
+       "attack": 2.7,
+       "bright": 10121,
+       "pitch": 0.3,
+       "match": 0.24
+      },
+      {
+       "file": "chips/pile-metal-2.wav",
+       "src": "fs-640622",
+       "title": "Money_Coins1.wav (Eatyourburger)",
+       "lib": "Freesound",
+       "license": "Creative Commons 0",
+       "at": 1.22,
+       "dur": 1.255,
+       "hits": 17,
+       "attack": 4.3,
+       "bright": 10645,
+       "pitch": 0.26,
+       "match": 0.236
+      },
+      {
+       "file": "chips/pile-metal-3.wav",
+       "src": "fs-565799",
+       "title": "Coins (dvdfu)",
+       "lib": "Freesound",
+       "license": "Creative Commons 0",
+       "at": 5.955,
+       "dur": 0.45,
+       "hits": 5,
+       "attack": 21.5,
+       "bright": 9999,
+       "pitch": 0.22,
+       "match": 0.236
+      }
+     ]
+    }
+   }
+  },
+  {
+   "key": "allin",
+   "name": "All-in",
+   "by": {
+    "ceramic": {
+     "eligible": 0,
+     "items": []
+    },
+    "clay": {
+     "eligible": 1,
+     "items": [
+      {
+       "file": "chips/allin-clay-1.wav",
+       "src": "aod-clay-chips-76",
+       "title": "clay-chips segment 76 (5 hits)",
+       "lib": "ArtOrDie",
+       "license": "CC BY 4.0",
+       "at": 0.025,
+       "dur": 0.505,
+       "hits": 8,
+       "attack": 1.2,
+       "bright": 5802,
+       "pitch": 0.11,
+       "match": 0.025
+      }
+     ]
+    },
+    "poker": {
+     "eligible": 1,
+     "items": [
+      {
+       "file": "chips/allin-poker-1.wav",
+       "src": "fs-560176",
+       "title": "Poker chips.wav (Yajhaira)",
+       "lib": "Freesound",
+       "license": "Creative Commons 0",
+       "at": 5.085,
+       "dur": 2.045,
+       "hits": 29,
+       "attack": 1.0,
+       "bright": 4640,
+       "pitch": 0.05,
+       "match": 0.018
+      }
+     ]
+    },
+    "metal": {
+     "eligible": 32,
+     "items": [
+      {
+       "file": "chips/allin-metal-1.wav",
+       "src": "fs-613312",
+       "title": "Coins.wav (eZZin)",
+       "lib": "Freesound",
+       "license": "Creative Commons 0",
+       "at": 0.495,
+       "dur": 2.58,
+       "hits": 26,
+       "attack": 9.8,
+       "bright": 4230,
+       "pitch": 0.23,
+       "match": 0.253
+      },
+      {
+       "file": "chips/allin-metal-2.wav",
+       "src": "mixkit-1993",
+       "title": "Clinking coins",
+       "lib": "Mixkit",
+       "license": "Mixkit licence (free, no credit)",
+       "at": 0.02,
+       "dur": 0.75,
+       "hits": 12,
+       "attack": 12.1,
+       "bright": 9726,
+       "pitch": 0.1,
+       "match": 0.161
+      },
+      {
+       "file": "chips/allin-metal-3.wav",
+       "src": "fs-650468",
+       "title": "Coins 1.flac (BrodieSound)",
+       "lib": "Freesound",
+       "license": "Creative Commons 0",
+       "at": 2.615,
+       "dur": 1.025,
+       "hits": 7,
+       "attack": 21.2,
+       "bright": 5929,
+       "pitch": 0.04,
+       "match": 0.15
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

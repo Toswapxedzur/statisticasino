@@ -32,3 +32,6 @@ of motion, to choose which sound goes with which moment. Nothing here ships with
   turned, folded, collected): every card/chip/coin recording split into events, measured, coins ranked
   by CLAP margin vs unrelated sounds, cards chosen by SHAPE (CLAP can't tell card actions apart),
   each sound in one slot only.
+- `chips.html` + `chips/` + `chips.json` (`find_chips.py`) — chip sounds by material (ArtOrDie ceramic,
+  ArtOrDie clay incl. single clicks cut from their bursts, other poker chips, metal coins) × amount
+  (one · a few · a pile · all-in). Owner's card picks are recorded in the project memory (table-sfx).

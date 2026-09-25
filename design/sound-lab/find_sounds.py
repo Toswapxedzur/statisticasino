@@ -221,4 +221,4 @@ def main(extra):
     result = {k: result[k] for k in SLOTS}                      # back in the page's order
     json.dump(result, open(os.path.join(ROOT, "found.json"), "w"), indent=1)
 
-main(sys.argv[1:])
+if __name__ == "__main__": main(sys.argv[1:])
