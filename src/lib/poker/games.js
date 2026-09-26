@@ -109,8 +109,22 @@ const LABEL_BY_KEY = new Map([
 //   Three Card Poker · wheel: Roulette · dice: Sic Bo · machines: Slots · shedding: Big Two
 export const OFFERED = new Set(["holdem", "blackjack", "baccarat", "three-card", "roulette", "sic-bo", "slots", "big-two"]);
 export function isOffered(key) { return OFFERED.has(key); }
-/** The lobby's mode tabs (poker = its offered variants). */
-export const LOBBY_MODES = GAME_MODES.filter((m) => (m.key === "poker" ? POKER_VARIANTS.some((v) => OFFERED.has(v.key)) : OFFERED.has(m.key)));
+/** The lobby's mode tabs, in the lobby's order (player-vs-player first, then the house games), each
+ *  with a short tab label (poker = its offered variants). */
+const LOBBY_ORDER = ["poker", "big-two", "blackjack", "baccarat", "three-card", "roulette", "sic-bo", "slots"];
+const TAB_LABEL = { poker: "Hold'em", "three-card": "Three Card" };
+export const LOBBY_MODES = LOBBY_ORDER
+  .map((key) => GAME_MODES.find((m) => m.key === key))
+  .filter((m) => m && (m.key === "poker" ? POKER_VARIANTS.some((v) => OFFERED.has(v.key)) : OFFERED.has(m.key)))
+  .map((m) => ({ ...m, tab: TAB_LABEL[m.key] || m.label }));
+
+/** The game's icon (static/games, drawn in design/game-icons) for a variant or a mode key, or null
+ *  for a game without one. Every poker variant shows the Hold'em chips. */
+const ICON_KEYS = new Set(["holdem", "big-two", "blackjack", "baccarat", "three-card", "roulette", "sic-bo", "slots"]);
+export function gameIcon(key) {
+  const k = key === "poker" || modeOf(key) === "poker" ? "holdem" : key;
+  return ICON_KEYS.has(k) ? `/games/${k}.svg` : null;
+}
 /** The poker variants the New table picker shows. */
 export const OFFERED_POKER_VARIANTS = POKER_VARIANTS.filter((v) => OFFERED.has(v.key));
 

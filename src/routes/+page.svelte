@@ -17,7 +17,7 @@
   import NewTableModal from "$lib/poker/components/NewTableModal.svelte";
   import LobbyPlayers from "$lib/poker/components/LobbyPlayers.svelte";
   import LobbyChat from "$lib/poker/components/LobbyChat.svelte";
-  import { GAME_MODES, LOBBY_MODES, variantShort, modeOf, isOffered } from "$lib/poker/games.js";
+  import { GAME_MODES, LOBBY_MODES, variantShort, modeOf, isOffered, gameIcon } from "$lib/poker/games.js";
   import { slidingIndicator } from "$lib/actions/slider.js";
   import { fade, fly } from "svelte/transition";
   import { flip } from "svelte/animate";
@@ -113,19 +113,18 @@
         </div>
       </section>
 
-      <div class="modes-wrap">
-        <div class="mode-pager slider" role="tablist" aria-label="Game mode" use:slidingIndicator>
-          {#each LOBBY_MODES as m}
-            <button
-              type="button"
-              class="mode-pill"
-              class:on={gameMode === m.key}
-              role="tab"
-              aria-selected={gameMode === m.key}
-              onclick={() => (gameMode = m.key)}
-            >{m.label}</button>
-          {/each}
-        </div>
+      <!-- the games: icon over name — one row of 8, two rows of 4 on a phone (nothing hidden) -->
+      <div class="mode-pager slider" role="tablist" aria-label="Game" use:slidingIndicator>
+        {#each LOBBY_MODES as m}
+          <button
+            type="button"
+            class="mode-tab"
+            class:on={gameMode === m.key}
+            role="tab"
+            aria-selected={gameMode === m.key}
+            onclick={() => (gameMode = m.key)}
+          ><img src={gameIcon(m.key)} alt="" width="44" height="44" /><span>{m.tab}</span></button>
+        {/each}
       </div>
 
       <div class="row-head">
@@ -156,7 +155,8 @@
           {#each tablesForMode as t (t.id)}
             <div class="tcard" in:fly={{ y: d(10), duration: d(DUR.base) }} out:fade={{ duration: d(DUR.fast) }} animate:flip={{ duration: d(DUR.base) }}>
               <div class="tcard-top">
-                <div>
+                {#if gameIcon(t.variant)}<img class="gicon" src={gameIcon(t.variant)} alt="" width="36" height="36" />{/if}
+                <div class="tcard-name">
                   <div class="variant">{t.name}</div>
                   <div class="stakes">{variantShort(t.variant)} · {isBanked ? "min " + t.smallBlind : t.smallBlind + "/" + t.bigBlind}</div>
                 </div>
@@ -185,7 +185,7 @@
           {:else}
             {#each tournaments as t (t.id)}
               <div class="trow" in:fly={{ y: d(10), duration: d(DUR.base) }} out:fade={{ duration: d(DUR.fast) }} animate:flip={{ duration: d(DUR.base) }}>
-                <div class="tcol tmain"><div class="tname">{t.name}</div><div class="tvar">{variantShort(t.variant)}</div></div>
+                <div class="tcol tmain">{#if gameIcon(t.variant)}<img class="gicon" src={gameIcon(t.variant)} alt="" width="32" height="32" />{/if}<div><div class="tname">{t.name}</div><div class="tvar">{variantShort(t.variant)}</div></div></div>
                 <div class="tcol"><span class="lbl">Entry</span><span class="num">{t.entry.toLocaleString()}</span></div>
                 <div class="tcol"><span class="lbl">Prize</span><span class="prize">{t.prizePool.toLocaleString()}</span></div>
                 <div class="tcol hide-m">
@@ -271,18 +271,21 @@
   .small { font-size: 12.5px; }
   .signin-note { margin: 0 0 12px; }
 
-  /* game-mode pager — a sliding selector box, horizontally scrollable */
-  .modes-wrap { overflow-x: auto; margin-bottom: 20px; padding: 4px 0 6px; scrollbar-width: none; }
-  .modes-wrap::-webkit-scrollbar { display: none; }
-  .mode-pager { display: inline-flex; gap: 4px; }
-  .mode-pager .sel-ind { background: var(--accent); box-shadow: var(--shadow-card); }
-  .mode-pill {
-    flex: 0 0 auto; cursor: pointer; border: 0; background: transparent; color: var(--muted);
-    border-radius: var(--r-pill); padding: 8px 15px; font-weight: 600; font-size: 13px; white-space: nowrap;
+  /* the games — icon-over-name tabs under a sliding selector box: 8 across, 4 across on a phone */
+  .mode-pager { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; margin: 4px 0 20px; }
+  /* (the indicator is injected by the action, so it carries no scoped class) */
+  .mode-pager :global(.sel-ind) { background: var(--surface); box-shadow: var(--shadow-card); border-radius: var(--r-card); }
+  .mode-tab {
+    display: grid; justify-items: center; gap: 6px; cursor: pointer; border: 0; background: transparent; color: var(--muted);
+    border-radius: var(--r-card); padding: 10px 4px 8px; font-weight: 600; font-size: 13px; white-space: nowrap;
     transition: color var(--dur) var(--ease);
   }
-  .mode-pill:hover { color: var(--text); }
-  .mode-pill.on { color: var(--on-accent); }
+  .mode-tab img { width: 44px; height: 44px; display: block; transition: transform var(--dur) var(--ease); }
+  .mode-tab:hover { color: var(--text); }
+  .mode-tab:hover img { transform: translateY(-2px); }
+  .mode-tab.on { color: var(--text); }
+  @media (max-width: 640px) { .mode-pager { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  .gicon { display: block; flex: none; }
 
   .row-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 6px 0 14px; }
   .row-head h3 { font-size: 19px; margin: 0; }
@@ -295,7 +298,8 @@
   .tcard { border-radius: var(--r-card); background: var(--surface); padding: 16px; box-shadow: var(--shadow-card);
     transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease); }
   .tcard:hover { transform: translateY(-3px); box-shadow: var(--shadow-hover); }
-  .tcard-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .tcard-top { display: flex; align-items: flex-start; gap: 10px; }
+  .tcard-top .tcard-name { flex: 1; min-width: 0; }
   .tcard .variant { font-weight: 700; font-size: 15px; }
   .tcard .stakes { color: var(--muted); font-size: 12px; margin-top: 2px; font-variant-numeric: tabular-nums; }
   .pips { display: flex; align-items: center; gap: 5px; margin: 15px 0; }
@@ -310,6 +314,7 @@
     background: var(--surface); border-radius: var(--r-card); padding: 12px 16px; box-shadow: var(--shadow-card); margin-bottom: 8px;
     transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease); }
   .trow:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+  .trow .tmain { display: flex; align-items: center; gap: 10px; }
   .trow .tname { font-weight: 700; font-size: 14px; }
   .trow .tvar { color: var(--muted); font-size: 11.5px; }
   .trow .lbl { color: var(--faint); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 2px; }

@@ -24,7 +24,7 @@
   import TableChat from "$lib/poker/components/TableChat.svelte";
   import Chip from "$lib/poker/components/Chip.svelte";
   import Num from "$lib/poker/components/Num.svelte";
-  import { variantLabel, isBanked as isBankedGame, isShedding } from "$lib/poker/games.js";
+  import { variantLabel, isBanked as isBankedGame, isShedding, gameIcon } from "$lib/poker/games.js";
   import Select from "$lib/components/Select.svelte";
   import { fade, fly, scale } from "svelte/transition";
   import { d, DUR } from "$lib/motion.js";
@@ -379,6 +379,7 @@
   <!-- slim overlay strip: no site bar on a table -->
   <div class="hud">
     <a href="/" class="back" aria-label="Back to lobby" title="Lobby">‹</a>
+    {#if gameIcon(gameKey)}<img class="gicon" src={gameIcon(gameKey)} alt="" width="34" height="34" />{/if}
     <div class="title">
       <b>{data.table.name}</b>
       <span class="stakes">
@@ -543,6 +544,7 @@
   .hud { position: absolute; top: 0; left: 0; right: 0; z-index: 6; display: flex; align-items: center; gap: 12px; padding: 10px 14px; pointer-events: none; }
   .hud > * { pointer-events: auto; }
   .back { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 999px; background: var(--surface); color: var(--text); text-decoration: none; font-size: 22px; line-height: 1; box-shadow: var(--shadow-card); }
+  .gicon { display: block; flex: none; }
   .title { display: flex; flex-direction: column; line-height: 1.15; }
   .title b { font-family: var(--f-display); font-size: 17px; }
   .stakes { color: var(--muted); font-size: 12px; }
