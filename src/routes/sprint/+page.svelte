@@ -1,4 +1,5 @@
 <script>
+  import { SPRINT_ICON } from "$lib/poker/games.js";
   import { enhance } from "$app/forms";
   import { onMount } from "svelte";
   import Avatar from "$lib/poker/components/Avatar.svelte";
@@ -42,9 +43,12 @@
 
 <div class="wrap">
   <div class="head">
-    <div>
-      <div class="eyebrow">⚡ Daily event</div>
-      <h1>River Sprint</h1>
+    <div class="title">
+      <img class="ico" src={SPRINT_ICON} alt="" width="56" height="56" />
+      <div>
+        <div class="eyebrow">Daily event</div>
+        <h1>River Sprint</h1>
+      </div>
     </div>
     {#if data.signedIn}<div class="bal"><Chip value={chips} size={20} /> {fmt(chips)}</div>{/if}
   </div>
@@ -123,6 +127,8 @@
 <style>
   .wrap { max-width: 620px; margin: 0 auto; }
   .head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+  .title { display: flex; align-items: center; gap: 12px; }
+  .ico { display: block; flex: none; }
   .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .04em; color: var(--gold-ink); text-transform: uppercase; }
   h1 { margin: 2px 0 0; font-size: 28px; }
   .bal { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--gold-ink); font-size: 16px; display: inline-flex; align-items: center; gap: 7px; }

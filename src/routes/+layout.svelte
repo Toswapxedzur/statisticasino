@@ -1,4 +1,5 @@
 <script>
+  import { SPRINT_ICON } from "$lib/poker/games.js";
   import "../app.css";
   import { page } from "$app/stores";
   import { onMount } from "svelte";
@@ -111,7 +112,7 @@
     { href: "/social", label: "Social", show: !!data.user, badge: socialUnread },
     { href: "/quests", label: "Quests", show: !!data.user },
     { href: "/cosmetics", label: "Cosmetics", show: !!data.user },
-    { href: "/sprint", label: "Sprint", show: true },
+    { href: "/sprint", label: "Sprint", show: true, icon: SPRINT_ICON },
     // /data = Bluffing Valley's own data hub (your history, others' in-game history, player search).
     { href: "/data", label: "Data", show: true },
     // Hidden from everyone incl. the owner (2026-09-05): blog + casino.org tooling
@@ -133,7 +134,7 @@
     {#each links as l}
       {#if l.show}
         <a class="nav-tab" href={l.href} aria-current={isActive(l.href) ? "page" : undefined}>
-          {l.label}{#if l.badge > 0}<span class="nav-badge">{l.badge}</span>{/if}
+          {#if l.icon}<img class="nav-ico" src={l.icon} alt="" width="18" height="18" />{/if}{l.label}{#if l.badge > 0}<span class="nav-badge">{l.badge}</span>{/if}
         </a>
       {/if}
     {/each}
@@ -166,7 +167,7 @@
     {#each links as l}
       {#if l.show}
         <a class="m-link" href={l.href} aria-current={isActive(l.href) ? "page" : undefined}>
-          {l.label}{#if l.badge > 0}<span class="nav-badge">{l.badge}</span>{/if}
+          {#if l.icon}<img class="nav-ico" src={l.icon} alt="" width="18" height="18" />{/if}{l.label}{#if l.badge > 0}<span class="nav-badge">{l.badge}</span>{/if}
         </a>
       {/if}
     {/each}
@@ -257,4 +258,5 @@
     .mobile-menu { display: flex; }
     .topbar-right .nav-tab { display: none; }
   }
+  .nav-ico { display: inline-block; vertical-align: -4px; margin-right: 5px; }
 </style>

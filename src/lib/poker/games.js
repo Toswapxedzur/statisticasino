@@ -134,6 +134,8 @@ export const LOBBY_MODES = LOBBY_ORDER
 /** The game's icon (static/games, drawn in design/game-icons) for a variant or a mode key, or null
  *  for a game without one. Every poker variant shows the Hold'em chips. */
 const ICON_KEYS = new Set(["holdem", "big-two", "blackjack", "baccarat", "three-card", "roulette", "sic-bo", "slots"]);
+/** The River Sprint event's icon (the stopwatch, design/game-icons/sprint.js). */
+export const SPRINT_ICON = "/games/river-sprint.svg";
 export function gameIcon(key) {
   const k = key === "poker" || modeOf(key) === "poker" ? "holdem" : key;
   return ICON_KEYS.has(k) ? `/games/${k}.svg` : null;
