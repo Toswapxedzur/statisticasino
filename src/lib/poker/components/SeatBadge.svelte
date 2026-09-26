@@ -79,6 +79,15 @@
     return total <= cap ? base : Math.max(MIN_W, Math.floor(base * cap / total));
   });
   let avSize = $derived(isMine ? 36 : 28);
+  // Layout stability (owner, 2026-09-26: "cards switch place when a turn ends"). A seat is centred on
+  // its spot as a whole, so any change in its size moved the plate: the countdown appearing widened
+  // it, and cards leaving (a fold, the end of a hand) made it jump. The plate now has a fixed width
+  // (CSS) and, once this seat has held cards, the hand keeps their height while it holds none.
+  let hasCards = $derived(!!((cards && cards.length) || cardCount > 0));
+  let handNow = $state(0);
+  let handH = $state(0);
+  $effect(() => { if (hasCards && handNow > 0) handH = handNow; });
+  $effect(() => { if (seat?.userId == null) handH = 0; });   // a new player: start fresh
   // cosmetics: the player's ring round the avatar, and their badge = the plate's stepped colour (the
   // House keeps its own plate, no ring)
   let look = $derived(!house && seat ? plateStyle(seat.badge || "default") : null);
@@ -109,14 +118,15 @@
           <span class="stack">{#if stackShown != null}{stackShown.toLocaleString()}{:else}<Num value={seat.stack} />{/if}</span>
           {#if badge}<span class="badge b-{badge.toLowerCase()}">{badge}</span>{/if}
           {#if !seat.connected && !house}<span class="dot off" title="disconnected"></span>{/if}
-          {#if seat.isToAct && deadline}<span class="secs" class:urgent>{remainSec}s</span>{/if}
+          <!-- always there (hidden when not acting), so the plate never widens as the turn passes -->
+          <span class="secs" class:urgent class:off={!(seat.isToAct && deadline)}>{seat.isToAct && deadline ? remainSec : 88}s</span>
         </div>
         <div class="row3 {statusKind}">{statusText}</div>
       </div>
     </div>
 
     {#if children}<div class="extra">{@render children()}</div>{/if}
-    <div class="hand" class:dealt-away={hideCards} class:has={(cards && cards.length) || cardCount > 0}>
+    <div class="hand" class:dealt-away={hideCards} class:has={hasCards} class:held={!hasCards && handH > 0} style={!hasCards && handH > 0 ? `height:${handH}px` : undefined} bind:clientHeight={handNow}>
       <HandFan {cards} count={cardCount} width={cardW} fan={isMine ? "auto" : (cardCount > 3 || (cards?.length ?? 0) > 3 ? "stack" : "auto")} {selectable} {onSelect} {labelOf} {reveal} />
     </div>
   {:else}
@@ -149,18 +159,21 @@
   }
   .plate {
     position: relative; display: flex; align-items: center; gap: 7px;
-    padding: 5px 10px 5px 5px; max-width: 250px;   /* (room for the ring round the avatar) */
+    padding: 5px 10px 5px 5px; box-sizing: border-box;
+    width: 182px;   /* FIXED: nothing inside may resize it (the name gives way with an ellipsis) */
     background: var(--surface); border-radius: 14px; box-shadow: var(--shadow-card);
     transition: box-shadow var(--dur) var(--ease);
   }
+  .mine .plate { width: 218px; }
   .mine .plate { background: var(--surface-2); box-shadow: 0 0 0 2px var(--accent-soft), var(--shadow-card); }
   .toact .plate { box-shadow: 0 0 0 2px var(--accent), 0 0 20px color-mix(in srgb, var(--accent) 45%, transparent); }
   .house .plate { background: color-mix(in srgb, var(--surface) 70%, var(--gold-bg) 30%); }
   .av { position: relative; z-index: 1; line-height: 0; }
-  .txt { display: flex; flex-direction: column; min-width: 0; text-align: left; }
+  .txt { display: flex; flex-direction: column; min-width: 0; flex: 1; text-align: left; }
   .row1 { display: flex; align-items: baseline; gap: 6px; }
   .row1 .badge, .row1 .dot { align-self: center; }
-  .name { font-size: 13px; font-weight: 700; color: var(--plate-ink, var(--text)); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .name { font-size: 13px; font-weight: 700; color: var(--plate-ink, var(--text)); min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row1 > :not(.name) { flex: none; }
   .mine .name { font-size: 14px; }
   .badge { font-size: 9px; font-weight: 800; line-height: 1; padding: 2px 4px; border-radius: 4px; color: #12202e; }
   .b-d { background: #f3f6fb; } .b-sb { background: #a9dcef; } .b-bb { background: #e7c14b; }
@@ -169,7 +182,8 @@
   .mine .stack { font-size: 15px; }
   .secs { font-size: 11px; color: var(--plate-sub, var(--muted)); font-variant-numeric: tabular-nums; }
   .secs.urgent { color: var(--danger); font-weight: 700; }
-  .row3 { font-size: 11px; min-height: 13px; line-height: 1.15; color: var(--plate-sub, var(--muted)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
+  .secs.off { visibility: hidden; }
+  .row3 { font-size: 11px; min-height: 13px; line-height: 1.15; color: var(--plate-sub, var(--muted)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .row3.win { color: var(--ok); font-weight: 700; }
   .row3.lose { color: var(--danger); font-weight: 700; }
   .row3.push { color: var(--gold-ink); font-weight: 700; }
@@ -177,7 +191,8 @@
   .hand { line-height: 0; }
   .hand.dealt-away { visibility: hidden; }
   .extra { display: flex; justify-content: center; }
-  .hand:not(.has) { display: none; }
+  .hand:not(.has):not(.held) { display: none; }
+  .hand.held { visibility: hidden; }
   .seat.folded .plate, .seat.folded .hand { opacity: 0.42; filter: grayscale(0.4); }
   .seat.sitting-out .plate { opacity: 0.7; }
   .seat.winner .plate { box-shadow: 0 0 0 2px rgba(74,222,128,0.65), 0 0 18px rgba(74,222,128,0.4); animation: winpulse 1.1s ease-in-out 2; }

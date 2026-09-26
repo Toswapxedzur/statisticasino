@@ -95,6 +95,9 @@
   .pot {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
+    min-width: 170px;          /* steady as the number grows: no side-to-side wobble */
+    box-sizing: border-box;
     gap: 8px;
     padding: 6px 15px;
     background: var(--surface);
