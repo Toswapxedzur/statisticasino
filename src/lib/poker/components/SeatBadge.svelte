@@ -112,15 +112,15 @@
         <Avatar id={seat.userId} name={house ? "House" : seat.name} mediaId={seat.avatar ?? null} userId={isMine || house ? null : seat.userId} size={avSize} ring={house ? null : seat.ring || "default"} {ringRemain} ringFloat />
       </div>
       <div class="txt">
-        <!-- owner, 2026-09-26: the name alone on top; the chips and everything else on the second row,
-             so the plate can be short -->
+        <!-- owner, 2026-09-26: the name with the D / SB / BB marker right of it (a long name gives way with
+             an ellipsis); the chips, the status and the countdown on the second row -->
         <div class="row1">
           <span class="name" title={seat.name}>{house ? "House" : seat.name}</span>
+          {#if badge}<span class="badge b-{badge.toLowerCase()}">{badge}</span>{/if}
           {#if !seat.connected && !house}<span class="dot off" title="disconnected"></span>{/if}
         </div>
         <div class="row3 {statusKind}">
           <span class="stack">{#if stackShown != null}{stackShown.toLocaleString()}{:else}<Num value={seat.stack} />{/if}</span>
-          {#if badge}<span class="badge b-{badge.toLowerCase()}">{badge}</span>{/if}
           <span class="status">{statusText}</span>
           <!-- always there (hidden when not acting), so nothing moves as the turn passes -->
           <span class="secs" class:urgent class:off={!(seat.isToAct && deadline)}>{seat.isToAct && deadline ? remainSec : 88}s</span>
@@ -198,12 +198,11 @@
   .secs.off { visibility: hidden; }
   .row3 { display: flex; gap: 6px; }
   .row3 { align-items: baseline; }
-  .row3 .stack, .row3 .badge { flex: none; }
+  .row3 .stack { flex: none; }
   .row3 .stack { font-size: 12px; line-height: 1.1; }
   .mine .row3 .stack { font-size: 13px; }
   .row1 { line-height: 1.1; }
   .txt { justify-content: center; gap: 1px; }
-  .row3 .badge { align-self: center; }
   .row3 .status { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .row3 .secs { flex: none; margin-left: auto; }
   .row3 { font-size: 11px; min-height: 13px; line-height: 1.1; color: var(--plate-sub, var(--muted)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
