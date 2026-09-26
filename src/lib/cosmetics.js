@@ -62,8 +62,10 @@ function bandBeyond(c, r0, r1, d) {
   return `M${f(o1[0])} ${f(o1[1])}A${r1} ${r1} 0 ${big} 1 ${f(o2[0])} ${f(o2[1])}L${f(i2[0])} ${f(i2[1])}A${r0} ${r0} 0 ${big} 0 ${f(i1[0])} ${f(i1[1])}Z`;
 }
 
-/** The ring SVG for an avatar of `px` pixels, in `look`. */
-export function ringSvg(px, look = "default") {
+/** The ring SVG for an avatar of `px` pixels, in `look`. `remain` (0…1) makes the ring the turn clock
+ *  (owner, 2026-09-26: no separate timer circle): only that share of the gems shows, counted clockwise
+ *  from the top, the last one fading out — so they vanish one by one as the clock runs down. */
+export function ringSvg(px, look = "default", remain = 1) {
   const { light, dark } = RAMPS[look] || RAMPS.default;
   const size = ringBox(px), c = size / 2, a = px / 2, w = a * RING_K, r0 = a + 0.5, r1 = r0 + w, rm = (r0 + r1) / 2;
   const ring = `M${f(c - r1)} ${f(c)}a${r1} ${r1} 0 1 0 ${f(2 * r1)} 0a${r1} ${r1} 0 1 0 ${f(-2 * r1)} 0ZM${f(c - r0)} ${f(c)}a${r0} ${r0} 0 1 0 ${f(2 * r0)} 0a${r0} ${r0} 0 1 0 ${f(-2 * r0)} 0Z`;
@@ -72,7 +74,10 @@ export function ringSvg(px, look = "default") {
     + `<path d="${bandBeyond(c, r0, r1, -cut)}" fill="${dark[1]}"/><path d="${bandBeyond(c, r0, r1, cut)}" fill="${dark[2]}"/>`;
   const len = w * 0.72, wid = Math.min(len * 0.95, w * 0.95);            // radial length, width along the band
   const n = Math.max(8, Math.floor((2 * Math.PI * rm) / (wid * 1.65)));
+  const left = Math.max(0, Math.min(1, remain)) * n;          // how many gems are still showing
   for (let i = 0; i < n; i++) {
+    const vis = Math.max(0, Math.min(1, left - i));
+    if (vis <= 0) continue;
     const th = (i / n) * 2 * Math.PI - Math.PI / 2, ux = Math.cos(th), uy = Math.sin(th), vx = -uy, vy = ux;
     const cx = c + rm * ux, cy = c + rm * uy;
     const o = [cx + (len / 2) * ux, cy + (len / 2) * uy], inn = [cx - (len / 2) * ux, cy - (len / 2) * uy];
@@ -81,8 +86,9 @@ export function ringSvg(px, look = "default") {
     const aLit = facing(vx, vy) > 0;                                    // the half facing the light
     const litTone = light[Math.max(0, tier - 1)], shadeTone = light[tier];
     const tone = (isA) => (isA === aLit ? litTone : shadeTone);
-    s += `<polygon points="${f(o[0])},${f(o[1])} ${f(A[0])},${f(A[1])} ${f(inn[0])},${f(inn[1])}" fill="${tone(true)}"/>`
+    const gem = `<polygon points="${f(o[0])},${f(o[1])} ${f(A[0])},${f(A[1])} ${f(inn[0])},${f(inn[1])}" fill="${tone(true)}"/>`
       + `<polygon points="${f(o[0])},${f(o[1])} ${f(B[0])},${f(B[1])} ${f(inn[0])},${f(inn[1])}" fill="${tone(false)}"/>`;
+    s += vis < 1 ? `<g opacity="${vis.toFixed(2)}">${gem}</g>` : gem;
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" aria-hidden="true">${s}</svg>`;
 }

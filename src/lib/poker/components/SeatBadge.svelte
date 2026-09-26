@@ -6,7 +6,7 @@
   import { scale, fade, fly } from "svelte/transition";
   import { d, DUR } from "$lib/motion.js";
   import { getContext } from "svelte";
-  import { plateStyle, ringBox } from "$lib/cosmetics.js";
+  import { plateStyle } from "$lib/cosmetics.js";
 
   // The one seat badge every game uses: avatar · name · stack · status line, with
   // the player's cards fanned underneath. Layout is the same for every game; games
@@ -55,8 +55,6 @@
   let remainSec = $derived(Math.ceil(remainMs / 1000));
   let frac = $derived(Math.max(0, Math.min(1, remainMs / RING_MAX_MS)));
   let urgent = $derived(seat?.isToAct && remainMs > 0 && remainMs <= 6000);
-  const R = 30, C = 2 * Math.PI * R;
-  let dash = $derived(C * frac);
 
   let folded = $derived(seat?.status === "folded");
   let allin = $derived(seat?.status === "allin");
@@ -85,8 +83,8 @@
   // House keeps its own plate, no ring)
   let look = $derived(!house && seat ? plateStyle(seat.badge || "default") : null);
   let plateVars = $derived(look ? `background:${look.bg};--plate-ink:${look.ink};--plate-sub:${look.sub};--plate-money:${look.money}` : undefined);
-  // the turn timer circles just outside the ring (its circle is r 30 in a 72 box, 5 wide)
-  let timerPx = $derived(Math.round((((house ? avSize : ringBox(avSize)) / 2) + 4) * (72 / 30)));
+  // the turn clock IS the ring: its gems vanish one by one as the time runs down (no separate circle)
+  let ringRemain = $derived(seat?.isToAct && deadline ? frac : 1);
 </script>
 
 <div class="seat" data-seat={house ? undefined : seatNo} data-house={house ? "" : undefined} class:mine={isMine} class:folded class:sitting-out={sittingOut} class:winner class:allin class:house class:toact={!!seat?.isToAct}>
@@ -102,13 +100,7 @@
 
     <div class="plate" style={plateVars} in:scale={{ start: 0.92, duration: d(DUR.base) }}>
       <div class="av">
-        {#if seat.isToAct && deadline}
-          <svg class="ring" class:urgent viewBox="0 0 72 72" style="width:{timerPx}px;height:{timerPx}px" aria-hidden="true">
-            <circle class="ring-bg" cx="36" cy="36" r={R} />
-            <circle class="ring-fg" cx="36" cy="36" r={R} stroke-dasharray="{dash} {C}" transform="rotate(-90 36 36)" />
-          </svg>
-        {/if}
-        <Avatar id={seat.userId} name={house ? "House" : seat.name} mediaId={seat.avatar ?? null} userId={isMine || house ? null : seat.userId} size={avSize} ring={house ? null : seat.ring || "default"} />
+        <Avatar id={seat.userId} name={house ? "House" : seat.name} mediaId={seat.avatar ?? null} userId={isMine || house ? null : seat.userId} size={avSize} ring={house ? null : seat.ring || "default"} {ringRemain} />
       </div>
       <div class="txt">
         <!-- compact (owner, 2026-09-25): the stack sits right of the name -->
@@ -165,10 +157,6 @@
   .toact .plate { box-shadow: 0 0 0 2px var(--accent), 0 0 20px color-mix(in srgb, var(--accent) 45%, transparent); }
   .house .plate { background: color-mix(in srgb, var(--surface) 70%, var(--gold-bg) 30%); }
   .av { position: relative; z-index: 1; line-height: 0; }
-  .ring { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none; z-index: 2; }
-  .ring-bg { fill: none; stroke: rgba(255,255,255,0.12); stroke-width: 5; }
-  .ring-fg { fill: none; stroke: var(--accent); stroke-width: 5; stroke-linecap: round; transition: stroke-dasharray 0.12s linear; }
-  .ring.urgent .ring-fg { stroke: var(--danger); }
   .txt { display: flex; flex-direction: column; min-width: 0; text-align: left; }
   .row1 { display: flex; align-items: baseline; gap: 6px; }
   .row1 .badge, .row1 .dot { align-self: center; }

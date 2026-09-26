@@ -9,8 +9,9 @@
   import { initials as initial, avColor as color } from "$lib/initials.js";
   import { profilePop } from "$lib/profilePopover.svelte.js";
   import { ringSvg, ringBox } from "$lib/cosmetics.js";
-  let { name = "?", id = "", mediaId = null, size = 40, href = null, userId = null, ring = null } = $props();
-  const ringMarkup = $derived(ring ? ringSvg(size, ring) : "");
+  // ringRemain (0…1): the ring as a turn clock — only that share of its gems shows
+  let { name = "?", id = "", mediaId = null, size = 40, href = null, userId = null, ring = null, ringRemain = 1 } = $props();
+  const ringMarkup = $derived(ring ? ringSvg(size, ring, ringRemain) : "");
 
   function openPop(e) {
     e.preventDefault(); e.stopPropagation();

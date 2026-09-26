@@ -28,3 +28,15 @@ test("the ring: 65% band, no clip-path ids (so any number fit on one page), plat
   assert.equal(plateStyle("sapphire").ink, "#ffffff");
   assert.equal(plateStyle("nonsense").ink, plateStyle("default").ink);
 });
+
+test("the ring is the turn clock: its gems vanish one by one, the last one fading", () => {
+  const gems = (svg) => (svg.match(/<polygon/g) || []).length / 2;
+  const full = gems(ringSvg(36, "gold", 1));
+  assert.equal(gems(ringSvg(36, "gold", 0)), 0, "time's up: no gems");
+  const half = ringSvg(36, "gold", 0.5);
+  assert.ok(Math.abs(gems(half) - full / 2) <= 1);
+  const partial = ringSvg(36, "gold", (3.4) / full);          // three and a bit gems left
+  assert.equal(gems(partial), 4);
+  assert.match(partial, /<g opacity="0\.40">/, "the fourth is fading");
+  assert.ok(ringSvg(36, "gold", 0.5).includes('fill-rule="evenodd"'), "the band itself always stays");
+});
