@@ -13,7 +13,14 @@ export const CHESS = { ebony: "#1C1A15", charcoal: "#3E3A31", gray: "#6E685B", w
 
 /** The metals (the coins' own colours, src/lib/poker/chips.js) at the owner's wealth milestones. */
 export const METALS = [
+  // all eleven coin metals, in the coins' order (owner, 2026-09-26: "where is copper and silver?");
+  // everyone starts with 10K, so the first three come quickly
+  { key: "copper", name: "Copper", at: 12_500, base: "#c1691f", hi: "#eda45e", lo: "#71390c" },
+  { key: "brass", name: "Brass", at: 15_000, base: "#d9a520", hi: "#f6d878", lo: "#805c0a" },
+  { key: "silver", name: "Silver", at: 20_000, base: "#c6cdda", hi: "#ffffff", lo: "#79808f" },
   { key: "gold", name: "Gold", at: 25_000, base: "#f5b60d", hi: "#ffe485", lo: "#8f6503" },
+  { key: "rose", name: "Rose", at: 40_000, base: "#e8879b", hi: "#ffd3db", lo: "#8f3f50" },
+  { key: "platinum", name: "Platinum", at: 60_000, base: "#9cc8ec", hi: "#e4f3ff", lo: "#4d7ba3" },
   { key: "ruby", name: "Ruby", at: 100_000, base: "#d63c48", hi: "#ff9aa1", lo: "#7c1a22" },
   { key: "sapphire", name: "Sapphire", at: 250_000, base: "#2f66d8", hi: "#8fb0f2", lo: "#16337e" },
   { key: "emerald", name: "Emerald", at: 1_000_000, base: "#17a35c", hi: "#7be7ab", lo: "#07512b" },

@@ -2,12 +2,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { LOOKS, METALS, ownedLooks, isLook, ringSvg, ringBox, plateStyle, RAMPS } from "./cosmetics.js";
 
-test("the owner's milestones: default at start, then Gold 25K … Riverstone 25M", () => {
-  assert.deepEqual(LOOKS.map((l) => [l.key, l.at]), [["default", 0], ["gold", 25e3], ["ruby", 1e5], ["sapphire", 2.5e5], ["emerald", 1e6], ["obsidian", 5e6], ["riverstone", 2.5e7]]);
+test("all eleven coin metals, in the coins' order, at rising milestones", () => {
+  assert.deepEqual(LOOKS.map((l) => [l.key, l.at]), [["default", 0], ["copper", 12500], ["brass", 15e3], ["silver", 2e4], ["gold", 25e3], ["rose", 4e4], ["platinum", 6e4], ["ruby", 1e5], ["sapphire", 2.5e5], ["emerald", 1e6], ["obsidian", 5e6], ["riverstone", 2.5e7]]);
   assert.deepEqual(ownedLooks(0), ["default"]);
-  assert.deepEqual(ownedLooks(100_499), ["default", "gold", "ruby"]);
-  assert.deepEqual(ownedLooks(24_999), ["default"]);
-  assert.ok(isLook("emerald") && !isLook("copper"));
+  assert.deepEqual(ownedLooks(10_000), ["default"], "the signup grant alone unlocks nothing");
+  assert.deepEqual(ownedLooks(100_499), ["default", "copper", "brass", "silver", "gold", "rose", "platinum", "ruby"]);
+  assert.deepEqual(ownedLooks(24_999), ["default", "copper", "brass", "silver"]);
+  assert.ok(isLook("emerald") && isLook("copper") && !isLook("diamond"));
 });
 
 test("five shades per metal; the rhombuses always lighter than the band", () => {
