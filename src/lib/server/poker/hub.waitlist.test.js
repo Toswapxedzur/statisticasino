@@ -75,3 +75,20 @@ test("you can't waitlist a table that has room, or one you're seated at", async 
   await hub.joinWaitlist(conn("a"), table, 120); // already seated → refused
   assert.equal(hub.waitlistFor("t1").length, 0);
 });
+
+test("Quick Play only picks open Hold'em ring tables", () => {
+  const hub = new PokerHub();
+  const table = (id, variant, extra = {}) => {
+    const t = fakeTable(id, 6);
+    t.config.variant = variant; t.isTournament = false; Object.assign(t, extra);
+    t.seats.set(0, { seat: 0, userId: "someone" });
+    hub.tables.set(id, t);
+    return t;
+  };
+  table("bt", "big-two");
+  table("bj", "blackjack");
+  table("sprint", "holdem", { isTournament: true });
+  assert.equal(hub._quickPlayTable("me", 1000), null, "nothing but other games → spawn a Hold'em table");
+  table("he", "holdem");
+  assert.equal(hub._quickPlayTable("me", 1000)?.id, "he");
+});

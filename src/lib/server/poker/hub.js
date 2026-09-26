@@ -38,6 +38,9 @@ import { looksFor } from "../cosmetics.js";
 const INVITE_TTL_MS = 60_000;
 const LEADERBOARD_SIZE = 10;
 
+/** Quick Play's tables: Hold'em ring games (not another game's, not a tournament or Sprint table). */
+const isQuickPlayTable = (t) => t.config.variant === "holdem" && !t.isTournament;
+
 export class PokerHub {
   constructor() {
     this.tables = new Map();        // tableId -> LiveTable (in-memory only)
@@ -549,8 +552,8 @@ export class PokerHub {
   }
 
   async _quickPlay(conn, opts = {}) {
-    // Already seated somewhere → just send them back to it.
-    const existing = this.seatOfUser(conn.user.id);
+    // Already at a Hold'em ring table → just send them back to it.
+    const existing = [...this.tables.values()].find((t) => isQuickPlayTable(t) && t.seatForUser(conn.user.id));
     if (existing) {
       conn.send(encode(S2C.TABLE_CREATED, { tableId: existing.id }));
       return;
@@ -558,24 +561,10 @@ export class PokerHub {
 
     const wallet = await getBalance(conn.user.id);
 
-    // Pick the best OPEN table this user can afford and isn't already at:
-    // prefer a 1-seat table (instant heads-up), else the fullest non-full.
-    const bestOpen = () => {
-      const open = [...this.tables.values()].filter(
-        (t) => t.seats.size < t.config.maxSeats
-          && !t.seatForUser(conn.user.id)
-          && this._defaultBuyin(t.config, wallet, opts.buyin) != null
-      );
-      const heads = open.filter((t) => t.seats.size === 1);
-      const pool = heads.length ? heads : open;
-      pool.sort((a, b) => b.seats.size - a.seats.size);
-      return pool[0] || null;
-    };
-
     // Retry on a seat-collision race (two quick-plays grabbing the same seat
     // at once): re-pick the best target + a fresh open seat each attempt.
     for (let attempt = 0; attempt < 16; attempt += 1) {
-      const target = bestOpen();
+      const target = this._quickPlayTable(conn.user.id, wallet, opts.buyin);
       if (!target) break;
       const seat = this.firstOpenSeat(target);
       if (seat < 0) continue;
@@ -595,6 +584,22 @@ export class PokerHub {
     const buyin = this._defaultBuyin(def, wallet, opts.buyin);
     if (buyin == null) return this._err(conn, "Not enough chips (need at least 40).", "INSUFFICIENT_CHIPS");
     await this._spawnTable(conn, def, buyin);
+  }
+
+  /** Quick Play's pick: the best OPEN Hold'em ring table this user can afford and isn't already at —
+   *  a 1-seat table first (instant heads-up), else the fullest. Never another game's table, a
+   *  tournament or a Sprint table (Quick Play lives on the Hold'em tab). */
+  _quickPlayTable(userId, wallet, buyin) {
+    const open = [...this.tables.values()].filter(
+      (t) => isQuickPlayTable(t)
+        && t.seats.size < t.config.maxSeats
+        && !t.seatForUser(userId)
+        && this._defaultBuyin(t.config, wallet, buyin) != null
+    );
+    const heads = open.filter((t) => t.seats.size === 1);
+    const pool = heads.length ? heads : open;
+    pool.sort((a, b) => b.seats.size - a.seats.size);
+    return pool[0] || null;
   }
 
   // ------------------------------------------------------- invites

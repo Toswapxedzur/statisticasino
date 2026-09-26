@@ -175,3 +175,23 @@ function gameCues(prev, next, myUserId) {
   }
   return cues;
 }
+
+// ---------------------------------------------------------------------------
+// Where a cue plays. Cards and coins that move on screen sound on their own landing (the dealer's and
+// the coin engine's cues, table-audio.js), so their view-diff cue is dropped. On a table where they
+// don't move, the same moment plays the same table sound now. Everything else is a plain $lib/sfx cue.
+const DEALT = new Set(["shuffle", "deal", "board", "fold"]);            // the dealer's motion plays these
+const COINED = new Set(["bet", "raise", "allin", "pot", "winChips"]);   // the coins' motion plays these
+const AS_TABLE = {
+  deal: ["cardLand"], board: ["flip"], fold: ["pileTap"], shuffle: ["riffle", { dur: 1200 }], cardPlay: ["cardPlay"],
+  bet: ["coins", { count: 3 }], raise: ["coins", { count: 5 }], allin: ["allIn"], pot: ["pot"], winChips: ["coins", { count: 5 }]
+};
+
+/** A cue → null (its motion plays it) | { table: name, opts } | { sfx: name, opts }.
+ *  animated: { cards, coins } — whether this table's cards / coins move. */
+export function routeCue(c, animated) {
+  if ((animated.cards && DEALT.has(c.name)) || (animated.coins && COINED.has(c.name))) return null;
+  const [name, opts] = AS_TABLE[c.name] || [];
+  if (name) return { table: name, opts: { ...opts, delay: c.delay || 0, gap: c.gap || 0, burst: c.count || 1, volume: c.volume ?? 1 } };
+  return { sfx: c.name, opts: { count: c.count || 1, gap: c.gap, delay: c.delay, volume: c.volume } };
+}

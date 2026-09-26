@@ -101,3 +101,14 @@ test("big two: a new combination on the pile is a play, even when it's shorter",
   const pass = mk({ ...b.round });
   assert.deepEqual(names(tableSoundCues(b, pass, "u1")), []);
 });
+
+test("routing: a moving card or coin sounds on its landing, not on the diff", async () => {
+  const { routeCue } = await import("./table-sfx.js");
+  const still = { cards: false, coins: false }, moving = { cards: true, coins: true };
+  assert.equal(routeCue({ name: "deal", count: 6 }, moving), null);
+  assert.equal(routeCue({ name: "bet" }, moving), null);
+  assert.deepEqual(routeCue({ name: "deal", count: 6, gap: 85 }, still), { table: "cardLand", opts: { delay: 0, gap: 85, burst: 6, volume: 1 } });
+  assert.equal(routeCue({ name: "raise" }, still).opts.count, 5);
+  assert.deepEqual(routeCue({ name: "join" }, moving), { sfx: "join", opts: { count: 1, gap: undefined, delay: undefined, volume: undefined } });
+  assert.equal(routeCue({ name: "cardPlay", count: 3 }, moving).table, "cardPlay", "Big Two's pile never animates");
+});

@@ -14,23 +14,19 @@
   import ShedTable from "$lib/poker/components/ShedTable.svelte";
   import ShedBar from "$lib/poker/components/ShedBar.svelte";
   import BuyInModal from "$lib/poker/components/BuyInModal.svelte";
+  import RebuyModal from "$lib/poker/components/RebuyModal.svelte";
   import TableChat from "$lib/poker/components/TableChat.svelte";
   import Chip from "$lib/poker/components/Chip.svelte";
   import Num from "$lib/poker/components/Num.svelte";
-  import { variantLabel, isBanked as isBankedGame, isShedding, gameIcon, tableLayout, SPRINT_ICON } from "$lib/poker/games.js";
+  import { variantLabel, isBanked as isBankedGame, gameIcon, tableLayout, SPRINT_ICON } from "$lib/poker/games.js";
   import Select from "$lib/components/Select.svelte";
-  import { fade, fly, scale } from "svelte/transition";
+  import { fade, fly } from "svelte/transition";
   import { d, DUR } from "$lib/motion.js";
-  import { play, playBurst, soundEnabled, setSoundEnabled } from "$lib/sfx.js";
-  import { tableSoundCues } from "$lib/poker/table-sfx.js";
-  import { TableSounds, moneySound } from "$lib/poker/table-audio.js";
+  import { soundEnabled, setSoundEnabled } from "$lib/sfx.js";
+  import { tableSounds } from "$lib/poker/table-sounds.svelte.js";
+  import { tableMotion } from "$lib/poker/table-motion.svelte.js";
   import DeckLayer from "$lib/poker/components/DeckLayer.svelte";
-  import { Dealer } from "$lib/poker/dealer.svelte.js";
-  import { animatesTable } from "$lib/poker/deal-anim.js";
-  import { reducedMotion } from "$lib/motion.js";
-  import { untrack, setContext } from "svelte";
   import MoneyLayer from "$lib/poker/components/MoneyLayer.svelte";
-  import { Bank, moneyKind } from "$lib/poker/bank.svelte.js";
 
   let { data } = $props();
   // Reactive: a River Sprint fold-teleport navigates /table/A -> /table/B on the
@@ -57,7 +53,6 @@
   let layout = $derived(tableLayout(gameKey));
   let betGame = $derived(layout === "bet");
   // Shedding games (Big Two) — player-vs-player, no house.
-  let shedding = $derived(isShedding(gameKey));
   let shedGame = $derived(layout === "shed");
   let rules = $derived(view?.rules || null);
 
@@ -72,7 +67,7 @@
     "big-two": [["basic", "Basic"], ["leader", "Aggressive"]]
   };
   const botTiers = $derived(
-    (banked || shedding) ? (BOT_TIERS[gameKey] || [["basic", "Basic"]]) : [["reg", "Reg"], ["fish", "Fish"], ["shark", "Shark"], ["pro", "Pro"]]
+    (banked || shedGame) ? (BOT_TIERS[gameKey] || [["basic", "Basic"]]) : [["reg", "Reg"], ["fish", "Fish"], ["shark", "Shark"], ["pro", "Pro"]]
   );
   let botTier = $state("reg");
   $effect(() => { if (!botTiers.some(([k]) => k === botTier)) botTier = botTiers[0][0]; });
@@ -136,21 +131,8 @@
 
   // --- rebuy modal ---
   let rebuyOpen = $state(false);
-  let rebuyAmount = $state(0);
   let rebuyMax = $derived(mySeat ? Math.max(0, config.maxBuyin - mySeat.stack) : 0);
-  let rebuyFill = $derived.by(() => {
-    const lo = Math.min(config?.bigBlind ?? 1, rebuyMax);
-    return rebuyMax > lo ? ((rebuyAmount - lo) / (rebuyMax - lo)) * 100 : 0;
-  });
-  function openRebuy() {
-    rebuyAmount = Math.min(rebuyMax, Math.max(config.minBuyin, config.bigBlind * 20));
-    rebuyOpen = true;
-  }
-  function confirmRebuy() {
-    const amt = Math.max(1, Math.min(rebuyMax, Math.round(rebuyAmount)));
-    if (amt > 0) poker.rebuy(tableId, amt);
-    rebuyOpen = false;
-  }
+  function confirmRebuy(amount) { poker.rebuy(tableId, amount); rebuyOpen = false; }
 
   function stand() { poker.stand(tableId); }
   function toggleSitOut() { if (mySeat) poker.sitOut(tableId, !mySeat.sittingOut); }
@@ -162,125 +144,20 @@
   function leaveWaitlist() { poker.leaveWaitlist(tableId); onWaitlist = false; }
   $effect(() => { if (isSeated) onWaitlist = false; });
 
-  // --- sound effects ---
-  // Moving cards and coins sound on their own motion: the dealer and the coin engine announce each
-  // landing, and table-audio.js lands the sound's hit on that frame (the owner's Sound Lab picks).
-  // The view diff (table-sfx.js) covers the rest (join, check, showdown, dice…) — and the card / coin
-  // moments on tables where nothing animates them, with the same sounds.
+  // --- sound + motion (see table-sounds.svelte.js / table-motion.svelte.js) ---
   let sfxOn = $state(true);
   onMount(() => { sfxOn = soundEnabled(); });
   function toggleSfx() { sfxOn = !sfxOn; setSoundEnabled(sfxOn); }
-  const tableSounds = new TableSounds();
-  const DEALT = new Set(["shuffle", "deal", "board", "fold"]);            // the dealer's motion plays these
-  const COINED = new Set(["bet", "raise", "allin", "pot", "winChips"]);   // the coins' motion plays these
-  const AS_TABLE = {
-    deal: ["cardLand"], board: ["flip"], fold: ["pileTap"], shuffle: ["riffle", { dur: 1200 }], cardPlay: ["cardPlay"],
-    bet: ["coins", { count: 3 }], raise: ["coins", { count: 5 }], allin: ["allIn"], pot: ["pot"], winChips: ["coins", { count: 5 }]
-  };
-  let _prevView = null;
-  $effect(() => {
-    const v = view;
-    const prev = _prevView; _prevView = v;
-    if (!v || !prev || prev.id !== v.id) return;
-    const animated = untrack(() => ({ cards: !!dealer, coins: !!bank }));
-    for (const c of tableSoundCues(prev, v, me?.id ?? null)) {
-      if ((animated.cards && DEALT.has(c.name)) || (animated.coins && COINED.has(c.name))) continue;
-      const [name, opts] = AS_TABLE[c.name] || [];
-      if (name) tableSounds.now(name, { ...opts, delay: c.delay || 0, gap: c.gap || 0, burst: c.count || 1, volume: c.volume ?? 1 });
-      else if (c.count) playBurst(c.name, c.count, c.gap, { delay: c.delay, volume: c.volume });
-      else play(c.name, { delay: c.delay, volume: c.volume });
-    }
+  tableSounds({
+    get view() { return view; }, get me() { return me; },
+    get dealer() { return motion.dealer; }, get bank() { return motion.bank; },
+    get deadline() { return turn?.deadline ?? null; }
   });
-  onMount(() => {
-    let raf = 0;
-    const loop = () => {
-      if (dealer) tableSounds.take(dealer.cues);
-      if (bank) tableSounds.take(bank.money.cues, moneySound);
-      tableSounds.frame();
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
+  const motion = tableMotion({
+    get view() { return view; }, get mySeatNo() { return mySeat?.seat ?? null; }, get privates() { return privates; }
   });
-  // --- the dealt / shuffled deck (flop poker, see $lib/poker/deal-anim.js) ---
-  // One Dealer per table: it turns view changes into card flights drawn by DeckLayer, and
-  // tells the DOM hands / board when to stay hidden (in the air) and when to flip.
-  let dealer = $state(null);
-  let _dealerFor = null, _dealerPrev = null;
-  $effect(() => {
-    const v = view;
-    const on = animatesTable(v) && !reducedMotion();
-    untrack(() => {
-      if (!on) { dealer = null; _dealerFor = null; _dealerPrev = null; return; }
-      if (_dealerFor !== v.id || !dealer) {
-        dealer = new Dealer({ variant: v.config.variant, mySeat: mySeat?.seat ?? null });
-        dealer.init(v);
-        _dealerFor = v.id; _dealerPrev = v;
-        return;
-      }
-      dealer.mySeat = mySeat?.seat ?? null;
-      const prev = _dealerPrev; _dealerPrev = v;
-      if (prev !== v) dealer.onView(prev, v, privates);
-    });
-  });
-
-  // --- coins in motion, every game mode (see $lib/poker/bank.svelte.js) ---
-  // One Bank per table: view changes → coin flights drawn by MoneyLayer; the badges / pot read
-  // their numbers from it (context "bank") while coins move.
-  let bank = $state(null);
-  setContext("bank", { get current() { return bank; } });
-  let _bankFor = null, _bankPrev = null;
-  $effect(() => {
-    const v = view;
-    const kind = v && !reducedMotion() ? moneyKind(v) : null;
-    untrack(() => {
-      if (!kind) { bank = null; _bankFor = null; _bankPrev = null; return; }
-      if (_bankFor !== v.id || !bank || bank.kind !== kind) {
-        bank = new Bank(kind);
-        bank.init(v);
-        _bankFor = v.id; _bankPrev = v;
-        return;
-      }
-      const prev = _bankPrev; _bankPrev = v;
-      if (prev !== v) bank.onView(prev, v);
-    });
-  });
-
-  // Your turn: the server sends TABLE_TURN only to the acting player.
-  let _prevTurnDeadline = null;
-  $effect(() => {
-    const t = poker.turns[tableId] || null;
-    const dl = t?.deadline ?? null;
-    if (dl && dl !== _prevTurnDeadline) play("turn");
-    _prevTurnDeadline = dl;
-  });
-  // Last five seconds of my clock: one tick per second.
-  $effect(() => {
-    const dl = poker.turns[tableId]?.deadline ?? null;
-    if (!dl) return;
-    let last = -1;
-    const iv = setInterval(() => {
-      const left = Math.ceil((dl - Date.now()) / 1000);
-      if (left <= 5 && left > 0 && left !== last) { last = left; play("tick"); }
-      if (left <= 0) clearInterval(iv);
-    }, 200);
-    return () => clearInterval(iv);
-  });
-  // Tournament / Sprint round goes live: a short fanfare.
-  let _prevTnyStatus = null;
-  $effect(() => {
-    const st = view?.tournament?.status ?? null;
-    if (_prevTnyStatus && st === "running" && _prevTnyStatus !== "running") play("fanfare");
-    _prevTnyStatus = st;
-  });
-  // Idle on my turn: a quiet chip riffle every few seconds after the first 5 s.
-  $effect(() => {
-    const dl = poker.turns[tableId]?.deadline ?? null;
-    if (!dl) return;
-    const t0 = Date.now();
-    const iv = setInterval(() => { if (Date.now() - t0 >= 5000 && dl - Date.now() > 6000) play("think"); }, 7000);
-    return () => clearInterval(iv);
-  });
+  const dealer = $derived(motion.dealer);
+  const bank = $derived(motion.bank);
 
   // --- transient toast ---
   let toastMsg = $state(null);
@@ -341,7 +218,7 @@
     <div class="title">
       <b>{data.table.name}</b>
       <span class="stakes">
-        {#if shedding}{variantLabel(gameKey)} · ante {config.smallBlind}
+        {#if shedGame}{variantLabel(gameKey)} · ante {config.smallBlind}
         {:else if banked}{variantLabel(gameKey)} · min bet {config.smallBlind}{#if rules && rules.blackjackPays} · {rules.blackjackPays} · {rules.decks} deck{rules.decks > 1 ? "s" : ""} · {rules.dealerHitsSoft17 ? "H17" : "S17"}{rules.surrender ? " · surrender" : ""}{rules.peek === false ? " · no-peek" : ""}{/if}
         {:else}{variantLabel(config.variant)} · {config.smallBlind}/{config.bigBlind}{/if}
         · buy-in {config.minBuyin.toLocaleString()}–{config.maxBuyin.toLocaleString()}
@@ -420,7 +297,7 @@
         <div class="seat-controls">
           <button class="btn" onclick={stand}>Stand</button>
           <button class="btn" onclick={toggleSitOut}>{mySeat.sittingOut ? "Sit back in" : "Sit out"}</button>
-          <button class="btn" onclick={openRebuy} disabled={rebuyMax <= 0}>Rebuy</button>
+          <button class="btn" onclick={() => (rebuyOpen = true)} disabled={rebuyMax <= 0}>Rebuy</button>
         </div>
         {#if hasOpenSeat}
           <div class="bot-controls">
@@ -458,28 +335,7 @@
 {/if}
 
 {#if rebuyOpen}
-  <div class="modal-backdrop" onclick={() => (rebuyOpen = false)} role="presentation" transition:fade={{ duration: d(DUR.fast) }}>
-    <div class="modal card" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Rebuy" transition:scale={{ start: 0.96, duration: d(DUR.base) }}>
-      <h3>Rebuy</h3>
-      <p class="muted small">Top up your stack (max {rebuyMax.toLocaleString()} to reach the table cap).</p>
-      <input
-        class="rng"
-        type="range"
-        style="--fill:{rebuyFill}%"
-        min={Math.min(config.bigBlind, rebuyMax)}
-        max={rebuyMax}
-        step={config.bigBlind || 1}
-        bind:value={rebuyAmount}
-      />
-      <input class="num" type="number" min="1" max={rebuyMax} bind:value={rebuyAmount} />
-      <div class="modal-actions">
-        <button class="btn ghost" onclick={() => (rebuyOpen = false)}>Cancel</button>
-        <button class="btn primary" onclick={confirmRebuy} disabled={rebuyAmount <= 0}>
-          Rebuy {Math.round(rebuyAmount).toLocaleString()}
-        </button>
-      </div>
-    </div>
-  </div>
+  <RebuyModal {config} max={rebuyMax} onConfirm={confirmRebuy} onCancel={() => (rebuyOpen = false)} />
 {/if}
 
 <style>
@@ -531,11 +387,4 @@
     .dock-side { align-items: center; }
   }
 
-  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px; }
-  .modal { width: min(420px, 94vw); padding: 20px; display: flex; flex-direction: column; gap: 12px; }
-  .modal h3 { margin: 0; }
-  .modal .num { width: 100%; padding: 9px 11px; border-radius: var(--r-btn); border: 0; background: var(--well); color: var(--text); }
-  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; }
-  .btn.primary { background: var(--accent); color: var(--on-accent); }
-  .btn.ghost { background: var(--well); box-shadow: none; }
 </style>
