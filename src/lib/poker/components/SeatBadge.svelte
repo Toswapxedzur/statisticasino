@@ -112,14 +112,15 @@
         <Avatar id={seat.userId} name={house ? "House" : seat.name} mediaId={seat.avatar ?? null} userId={isMine || house ? null : seat.userId} size={avSize} ring={house ? null : seat.ring || "default"} {ringRemain} ringFloat />
       </div>
       <div class="txt">
-        <!-- compact (owner, 2026-09-25): the stack sits right of the name -->
+        <!-- owner, 2026-09-26: the name alone on top; the chips and everything else on the second row,
+             so the plate can be short -->
         <div class="row1">
           <span class="name" title={seat.name}>{house ? "House" : seat.name}</span>
-          <span class="stack">{#if stackShown != null}{stackShown.toLocaleString()}{:else}<Num value={seat.stack} />{/if}</span>
-          {#if badge}<span class="badge b-{badge.toLowerCase()}">{badge}</span>{/if}
           {#if !seat.connected && !house}<span class="dot off" title="disconnected"></span>{/if}
         </div>
         <div class="row3 {statusKind}">
+          <span class="stack">{#if stackShown != null}{stackShown.toLocaleString()}{:else}<Num value={seat.stack} />{/if}</span>
+          {#if badge}<span class="badge b-{badge.toLowerCase()}">{badge}</span>{/if}
           <span class="status">{statusText}</span>
           <!-- always there (hidden when not acting), so nothing moves as the turn passes -->
           <span class="secs" class:urgent class:off={!(seat.isToAct && deadline)}>{seat.isToAct && deadline ? remainSec : 88}s</span>
@@ -169,7 +170,7 @@
   }
   .plate {
     position: relative; display: flex; align-items: center; gap: 7px;
-    padding: 5px 10px 5px 5px; box-sizing: border-box;
+    padding: 4px 8px 4px 5px; box-sizing: border-box;
     width: 100%; height: 38px;   /* FIXED (width from the stage): nothing inside may resize it; the name takes an ellipsis;
                                     the avatar's ring overhangs the plate (owner, 2026-09-26) */
     background: var(--surface); border-radius: 14px; box-shadow: var(--shadow-card);
@@ -179,8 +180,8 @@
   .mine .plate { background: var(--surface-2); box-shadow: 0 0 0 2px var(--accent-soft), var(--shadow-card); }
   .toact .plate { box-shadow: 0 0 0 2px var(--accent), 0 0 20px color-mix(in srgb, var(--accent) 45%, transparent); }
   .house .plate { background: color-mix(in srgb, var(--surface) 70%, var(--gold-bg) 30%); }
-  .av { position: relative; z-index: 1; line-height: 0; flex: none; margin-right: 5px; }   /* room for the ring's overhang before the name */
-  .mine .av { margin-right: 7px; }
+  .av { position: relative; z-index: 1; line-height: 0; flex: none; margin-right: 9px; }   /* room for the ring's overhang, then a little air before the name */
+  .mine .av { margin-right: 11px; }
   .txt { display: flex; flex-direction: column; min-width: 0; flex: 1; text-align: left; }
   .row1 { display: flex; align-items: baseline; gap: 6px; }
   .row1 .badge, .row1 .dot { align-self: center; }
@@ -196,9 +197,16 @@
   .secs.urgent { color: var(--danger); font-weight: 700; }
   .secs.off { visibility: hidden; }
   .row3 { display: flex; gap: 6px; }
+  .row3 { align-items: baseline; }
+  .row3 .stack, .row3 .badge { flex: none; }
+  .row3 .stack { font-size: 12px; line-height: 1.1; }
+  .mine .row3 .stack { font-size: 13px; }
+  .row1 { line-height: 1.1; }
+  .txt { justify-content: center; gap: 1px; }
+  .row3 .badge { align-self: center; }
   .row3 .status { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .row3 .secs { flex: none; margin-left: auto; }
-  .row3 { font-size: 11px; min-height: 13px; line-height: 1.15; color: var(--plate-sub, var(--muted)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row3 { font-size: 11px; min-height: 13px; line-height: 1.1; color: var(--plate-sub, var(--muted)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .row3.win { color: var(--ok); font-weight: 700; }
   .row3.lose { color: var(--danger); font-weight: 700; }
   .row3.push { color: var(--gold-ink); font-weight: 700; }

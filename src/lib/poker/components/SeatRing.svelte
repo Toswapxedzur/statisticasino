@@ -18,7 +18,8 @@
   // Only a window resize can change the scale or the shape; nothing during play can.
   // spread = the ring's half-width (% of the stage) so the side seats' fixed plates stay on the stage
   // plates are back to their compact size (owner, 2026-09-26); the ring overhangs them
-  const STAGES = { wide: { w: 1120, h: 660, plate: 152, mine: 184, spread: 41 }, tall: { w: 640, h: 940, plate: 144, mine: 172, spread: 36 } };
+  // (owner, 2026-09-26: shorter still — the chips moved to the second row)
+  const STAGES = { wide: { w: 1120, h: 660, plate: 136, mine: 164, spread: 41 }, tall: { w: 640, h: 940, plate: 132, mine: 158, spread: 36 } };
   let el = $state(null);
   let shape = $state("wide");
   let zoom = $state(1);
