@@ -9,3 +9,6 @@
 - `sheet.mjs` → `sheet.html` / `sheet.png` — preview on navy, light and small.
 - `tabs-mock.mjs` → `tabs-mock.png` — the three lobby-tab arrangements; the owner chose B (icon over
   name, 8 across / 4×2 on a phone).
+- `sprint.js` + `sprint-sheet.mjs` → `sprint-sheet.png` — the River Sprint icon: three candidates; the
+  owner chose the stopwatch (river waves low on a dark face, touching; a white crescent moon centred in
+  the open space; `sprint-stopwatch.png`). Not wired into the site yet.

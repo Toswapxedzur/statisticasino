@@ -5,15 +5,15 @@
 // ivory; dark: gray › charcoal › ebony). Drawn on a 96×96 grid.
 export const P = { ebony: "#1C1A15", charcoal: "#3E3A31", gray: "#6E685B", white: "#FBF8EF", cream: "#F1E9D3", ivory: "#E1D3AD" };
 const { ebony, charcoal, gray, white, cream, ivory } = P;
-const LIGHT = [white, cream, ivory], DARK = [gray, charcoal, ebony];
-const deg = (a) => (a * Math.PI) / 180;
-const f = (n) => Math.round(n * 100) / 100;
+export const LIGHT = [white, cream, ivory], DARK = [gray, charcoal, ebony];
+export const deg = (a) => (a * Math.PI) / 180;
+export const f = (n) => Math.round(n * 100) / 100;
 let uid = 0;
 
 /** A shape (markup without fill) in stepped tones along the light: tones[0] on the lit upper-left,
  *  the last on the lower-right. (cx, cy) the cut's centre, r the shape's half-size. k shifts the cut
  *  (−1 … 1, positive = more light), gap the width of the middle band for three tones. */
-function shade(shape, cx, cy, r, tones, { k = 0, gap = 0.5 } = {}) {
+export function shade(shape, cx, cy, r, tones, { k = 0, gap = 0.5 } = {}) {
   const id = `c${++uid}`, L = r * 4;
   const half = (off, fill) => {   // the half-plane (x−cx)+(y−cy) > off, beyond the cut
     const mx = cx + off / 2, my = cy + off / 2;
@@ -25,10 +25,10 @@ function shade(shape, cx, cy, r, tones, { k = 0, gap = 0.5 } = {}) {
   else s += half(c - gap * r, tones[1]) + half(c + gap * r, tones[2]);
   return s + "</g>";
 }
-const circle = (cx, cy, r, tones, o) => shade(`<circle cx="${f(cx)}" cy="${f(cy)}" r="${r}"/>`, cx, cy, r, tones, o);
-const ell = (cx, cy, rx, ry, t) => [cx + rx * Math.cos(deg(t)), cy + ry * Math.sin(deg(t))];
+export const circle = (cx, cy, r, tones, o) => shade(`<circle cx="${f(cx)}" cy="${f(cy)}" r="${r}"/>`, cx, cy, r, tones, o);
+export const ell = (cx, cy, rx, ry, t) => [cx + rx * Math.cos(deg(t)), cy + ry * Math.sin(deg(t))];
 /** The part of an elliptical ring between scale s0 and 1, from angle a to b (a top-face rim spot). */
-function ringSeg(cx, cy, rx, ry, s0, a, b) {
+export function ringSeg(cx, cy, rx, ry, s0, a, b) {
   const pts = [];
   for (let i = 0; i <= 6; i++) pts.push(ell(cx, cy, rx, ry, a + ((b - a) * i) / 6));
   for (let i = 6; i >= 0; i--) pts.push(ell(cx, cy, rx * s0, ry * s0, a + ((b - a) * i) / 6));
@@ -38,7 +38,7 @@ function ringSeg(cx, cy, rx, ry, s0, a, b) {
 // ---------------------------------------------------------------- Hold'em: stacks of real chips
 // A chip is a short cylinder: the front of its side band, the top face, and six edge spots that
 // wrap from the side over the rim. Lit from the left, so the side steps lighter → darker.
-function chip(cx, cy, rx = 18, ry = 6.6, h = 7.6, top = true) {
+export function chip(cx, cy, rx = 18, ry = 6.6, h = 7.6, top = true) {
   let s = "";
   const side = `<path d="M${f(cx - rx)} ${f(cy)}L${f(cx - rx)} ${f(cy + h)}A${rx} ${ry} 0 0 0 ${f(cx + rx)} ${f(cy + h)}L${f(cx + rx)} ${f(cy)}A${rx} ${ry} 0 0 1 ${f(cx - rx)} ${f(cy)}Z"/>`;
   const id = `c${++uid}`;
