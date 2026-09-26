@@ -17,7 +17,7 @@
   import NewTableModal from "$lib/poker/components/NewTableModal.svelte";
   import LobbyPlayers from "$lib/poker/components/LobbyPlayers.svelte";
   import LobbyChat from "$lib/poker/components/LobbyChat.svelte";
-  import { GAME_MODES, variantShort, modeOf } from "$lib/poker/games.js";
+  import { GAME_MODES, LOBBY_MODES, variantShort, modeOf, isOffered } from "$lib/poker/games.js";
   import { slidingIndicator } from "$lib/actions/slider.js";
   import { fade, fly } from "svelte/transition";
   import { flip } from "svelte/animate";
@@ -30,7 +30,7 @@
   let gameMode = $state("poker");
   const modeLabel = $derived(GAME_MODES.find((m) => m.key === gameMode)?.label ?? "Poker");
   const tablesForMode = $derived(
-    (poker.lobby.tables || []).filter((t) => modeOf(t.variant) === gameMode)
+    (poker.lobby.tables || []).filter((t) => modeOf(t.variant) === gameMode && isOffered(t.variant))
   );
 
   // Wallet balance: SSR value, kept live via the client's "chips" event so
@@ -115,7 +115,7 @@
 
       <div class="modes-wrap">
         <div class="mode-pager slider" role="tablist" aria-label="Game mode" use:slidingIndicator>
-          {#each GAME_MODES as m}
+          {#each LOBBY_MODES as m}
             <button
               type="button"
               class="mode-pill"

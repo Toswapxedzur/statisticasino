@@ -102,6 +102,18 @@ const LABEL_BY_KEY = new Map([
   ["big-two", "Big Two"]
 ]);
 
+// The games the site OFFERS (owner, 2026-09-26: one game per major type, 8 of 30). The rest are
+// hidden — no lobby tab, no New table choice, and the server refuses to create them — but their
+// engines, labels and replays stay, so any mode can come back by adding its key here.
+//   community-card poker: Hold'em · blackjack · baccarat family: Baccarat · poker vs the house:
+//   Three Card Poker · wheel: Roulette · dice: Sic Bo · machines: Slots · shedding: Big Two
+export const OFFERED = new Set(["holdem", "blackjack", "baccarat", "three-card", "roulette", "sic-bo", "slots", "big-two"]);
+export function isOffered(key) { return OFFERED.has(key); }
+/** The lobby's mode tabs (poker = its offered variants). */
+export const LOBBY_MODES = GAME_MODES.filter((m) => (m.key === "poker" ? POKER_VARIANTS.some((v) => OFFERED.has(v.key)) : OFFERED.has(m.key)));
+/** The poker variants the New table picker shows. */
+export const OFFERED_POKER_VARIANTS = POKER_VARIANTS.filter((v) => OFFERED.has(v.key));
+
 export function variantShort(key) {
   return SHORT_BY_KEY.get(key) || "NL Hold'em";
 }

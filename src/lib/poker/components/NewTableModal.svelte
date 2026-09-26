@@ -8,7 +8,7 @@
   // VARIANT (for poker) is chosen here. A blackjack creator either banks (deep
   // bankroll, up to their whole wallet) or plays while a wealthy bot banks.
 
-  import { POKER_VARIANTS, variantLabel, isShedding as isSheddingFn } from "$lib/poker/games.js";
+  import { OFFERED_POKER_VARIANTS, variantLabel, isShedding as isSheddingFn } from "$lib/poker/games.js";
   import { fade, scale } from "svelte/transition";
   import { d, DUR } from "$lib/motion.js";
   import Checkbox from "$lib/components/Checkbox.svelte";
@@ -152,11 +152,11 @@
       <input type="text" placeholder="My table" maxlength="40" bind:value={name} />
     </label>
 
-    {#if !isBanked}
+    {#if !isBanked && OFFERED_POKER_VARIANTS.length > 1}
       <div class="field">
         Game
         <div class="chips">
-          {#each POKER_VARIANTS as v}
+          {#each OFFERED_POKER_VARIANTS as v}
             <button
               type="button"
               class="chip"
