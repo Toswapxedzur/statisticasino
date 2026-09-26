@@ -75,10 +75,13 @@ function bandBeyond(c, r0, r1, d) {
 export function ringSvg(px, look = "default", remain = 1) {
   const { light, dark } = RAMPS[look] || RAMPS.default;
   const size = ringBox(px), c = size / 2, a = px / 2, w = a * RING_K, r0 = a + 0.5, r1 = r0 + w, rm = (r0 + r1) / 2;
-  const ring = `M${f(c - r1)} ${f(c)}a${r1} ${r1} 0 1 0 ${f(2 * r1)} 0a${r1} ${r1} 0 1 0 ${f(-2 * r1)} 0ZM${f(c - r0)} ${f(c)}a${r0} ${r0} 0 1 0 ${f(2 * r0)} 0a${r0} ${r0} 0 1 0 ${f(-2 * r0)} 0Z`;
+  // the band's paint starts 1.5 px UNDER the avatar (which sits on top), so no hairline of the page
+  // shows between them (owner: "a tiny seam"); the visible band and the gems keep r0…r1
+  const rIn = a - 1.5;
+  const ring = `M${f(c - r1)} ${f(c)}a${r1} ${r1} 0 1 0 ${f(2 * r1)} 0a${r1} ${r1} 0 1 0 ${f(-2 * r1)} 0ZM${f(c - rIn)} ${f(c)}a${rIn} ${rIn} 0 1 0 ${f(2 * rIn)} 0a${rIn} ${rIn} 0 1 0 ${f(-2 * rIn)} 0Z`;
   const cut = rm * 0.55;
   let s = `<path fill-rule="evenodd" d="${ring}" fill="${dark[0]}"/>`
-    + `<path d="${bandBeyond(c, r0, r1, -cut)}" fill="${dark[1]}"/><path d="${bandBeyond(c, r0, r1, cut)}" fill="${dark[2]}"/>`;
+    + `<path d="${bandBeyond(c, rIn, r1, -cut)}" fill="${dark[1]}"/><path d="${bandBeyond(c, rIn, r1, cut)}" fill="${dark[2]}"/>`;
   const len = w * 0.72, wid = Math.min(len * 0.95, w * 0.95);            // radial length, width along the band
   const n = Math.max(8, Math.floor((2 * Math.PI * rm) / (wid * 1.65)));
   const left = Math.max(0, Math.min(1, remain)) * n;          // how many gems are still showing
