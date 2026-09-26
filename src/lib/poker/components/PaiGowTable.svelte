@@ -19,6 +19,8 @@
   const seatNos = $derived(Array.from({ length: maxSeats }, (_, i) => i));
   // One card size for the whole table: 82 px up to 6 seats, smaller when the ring is crowded.
   const cardW = $derived(seatNos.length <= 6 ? 82 : seatNos.length <= 8 ? 70 : 60);
+  // the stage keeps every seat's hand space from the start: the card height (60:78)
+  const handSpace = $derived(Math.round((cardW * 78) / 60));
   const banker = $derived(bankerSeat != null ? seatByNo.get(bankerSeat) : null);
   const iAmSeated = $derived(mySeatNo != null);
   const outcomeOf = (seat) => (results ? results.find((r) => r.seat === seat) || null : null);
@@ -51,7 +53,7 @@
     {@const mine = !!s && s.userId === me?.id}
     {@const set = !!(hand && hand.back && hand.back.length)}
     {@const ln = s ? lineFor(seatNo, hand) : null}
-    <SeatBadge cardWidth={cardW}
+    <SeatBadge cardWidth={cardW} handSpace={handSpace}
       seat={s ? { ...s, isToAct: round.toActSeat === seatNo } : null} {seatNo} {me} isMine={mine}
       cards={!set && hand?.cards?.length ? hand.cards : null}
       line={ln?.text ?? ""} lineKind={ln?.kind ?? "muted"}

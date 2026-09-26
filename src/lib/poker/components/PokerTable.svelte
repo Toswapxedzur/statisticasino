@@ -19,6 +19,8 @@
   let seatNos = $derived(Array.from({ length: maxSeats }, (_, i) => i));
   // One card size for the whole table: 82 px up to 6 seats, smaller when the ring is crowded.
   const cardW = $derived(seatNos.length <= 6 ? 82 : seatNos.length <= 8 ? 70 : 60);
+  // the stage keeps every seat's hand space from the start: the card height (60:78)
+  const handSpace = $derived(Math.round((cardW * 78) / 60));
   let seatByNo = $derived(new Map((view?.seats || []).map((s) => [s.seat, s])));
   let mySeatNo = $derived(me ? (view?.seats || []).find((s) => s.userId === me.id)?.seat ?? null : null);
   let revealedByNo = $derived(new Map((view?.result?.revealed || []).map((r) => [r.seat, r.holeCards])));
@@ -85,7 +87,7 @@
       {@const s = seatByNo.get(seatNo) ?? null}
       {@const mine = !!s && s.userId === me?.id}
       {@const cards = s ? cardsFor(seatNo, s) : null}
-      <SeatBadge cardWidth={cardW}
+      <SeatBadge cardWidth={cardW} handSpace={handSpace}
         seat={s} {seatNo} {me} isMine={mine}
         cards={cards}
         cardCount={s && !cards && s.hasCards ? holeCount : 0}

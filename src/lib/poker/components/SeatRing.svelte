@@ -11,25 +11,35 @@
 
   import { ringPositions } from "$lib/poker/ring.js";
   let ring = $derived(seatNos.filter((n) => n !== houseSeat));
-  let positions = $derived(ringPositions(ring, mySeatNo, !!top, flat));
 
-  // Scale the whole arena with the space it gets: badges and cards are laid out in
-  // px for a ~1100×640 reference; bigger screens zoom in, phones zoom out.
+  // THE STAGE (owner, 2026-09-26: nothing on the table may move because something else changed size).
+  // The arena is a FIXED-size stage in design pixels — wide for landscape windows, tall for portrait
+  // phones — scaled as a whole to fit its box (letterboxed), so seat positions are fixed coordinates.
+  // Only a window resize can change the scale or the shape; nothing during play can.
+  // spread = the ring's half-width (% of the stage) so the side seats' fixed plates stay on the stage
+  const STAGES = { wide: { w: 1120, h: 660, plate: 182, mine: 218, spread: 41 }, tall: { w: 640, h: 940, plate: 170, mine: 206, spread: 35 } };
   let el = $state(null);
+  let shape = $state("wide");
   let zoom = $state(1);
   $effect(() => {
     if (!el) return;
     const ro = new ResizeObserver(([e]) => {
       const w = e.contentRect.width, h = e.contentRect.height;
-      zoom = Math.max(0.7, Math.min(1.7, Math.min(w / 1100, h / 600)));
+      if (!w || !h) return;
+      shape = w / h < 0.85 ? "tall" : "wide";
+      const st = STAGES[shape];
+      zoom = Math.max(0.3, Math.min(w / st.w, h / st.h));
     });
     ro.observe(el);
     return () => ro.disconnect();
   });
+  let stage = $derived(STAGES[shape]);
+  let positions = $derived(ringPositions(ring, mySeatNo, !!top, flat, STAGES[shape].spread));
+
 </script>
 
 <div class="arena-fit" bind:this={el}>
-<div class="arena" style="zoom:{zoom}">
+<div class="arena" style="width:{stage.w}px;height:{stage.h}px;zoom:{zoom};--plate-w:{stage.plate}px;--plate-w-mine:{stage.mine}px">
   <div class="ambient" aria-hidden="true"></div>
   {#if top}
     <div class="top">{@render top()}</div>
@@ -44,8 +54,9 @@
 </div>
 
 <style>
-  .arena-fit { position: relative; width: 100%; height: 100%; min-height: 420px; }
-  .arena { position: relative; width: 100%; height: 100%; }
+  .arena-fit { position: relative; width: 100%; height: 100%; display: grid; place-items: center; }
+  /* fixed size, and nothing inside can resize it (contain) */
+  .arena { position: relative; flex: none; contain: layout size style; }
   .ambient {
     position: absolute; inset: 8% 12%; z-index: 0; pointer-events: none; border-radius: 50%;
     background:

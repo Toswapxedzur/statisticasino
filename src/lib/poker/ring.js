@@ -2,11 +2,12 @@
 //   ring      — seat numbers to place, in seat order.
 //   mySeatNo  — anchors the rotation so my seat is bottom centre (null → first seat).
 //   hasTop    — when the House occupies the top, spread seats over the lower 300°.
-export function ringPositions(ring, mySeatNo = null, hasTop = false, flat = false) {
+export function ringPositions(ring, mySeatNo = null, hasTop = false, flat = false, spread = 41) {
   const n = ring.length;
   if (!n) return [];
   const anchorIdx = mySeatNo != null && ring.includes(mySeatNo) ? ring.indexOf(mySeatNo) : 0;
-  const a = 43, b = flat ? 34 : 38;
+  // a: the half-width, chosen by the stage so the side seats' fixed-width plates stay on it
+  const a = spread, b = flat ? 34 : 38;
   const cy = hasTop ? 54 : 50;
   const out = [];
   for (let i = 0; i < n; i++) {

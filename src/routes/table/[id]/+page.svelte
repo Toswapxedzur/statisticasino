@@ -580,8 +580,9 @@
 
   @media (max-width: 960px) {
     .tablepage { height: auto; min-height: 100vh; overflow: visible; }
-    .arena-wrap { flex: none; height: 72vh; }
+    .arena-wrap { flex: none; height: 72vh; padding-top: 88px; }   /* the title wraps on phones */
     .dock { grid-template-columns: 1fr; height: auto; }
+    .dock-actions { order: -1; }   /* phones: your actions right under the table, the chat below them */
     .dock-chat :global(.chat .messages) { max-height: 180px; }
     .dock-side { align-items: center; }
   }

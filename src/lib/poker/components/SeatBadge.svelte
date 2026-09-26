@@ -33,6 +33,7 @@
     canSit = false, onSit = () => {}, seatNo = 0,
     selectable = null, onSelect = () => {}, labelOf = null,
     house = false, size = "sm", children = null,
+    handSpace = 0,          // px to keep for this seat's hand from the start (a card game: the card height)
     cardWidth = 82          // the table's card size (my hand + centre); shrinks on crowded tables
   } = $props();
 
@@ -88,6 +89,9 @@
   let handH = $state(0);
   $effect(() => { if (hasCards && handNow > 0) handH = handNow; });
   $effect(() => { if (seat?.userId == null) handH = 0; });   // a new player: start fresh
+  // the space kept for the hand: the table's card height from the start (+ the lift a picked card
+  // gets on my own hand), or at least what this seat's hand has already needed
+  let reserveH = $derived(Math.max(handSpace > 0 ? handSpace + (isMine ? 14 : 0) : 0, handH));
   // cosmetics: the player's ring round the avatar, and their badge = the plate's stepped colour (the
   // House keeps its own plate, no ring)
   let look = $derived(!house && seat ? plateStyle(seat.badge || "default") : null);
@@ -118,15 +122,17 @@
           <span class="stack">{#if stackShown != null}{stackShown.toLocaleString()}{:else}<Num value={seat.stack} />{/if}</span>
           {#if badge}<span class="badge b-{badge.toLowerCase()}">{badge}</span>{/if}
           {#if !seat.connected && !house}<span class="dot off" title="disconnected"></span>{/if}
-          <!-- always there (hidden when not acting), so the plate never widens as the turn passes -->
+        </div>
+        <div class="row3 {statusKind}">
+          <span class="status">{statusText}</span>
+          <!-- always there (hidden when not acting), so nothing moves as the turn passes -->
           <span class="secs" class:urgent class:off={!(seat.isToAct && deadline)}>{seat.isToAct && deadline ? remainSec : 88}s</span>
         </div>
-        <div class="row3 {statusKind}">{statusText}</div>
       </div>
     </div>
 
     {#if children}<div class="extra">{@render children()}</div>{/if}
-    <div class="hand" class:dealt-away={hideCards} class:has={hasCards} class:held={!hasCards && handH > 0} style={!hasCards && handH > 0 ? `height:${handH}px` : undefined} bind:clientHeight={handNow}>
+    <div class="hand" class:dealt-away={hideCards} class:has={hasCards} class:held={!hasCards && reserveH > 0} style={reserveH > 0 ? `min-height:${reserveH}px` : undefined} bind:clientHeight={handNow}>
       <HandFan {cards} count={cardCount} width={cardW} fan={isMine ? "auto" : (cardCount > 3 || (cards?.length ?? 0) > 3 ? "stack" : "auto")} {selectable} {onSelect} {labelOf} {reveal} />
     </div>
   {:else}
@@ -145,6 +151,7 @@
 <style>
   .seat { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; width: max-content; }
   .bet {
+    position: absolute; top: -26px; left: 50%; transform: translateX(-50%); z-index: 5; white-space: nowrap;   /* out of the seat's layout */
     display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px 2px 4px;
     font-size: 12px; font-weight: 800; color: var(--gold-ink);
     background: color-mix(in srgb, var(--surface) 78%, #000 22%); border-radius: 999px;
@@ -160,11 +167,11 @@
   .plate {
     position: relative; display: flex; align-items: center; gap: 7px;
     padding: 5px 10px 5px 5px; box-sizing: border-box;
-    width: 182px;   /* FIXED: nothing inside may resize it (the name gives way with an ellipsis) */
+    width: var(--plate-w, 182px);   /* FIXED (set by the stage): nothing inside may resize it; the name takes an ellipsis */
     background: var(--surface); border-radius: 14px; box-shadow: var(--shadow-card);
     transition: box-shadow var(--dur) var(--ease);
   }
-  .mine .plate { width: 218px; }
+  .mine .plate { width: var(--plate-w-mine, 218px); }
   .mine .plate { background: var(--surface-2); box-shadow: 0 0 0 2px var(--accent-soft), var(--shadow-card); }
   .toact .plate { box-shadow: 0 0 0 2px var(--accent), 0 0 20px color-mix(in srgb, var(--accent) 45%, transparent); }
   .house .plate { background: color-mix(in srgb, var(--surface) 70%, var(--gold-bg) 30%); }
@@ -183,6 +190,9 @@
   .secs { font-size: 11px; color: var(--plate-sub, var(--muted)); font-variant-numeric: tabular-nums; }
   .secs.urgent { color: var(--danger); font-weight: 700; }
   .secs.off { visibility: hidden; }
+  .row3 { display: flex; gap: 6px; }
+  .row3 .status { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .row3 .secs { flex: none; margin-left: auto; }
   .row3 { font-size: 11px; min-height: 13px; line-height: 1.15; color: var(--plate-sub, var(--muted)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .row3.win { color: var(--ok); font-weight: 700; }
   .row3.lose { color: var(--danger); font-weight: 700; }
