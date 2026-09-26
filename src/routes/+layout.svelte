@@ -110,6 +110,7 @@
     { href: "/", label: "Lobby", show: true },
     { href: "/social", label: "Social", show: !!data.user, badge: socialUnread },
     { href: "/quests", label: "Quests", show: !!data.user },
+    { href: "/cosmetics", label: "Cosmetics", show: !!data.user },
     { href: "/sprint", label: "Sprint", show: true },
     // /data = Bluffing Valley's own data hub (your history, others' in-game history, player search).
     { href: "/data", label: "Data", show: true },

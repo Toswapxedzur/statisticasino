@@ -157,15 +157,38 @@ export async function ensureMigrated() {
   await migrateToV22();
   await migrateToV23();
   await migrateToV24();
+  await migrateToV25();
 
   // Stamp the version row (idempotent — schema.sql also INSERT IGNOREs
   // it, but we want to be defensive).
   await execute(
-    "INSERT INTO meta(meta_key, meta_value) VALUES ('schema_version', '24') "
+    "INSERT INTO meta(meta_key, meta_value) VALUES ('schema_version', '25') "
     + "ON DUPLICATE KEY UPDATE meta_value = VALUES(meta_value)"
   );
 
   _migrated = true;
+}
+
+// v24 -> v25 (cosmetics): peak wealth + the equipped ring / badge on `user`, and every existing
+// player's peak backfilled from what they hold now (wallet + chips on tables). Gated on
+// INFORMATION_SCHEMA per column, so re-runs are no-ops.
+async function migrateToV25() {
+  for (const [col, ddl] of [
+    ["peak_wealth", "ALTER TABLE user ADD COLUMN peak_wealth BIGINT NOT NULL DEFAULT 0"],
+    ["ring", "ALTER TABLE user ADD COLUMN ring VARCHAR(16) NOT NULL DEFAULT 'default'"],
+    ["badge", "ALTER TABLE user ADD COLUMN badge VARCHAR(16) NOT NULL DEFAULT 'default'"]
+  ]) {
+    const cols = await query(
+      "SELECT COLUMN_NAME FROM information_schema.COLUMNS "
+      + "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = ?",
+      [col]
+    );
+    if (cols.length === 0) await execute(ddl);
+  }
+  await execute(
+    "UPDATE user u LEFT JOIN (SELECT user_id, SUM(stack) AS s FROM poker_escrow GROUP BY user_id) e ON e.user_id = u.id "
+    + "SET u.peak_wealth = GREATEST(u.peak_wealth, u.chips + COALESCE(e.s, 0))"
+  );
 }
 
 // v23 -> v24 (rename: Riverside → Bluffing Valley): bot shell accounts carry the

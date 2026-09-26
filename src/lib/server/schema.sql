@@ -136,7 +136,12 @@ CREATE TABLE IF NOT EXISTS user (
   -- (everyone | fof [friends-of-friends] | nobody), + a JSON blob for the rest
   -- of the toggles (read receipts, typing, notifications). Theme lives client-side.
   friend_req_policy VARCHAR(16) NOT NULL DEFAULT 'everyone',
-  settings TEXT
+  settings TEXT,
+  -- v25 (cosmetics): the highest wealth (wallet + chips on tables) ever reached — metal rings and
+  -- badges unlock from it and never lapse (catalog in $lib/cosmetics.js) — and the equipped looks.
+  peak_wealth BIGINT NOT NULL DEFAULT 0,
+  ring        VARCHAR(16) NOT NULL DEFAULT 'default',
+  badge       VARCHAR(16) NOT NULL DEFAULT 'default'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- v19 (trigram friend search): 3-grams of each user's display name for

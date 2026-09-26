@@ -4,9 +4,13 @@
   //   userId set -> clicking opens the app-wide profile POPOVER (add friend, etc.)
   //   href set    -> plain link (navigation)
   //   neither     -> static
+  // ring = a cosmetics look key ($lib/cosmetics.js): the rhombus band round the avatar (the whole
+  // thing then takes ringBox(size) of space; `size` stays the picture's own size).
   import { initials as initial, avColor as color } from "$lib/initials.js";
   import { profilePop } from "$lib/profilePopover.svelte.js";
-  let { name = "?", id = "", mediaId = null, size = 40, href = null, userId = null } = $props();
+  import { ringSvg, ringBox } from "$lib/cosmetics.js";
+  let { name = "?", id = "", mediaId = null, size = 40, href = null, userId = null, ring = null } = $props();
+  const ringMarkup = $derived(ring ? ringSvg(size, ring) : "");
 
   function openPop(e) {
     e.preventDefault(); e.stopPropagation();
@@ -15,18 +19,26 @@
   const styleFor = () => `width:${size}px;height:${size}px;${mediaId ? "" : `background:${color(id || userId)};font-size:${Math.round(size * 0.36)}px`}`;
 </script>
 
-{#if userId}
-  <button type="button" class="av av-btn" style={styleFor()} onclick={openPop} aria-label={`${name} — open profile`}>
-    {#if mediaId}<img src="/media/{mediaId}" alt={name} loading="lazy" />{:else}{initial(name)}{/if}
-  </button>
-{:else if href}
-  <a class="av" href={href} style={styleFor()} title="View profile">
-    {#if mediaId}<img src="/media/{mediaId}" alt={name} loading="lazy" />{:else}{initial(name)}{/if}
-  </a>
+{#snippet face()}
+  {#if userId}
+    <button type="button" class="av av-btn" style={styleFor()} onclick={openPop} aria-label={`${name} — open profile`}>
+      {#if mediaId}<img src="/media/{mediaId}" alt={name} loading="lazy" />{:else}{initial(name)}{/if}
+    </button>
+  {:else if href}
+    <a class="av" href={href} style={styleFor()} title="View profile">
+      {#if mediaId}<img src="/media/{mediaId}" alt={name} loading="lazy" />{:else}{initial(name)}{/if}
+    </a>
+  {:else}
+    <span class="av" style={styleFor()}>
+      {#if mediaId}<img src="/media/{mediaId}" alt={name} loading="lazy" />{:else}{initial(name)}{/if}
+    </span>
+  {/if}
+{/snippet}
+
+{#if ring}
+  <span class="rw" style="width:{ringBox(size)}px;height:{ringBox(size)}px">{@html ringMarkup}{@render face()}</span>
 {:else}
-  <span class="av" style={styleFor()}>
-    {#if mediaId}<img src="/media/{mediaId}" alt={name} loading="lazy" />{:else}{initial(name)}{/if}
-  </span>
+  {@render face()}
 {/if}
 
 <style>
@@ -34,4 +46,7 @@
   .av-btn { border: 0; padding: 0; cursor: pointer; }
   a.av:hover, .av-btn:hover { filter: brightness(1.1); }
   .av img { width: 100%; height: 100%; object-fit: cover; }
+  .rw { position: relative; display: inline-grid; place-items: center; flex: 0 0 auto; line-height: 0; }
+  .rw > :global(svg) { position: absolute; inset: 0; pointer-events: none; }
+  .rw > .av { position: relative; }
 </style>

@@ -34,6 +34,7 @@ import { getGame, isBankedGame } from "./games/registry.js";
 import { isOffered } from "../../poker/games.js";
 import { VARIANT_KEYS } from "./engine/variants.js";
 import { BotManager } from "./bot/manager.js";
+import { looksFor } from "../cosmetics.js";
 
 const INVITE_TTL_MS = 60_000;
 const LEADERBOARD_SIZE = 10;
@@ -218,16 +219,33 @@ export class PokerHub {
     try { chips = await chipsForUsers(ids); } catch { /* keep zeros */ }
     let avatars = new Map();
     try { avatars = await this._usersInfo(ids); } catch { /* names/avatars optional */ }
+    let looks = new Map();
+    try { looks = await looksFor(ids); } catch { /* rings optional */ }
     const players = ids
-      .map((id) => ({ ...byUser.get(id), chips: chips.get(id) ?? 0, avatarMediaId: avatars.get(id)?.avatarMediaId ?? null }))
+      .map((id) => ({ ...byUser.get(id), chips: chips.get(id) ?? 0, avatarMediaId: avatars.get(id)?.avatarMediaId ?? null, ring: looks.get(id)?.ring ?? "default" }))
       .sort((a, b) => a.name.localeCompare(b.name));
 
     let lb = [];
     try {
-      lb = (await leaderboard(LEADERBOARD_SIZE)).map((r) => ({ id: r.id, name: r.name, chips: Number(r.chips), avatarMediaId: r.avatarMediaId }));
+      const top = await leaderboard(LEADERBOARD_SIZE);
+      let lbLooks = new Map();
+      try { lbLooks = await looksFor(top.map((r) => r.id)); } catch { /* rings optional */ }
+      lb = top.map((r) => ({ id: r.id, name: r.name, chips: Number(r.chips), avatarMediaId: r.avatarMediaId, ring: lbLooks.get(r.id)?.ring ?? "default" }));
     } catch { /* leaderboard optional */ }
 
     return { tables, players, leaderboard: lb, tournaments: this.tournamentRows() };
+  }
+
+  /** A player changed their ring / badge (the Cosmetics page): their live connections and every
+   *  seat they hold pick it up at once, and the lobby redraws their avatar. */
+  setLooks(userId, looks) {
+    const next = { ring: looks.ring || "default", badge: looks.badge || "default" };
+    for (const c of this.connections) if (c.user && c.user.id === userId) Object.assign(c.user, next);
+    for (const t of this.tables.values()) {
+      const s = t.seatForUser?.(userId);
+      if (s) { Object.assign(s, next); try { t.broadcast(); } catch { /* next state carries it */ } }
+    }
+    this.pushLobby().catch?.(() => {});
   }
 
   async pushLobby() {

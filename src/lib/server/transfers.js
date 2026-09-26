@@ -12,6 +12,7 @@
 import { tx } from "./db.js";
 import { applyDelta, REASON } from "./wallet.js";
 import { areFriends } from "./friends.js";
+import { bumpPeakWealth } from "./cosmetics.js";
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
@@ -54,7 +55,7 @@ export async function transfer(fromId, toId, amount) {
   if (!(await areFriends(fromId, toId))) return { error: "not_friends" };
 
   try {
-    return await tx(async (conn) => {
+    const out = await tx(async (conn) => {
       const transferable = await computeTransferable(conn, fromId, true);
       if (amt > transferable) {
         return { error: "insufficient_transferable", transferable };
@@ -63,6 +64,8 @@ export async function transfer(fromId, toId, amount) {
       const toBalance = await applyDelta(conn, toId, amt, REASON.TRANSFER_RECV, fromId);
       return { ok: true, amount: amt, fromBalance, toBalance };
     });
+    if (out.ok) await bumpPeakWealth([toId]);
+    return out;
   } catch (e) {
     if (e?.code === "INSUFFICIENT_CHIPS") return { error: "insufficient_balance" };
     return { error: "transfer_failed" };

@@ -24,6 +24,7 @@
 import { randomBytes, createHash } from "node:crypto";
 import { tx, getPool } from "../db.js";
 import { applyDelta, REASON, balanceForOpKey } from "../wallet.js";
+import { bumpPeakWealth } from "../cosmetics.js";
 
 function newOpKey() {
   return randomBytes(16).toString("hex");
@@ -139,6 +140,11 @@ export async function rebuy(userId, amount, tableId, seatNo, clientOpId = null) 
 // construction. `expectUserId`, when given, asserts the row's owner (a mismatch
 // throws rather than paying the wrong account). Returns { balance, refunded }.
 export async function cashOut(tableId, seatNo, expectUserId = null) {
+  const out = await _cashOut(tableId, seatNo, expectUserId);
+  if (out.owner) await bumpPeakWealth([out.owner]);   // a staked bot's winnings reach its funder
+  return { balance: out.balance, refunded: out.refunded };
+}
+async function _cashOut(tableId, seatNo, expectUserId) {
   return tx(async (conn) => {
     const [rows] = await conn.query(
       "SELECT user_id, stack FROM poker_escrow WHERE table_id = ? AND seat_no = ? FOR UPDATE",
@@ -171,7 +177,7 @@ export async function cashOut(tableId, seatNo, expectUserId = null) {
       "DELETE FROM poker_escrow WHERE table_id = ? AND seat_no = ?",
       [tableId, seatNo]
     );
-    return { balance, refunded: amount };
+    return { balance, refunded: amount, owner };
   });
 }
 
@@ -183,6 +189,10 @@ export async function cashOut(tableId, seatNo, expectUserId = null) {
 export async function syncStacks(tableId, seats) {
   if (!seats || seats.length === 0) return;
   const now = Date.now();
+  await _syncStacks(tableId, seats, now);
+  await bumpPeakWealth(seats.map((s) => s.userId));   // chips won at the table count as wealth
+}
+async function _syncStacks(tableId, seats, now) {
   return tx(async (conn) => {
     for (const s of seats) {
       await conn.execute(

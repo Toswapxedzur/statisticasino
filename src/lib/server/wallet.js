@@ -17,6 +17,7 @@
 
 import { randomBytes } from "node:crypto";
 import { tx } from "./db.js";
+import { bumpPeakWealth } from "./cosmetics.js";
 
 // ------------------------------------------------------------- constants
 
@@ -144,7 +145,9 @@ export async function credit(userId, amount, reason, ref = null) {
   if (!Number.isInteger(amount) || amount <= 0) {
     throw new Error("credit amount must be a positive integer");
   }
-  return tx((conn) => applyDelta(conn, userId, amount, reason, ref));
+  const balance = await tx((conn) => applyDelta(conn, userId, amount, reason, ref));
+  await bumpPeakWealth([userId]);                  // wealth grew: metals may unlock (cosmetics.js)
+  return balance;
 }
 
 // Debit chips (amount > 0). Throws INSUFFICIENT_CHIPS if underfunded.
@@ -161,7 +164,9 @@ export async function adminAdjust(userId, delta, adminId = null) {
   if (!Number.isInteger(delta) || delta === 0) {
     throw new Error("adjust delta must be a non-zero integer");
   }
-  return tx((conn) => applyDelta(conn, userId, delta, REASON.ADMIN_ADJUST, adminId));
+  const balance = await tx((conn) => applyDelta(conn, userId, delta, REASON.ADMIN_ADJUST, adminId));
+  if (delta > 0) await bumpPeakWealth([userId]);
+  return balance;
 }
 
 // Give the one-time starting grant if this account has never received

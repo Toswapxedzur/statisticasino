@@ -21,6 +21,7 @@ import { encode, S2C } from "../../poker/protocol.js";
 import { hub } from "./hub.js";
 import { startScheduler } from "../sprint-scheduler.js";
 import { makeSprintRunner } from "./sprint-pool.js";
+import { looksFor } from "../cosmetics.js";
 
 const WS_PATH = "/ws";
 const HEARTBEAT_MS = 30_000;
@@ -83,6 +84,9 @@ export function attachPokerGateway(httpServer, { path = WS_PATH } = {}) {
           // Seats show a profile picture: look the avatar up once per socket.
           try { const row = await queryOne("SELECT avatar_media_id FROM user WHERE id = ?", [user.id]); user.avatarMediaId = row?.avatar_media_id || null; }
           catch { user.avatarMediaId = null; }
+          // …and the ring / badge they wear (cosmetics.js; re-validated against their unlocks)
+          try { const l = (await looksFor([user.id])).get(user.id); user.ring = l?.ring || "default"; user.badge = l?.badge || "default"; }
+          catch { user.ring = user.badge = "default"; }
         }
       }
     } catch {

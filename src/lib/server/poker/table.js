@@ -293,6 +293,8 @@ export class LiveTable {
         userId: s.userId,
         name: s.name,
         avatar: s.avatar ?? null,
+        ring: s.ring ?? "default",
+        badge: s.badge ?? "default",
         stack: ep ? ep.stack : s.stack,
         committed: ep ? ep.committedThisStreet : 0,
         status: s.inHand ? (ep ? ep.status : s.status) : null,
@@ -1029,6 +1031,8 @@ export class LiveTable {
       funderId,
       name: conn.user.displayName || conn.user.email || String(conn.user.id),
       avatar: conn.user.avatarMediaId ?? null,
+      ring: conn.user.ring ?? "default",          // cosmetics: the avatar ring and the seat plate (badge)
+      badge: conn.user.badge ?? "default",
       stack: buyin,
       sittingOut: false,
       wantsToLeave: false,
