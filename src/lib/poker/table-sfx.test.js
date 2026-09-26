@@ -84,25 +84,12 @@ test("roulette: chips placed, then a spin and ball drop when the outcome lands",
   assert.deepEqual(names(tableSoundCues(b, c, "u1")), ["shake", "dice", "lose"]);
 });
 
-test("sic bo rolls dice, slots spin reels, keno draws numbers", () => {
+test("sic bo rolls dice, slots spin reels", () => {
   const mk = (game, round, handNo = 1) => ({ id: game, game, handNo, result: null, seats: [seat(1, "u1")], round });
   const s0 = mk("sic-bo", { bets: [], outcome: null, results: [] }), s1 = mk("sic-bo", { bets: [], outcome: { dice: [1, 2, 3] }, results: [] });
   assert.deepEqual(names(tableSoundCues(s0, s1, "u1")), ["shake", "dice"]);
   const l0 = mk("slots", { bets: [], outcome: null, results: [] }), l1 = mk("slots", { bets: [], outcome: { reels: ["7", "7", "bar"] }, results: [] });
   assert.deepEqual(names(tableSoundCues(l0, l1, "u1")), ["reel"]);
-  const k0 = mk("keno", { drawn: [], tickets: [], results: [] }), k1 = mk("keno", { drawn: [4, 9, 23], tickets: [], results: [] });
-  const kc = tableSoundCues(k0, k1, "u1");
-  assert.deepEqual(names(kc), ["ball"]); assert.equal(kc[0].count, 3);
-});
-
-test("crazy eights: a card played hits the pile, a draw deals", () => {
-  // the server's shape (crazy-eights.js publicView): top card + cardCount, no pile array
-  const mk = (round) => ({ id: "c8", game: "crazy-eights", handNo: 1, result: null, seats: [seat(1, "u1"), seat(2, "u2")], round: { shedGame: true, ...round } });
-  const a = mk({ top: "7h", players: [{ seat: 1, cardCount: 5 }, { seat: 2, cardCount: 5 }] });
-  const b = mk({ top: "7s", players: [{ seat: 1, cardCount: 4 }, { seat: 2, cardCount: 5 }] });
-  assert.deepEqual(names(tableSoundCues(a, b, "u1")), ["cardPlay"]);
-  const c = mk({ ...b.round, drawCount: 1, players: [{ seat: 1, cardCount: 4 }, { seat: 2, cardCount: 6 }] });
-  assert.deepEqual(names(tableSoundCues(b, c, "u1")), ["deal"]); // seat 2 drew one card
 });
 
 test("big two: a new combination on the pile is a play, even when it's shorter", () => {

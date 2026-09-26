@@ -11,9 +11,9 @@
 
 import { TIMING as ROUTINE } from "./deck-routine.js";
 
-/** The poker variants that get the dealt / shuffled deck (Stud and Draw: not yet). */
-export const ANIMATED_VARIANTS = new Set(["holdem", "holdem-pl", "shortdeck", "shortdeck-pl", "plo", "plo5", "omaha-hilo"]);
-export const HOLE_COUNT = { holdem: 2, "holdem-pl": 2, shortdeck: 2, "shortdeck-pl": 2, plo: 4, plo5: 5, "omaha-hilo": 4 };
+/** The tables that get the dealt / shuffled deck: Hold'em, two hole cards each. */
+export const ANIMATED_VARIANTS = new Set(["holdem"]);
+export const HOLE_COUNT = { holdem: 2 };
 
 /** Does this table get the animated deck? (Not tournaments / River Sprint — fast-fold.) */
 export function animatesTable(view) {

@@ -20,12 +20,6 @@ test("the range-aware shark beats reg", () => {
   assert.ok(net > 0, `shark should beat reg over the sample (net ${net})`);
 });
 
-test("the harness runs Omaha Hi-Lo without error and conserves chips", () => {
-  const net = playMatch({ tiers: [fast(TIERS.reg), fast(TIERS.reg)], hands: 24, seed: 3, variant: "omaha-hilo" });
-  assert.equal(net.length, 2);
-  assert.equal(net[0] + net[1], 0);
-});
-
 // The adaptive "pro" should out-earn the STATIC "shark" against exploitable
 // opponents — that's the whole point of the opponent model. Measured card-matched
 // (duplicateEdge) so the delta is the exploit, not variance; fully seeded, so the

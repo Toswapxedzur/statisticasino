@@ -39,35 +39,8 @@ export const SIC_BO_TIERS = betGameTiers([
   { key: "triple", name: "Any Triple", betOption: "anytriple" } // 30:1 gambler
 ]);
 
-export const DRAGON_TIGER_TIERS = betGameTiers([
-  { key: "dragon", name: "Dragon", betOption: "dragon" },
-  { key: "tiger", name: "Tiger", betOption: "tiger" },
-  { key: "tie", name: "Tie", betOption: "tie" }
-]);
-
-export const CASINO_WAR_TIERS = betGameTiers([
-  { key: "ante", name: "Player", betOption: "ante" }, // the main bet — default
-  { key: "tie", name: "Tie", betOption: "tie" }
-]);
-
-export const ANDAR_BAHAR_TIERS = betGameTiers([
-  { key: "bahar", name: "Bahar", betOption: "bahar" }, // pays full 1:1 — default
-  { key: "andar", name: "Andar", betOption: "andar" }
-]);
-
-export const MONEY_WHEEL_TIERS = betGameTiers([
-  { key: "one", name: "$1", betOption: "1" }, // most common slot — default
-  { key: "twenty", name: "$20", betOption: "20" },
-  { key: "joker", name: "Joker", betOption: "joker" } // 45:1 gambler
-]);
-
 export const SLOTS_TIERS = betGameTiers([
   { key: "low", name: "Low stakes", betOption: "spin" },
   { key: "high", name: "High roller", betOption: "spin", betUnits: 5 }
 ]);
 
-export const CRAPS_TIERS = betGameTiers([
-  { key: "pass", name: "Pass Line", betOption: "pass" }, // the classic bet — default
-  { key: "dontpass", name: "Don't Pass", betOption: "dontpass" },
-  { key: "field", name: "Field", betOption: "field" }
-]);

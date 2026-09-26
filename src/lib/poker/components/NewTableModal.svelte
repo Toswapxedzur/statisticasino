@@ -8,7 +8,7 @@
   // VARIANT (for poker) is chosen here. A blackjack creator either banks (deep
   // bankroll, up to their whole wallet) or plays while a wealthy bot banks.
 
-  import { OFFERED_POKER_VARIANTS, variantLabel, isShedding as isSheddingFn } from "$lib/poker/games.js";
+  import { variantLabel, isShedding as isSheddingFn } from "$lib/poker/games.js";
   import { fade, scale } from "svelte/transition";
   import { d, DUR } from "$lib/motion.js";
   import Checkbox from "$lib/components/Checkbox.svelte";
@@ -37,9 +37,8 @@
   let straddle = $state(false);
   let runItTwice = $state(false);
   let buyin = $state(0);
-  // Straddle + run-it-twice only make sense in flop games (draw/stud/shedding have
-  // no big blind to straddle / no board runout to deal twice).
-  const showFlopOpts = $derived(!isBanked && !isSheddingFn(variant) && variant !== "five-card-draw" && variant !== "seven-card-stud");
+  // Straddle + run-it-twice: Hold'em table options.
+  const showFlopOpts = $derived(!isBanked);
 
   // Blackjack house rules
   let bjPays = $state("3:2");
@@ -152,21 +151,6 @@
       <input type="text" placeholder="My table" maxlength="40" bind:value={name} />
     </label>
 
-    {#if !isBanked && OFFERED_POKER_VARIANTS.length > 1}
-      <div class="field">
-        Game
-        <div class="chips">
-          {#each OFFERED_POKER_VARIANTS as v}
-            <button
-              type="button"
-              class="chip"
-              class:on={variant === v.key}
-              onclick={() => (variant = v.key)}
-            >{v.short}</button>
-          {/each}
-        </div>
-      </div>
-    {/if}
 
     {#if showFlopOpts}
       <div class="toggle-row"><Checkbox bind:checked={straddle} label="Straddle table (UTG posts a live 2×BB blind)" /></div>

@@ -17,7 +17,7 @@
   import NewTableModal from "$lib/poker/components/NewTableModal.svelte";
   import LobbyPlayers from "$lib/poker/components/LobbyPlayers.svelte";
   import LobbyChat from "$lib/poker/components/LobbyChat.svelte";
-  import { GAME_MODES, LOBBY_MODES, variantShort, modeOf, isOffered, gameIcon } from "$lib/poker/games.js";
+  import { LOBBY_MODES, variantShort, modeOf, gameIcon } from "$lib/poker/games.js";
   import { slidingIndicator } from "$lib/actions/slider.js";
   import { fade, fly } from "svelte/transition";
   import { flip } from "svelte/animate";
@@ -28,9 +28,9 @@
   // Which game mode the lobby is showing (Poker vs Blackjack). Drives the table
   // list filter and the default game for the New Table modal.
   let gameMode = $state("poker");
-  const modeLabel = $derived(GAME_MODES.find((m) => m.key === gameMode)?.label ?? "Poker");
+  const modeLabel = $derived(LOBBY_MODES.find((m) => m.key === gameMode)?.label ?? "Poker");
   const tablesForMode = $derived(
-    (poker.lobby.tables || []).filter((t) => modeOf(t.variant) === gameMode && isOffered(t.variant))
+    (poker.lobby.tables || []).filter((t) => modeOf(t.variant) === gameMode)
   );
 
   // Wallet balance: SSR value, kept live via the client's "chips" event so

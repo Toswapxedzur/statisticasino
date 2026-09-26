@@ -191,24 +191,15 @@ function awardBoard(state, variant, board, pots, amountFor, payoutBySeat) {
       if (winnerSeats.includes(player.seat)) { payoutBySeat.set(player.seat, payoutBySeat.get(player.seat) + 1); oddChips -= 1; }
     }
   };
-  // The seats tied for best among `seats`, by `cmp` (wantLower flips it for lows).
-  const bestSeats = (seats, rankOf, cmp, wantLower) => {
-    let best = rankOf(seats[0]);
+  // The seats tied for the best hand among `seats`.
+  const bestSeats = (seats) => {
+    let best = handBySeat.get(seats[0]);
     for (const seat of seats.slice(1)) {
-      const cand = rankOf(seat);
-      if (wantLower ? cmp(cand, best) < 0 : cmp(cand, best) > 0) best = cand;
+      const cand = handBySeat.get(seat);
+      if (variant.compare(cand, best) > 0) best = cand;
     }
-    return seats.filter((seat) => cmp(rankOf(seat), best) === 0);
+    return seats.filter((seat) => variant.compare(handBySeat.get(seat), best) === 0);
   };
-
-  // Hi-lo: precompute each showdown hand's best qualifying low (null if none).
-  const lowBySeat = new Map();
-  if (variant.evaluateLow) {
-    for (const hand of hands) {
-      const low = variant.evaluateLow(hand.holeCards, board);
-      if (low) lowBySeat.set(hand.seat, low);
-    }
-  }
 
   const resultPots = [];
   for (const [potIndex, pot] of pots.entries()) {
@@ -216,17 +207,9 @@ function awardBoard(state, variant, board, pots, amountFor, payoutBySeat) {
     const eligible = pot.eligibleSeats.filter((seat) => handBySeat.has(seat));
     if (eligible.length === 0) throw new Error(`pot ${potIndex} has no eligible player`);
 
-    const highWinners = bestSeats(eligible, (seat) => handBySeat.get(seat), variant.compare, false);
-    const lowSeats = variant.evaluateLow ? eligible.filter((seat) => lowBySeat.has(seat)) : [];
-    let lowWinners = [];
-    if (lowSeats.length) {
-      lowWinners = bestSeats(lowSeats, (seat) => lowBySeat.get(seat), variant.compareLow, true);
-      distribute(Math.ceil(amount / 2), highWinners); // odd chip to the high hand
-      distribute(Math.floor(amount / 2), lowWinners);
-    } else {
-      distribute(amount, highWinners); // no qualifying low → high scoops
-    }
-    resultPots.push({ amount, eligibleSeats: [...eligible], winnerSeats: [...highWinners], lowWinnerSeats: [...lowWinners] });
+    const winners = bestSeats(eligible);
+    distribute(amount, winners);
+    resultPots.push({ amount, eligibleSeats: [...eligible], winnerSeats: [...winners] });
   }
   return { hands, resultPots };
 }
@@ -559,17 +542,8 @@ export function legalActions(state) {
   // Chips cannot be bet into a field containing no other player who can act.
   const canAggress = activePlayers(state).length >= 2;
   const allInCap = player.committedThisStreet + player.stack; // most this seat can commit
-  const structure = variantOf(state).bettingStructure;
-
-  // Largest legal bet/raise target for this street under the structure. Pot-limit
-  // caps a raise at a pot-sized raise (call, then raise the resulting pot);
-  // no-limit is capped only by the stack.
-  let maxTarget = allInCap;
-  if (structure === "pot-limit") {
-    const pot = state.players.reduce((sum, other) => sum + other.totalCommitted, 0);
-    const toCall = Math.max(0, state.currentBet - player.committedThisStreet);
-    maxTarget = Math.min(allInCap, state.currentBet + pot + toCall);
-  }
+  // No-limit: the largest bet / raise target is capped only by the stack.
+  const maxTarget = allInCap;
 
   if (canAggress && player.canRaise) {
     if (state.currentBet === 0 && maxTarget >= state.minRaise) {
@@ -579,16 +553,9 @@ export function legalActions(state) {
     }
   }
 
-  // All-in is always legal as a call/complete for less; as a RAISE it needs
-  // aggression rights, and under pot-limit must not exceed the pot cap.
+  // All-in is always legal as a call/complete for less; as a RAISE it needs aggression rights.
   const allInRaises = allInCap > state.currentBet;
-  let allowAllIn;
-  if (!allInRaises) {
-    allowAllIn = player.stack > 0;
-  } else {
-    const withinCap = structure === "pot-limit" ? allInCap <= maxTarget : true;
-    allowAllIn = player.stack > 0 && canAggress && player.canRaise && withinCap;
-  }
+  const allowAllIn = allInRaises ? player.stack > 0 && canAggress && player.canRaise : player.stack > 0;
   if (allowAllIn) actions.push({ type: "allin", amount: player.stack });
 
   return { toActSeat: player.seat, actions };

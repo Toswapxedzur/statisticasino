@@ -5,10 +5,10 @@
   import { fade } from "svelte/transition";
   import { d, DUR } from "$lib/motion.js";
 
-  // Banked card games (blackjack, casino hold'em, three card, stud, red dog, …):
+  // Banked card games (Blackjack, Three Card Poker):
   // the House badge + its cards at the top, an optional community row in the
   // middle, every player on the ring with their hand fanned under their badge.
-  let { view, me, onSit = () => {}, pick = null } = $props();
+  let { view, me, onSit = () => {} } = $props();
 
   const round = $derived(view?.round || null);
   const dealer = $derived(round?.dealer || null);
@@ -71,7 +71,6 @@
       canSit={!!me && !iAmSeated && !s}
       deadline={round?.toActSeat === seatNo ? view?.actionDeadline ?? null : null}
       winner={!!outcomeOf(seatNo) && outcomeOf(seatNo).delta > 0}
-      selectable={mine ? pick : null} onSelect={pick?.onSelect} labelOf={pick?.labelOf}
       {onSit}
     />
   {/snippet}

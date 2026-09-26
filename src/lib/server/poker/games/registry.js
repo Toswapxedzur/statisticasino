@@ -4,49 +4,23 @@
 // pick it up by key. The table's `variant` column stores the game key.
 
 import { blackjack } from "./blackjack.js";
-import { casinoHoldem } from "./casino-holdem.js";
 import { threeCard } from "./three-card.js";
 import { baccarat } from "./baccarat.js";
 import { roulette } from "./roulette.js";
 import { sicBo } from "./sic-bo.js";
-import { dragonTiger } from "./dragon-tiger.js";
-import { casinoWar } from "./casino-war.js";
-import { andarBahar } from "./andar-bahar.js";
-import { moneyWheel } from "./money-wheel.js";
-import { caribbeanStud } from "./caribbean-stud.js";
-import { redDog } from "./red-dog.js";
-import { ultimateHoldem } from "./ultimate-holdem.js";
-import { letItRide } from "./let-it-ride.js";
-import { videoPoker } from "./video-poker.js";
 import { slots } from "./slots.js";
-import { keno } from "./keno.js";
-import { craps } from "./craps.js";
-import { paiGow } from "./pai-gow.js";
-import { crazyEights } from "./crazy-eights.js";
 import { bigTwo } from "./big-two.js";
 
+// The games the site offers (owner, 2026-09-26: one per major type; the other house and shedding
+// games were deleted — git history keeps them).
 export const GAMES = {
   blackjack,
-  "casino-holdem": casinoHoldem,
   "three-card": threeCard,
   baccarat,
   roulette,
   "sic-bo": sicBo,
-  "dragon-tiger": dragonTiger,
-  "casino-war": casinoWar,
-  "andar-bahar": andarBahar,
-  "money-wheel": moneyWheel,
-  "caribbean-stud": caribbeanStud,
-  "red-dog": redDog,
-  "ultimate-holdem": ultimateHoldem,
-  "let-it-ride": letItRide,
-  "video-poker": videoPoker,
   slots,
-  keno,
-  craps,
-  "pai-gow": paiGow,
   // Shedding games run on GameTable too, but with usesBanker:false (no house).
-  "crazy-eights": crazyEights,
   "big-two": bigTwo
 };
 

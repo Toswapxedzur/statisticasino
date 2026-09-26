@@ -1,22 +1,10 @@
-export { RANKS, SUITS, SHORT_RANKS, standardDeck, shortDeck, shuffle } from "./cards.js";
-export { evaluate7, compareRank, bestHand, bestOmaha } from "./evaluator.js";
+export { RANKS, SUITS, standardDeck, shuffle } from "./cards.js";
+export { evaluate7, compareRank, bestHand } from "./evaluator.js";
 export { VARIANTS, VARIANT_KEYS, getVariant } from "./variants.js";
 
-// Engine dispatch by variant. LiveTable imports createHand/legalActions/
-// applyAction from here, so routing lives here and the runtime needs no changes.
-// createHand routes on config.variant; legalActions/applyAction on state.variantKey
-// (they receive only the hand state). Everything not listed is a flop-family game
-// (Hold'em / Omaha / Short Deck) handled by holdem.js.
-import * as holdemEngine from "./holdem.js";
-import * as drawEngine from "./draw.js";
-import * as studEngine from "./stud.js";
-
-const ENGINES = { "five-card-draw": drawEngine, "seven-card-stud": studEngine };
-const engineFor = (variant) => ENGINES[variant] || holdemEngine;
-
-export function createHand(config) { return engineFor(config?.variant).createHand(config); }
-export function legalActions(state) { return engineFor(state?.variantKey).legalActions(state); }
-export function applyAction(state, action) { return engineFor(state?.variantKey).applyAction(state, action); }
+// The poker engine: Hold'em (holdem.js). LiveTable imports createHand / legalActions / applyAction
+// from here. (Draw and Stud had their own engines; deleted 2026-09-26 with the hidden games.)
+export { createHand, legalActions, applyAction } from "./holdem.js";
 
 // Node 22 resolves an explicit directory passed to `node --test` to its
 // index module instead of discovering sibling test files. Load those files

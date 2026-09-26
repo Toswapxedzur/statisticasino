@@ -4,7 +4,7 @@
   import HandFan from "./HandFan.svelte";
   import { getContext } from "svelte";
 
-  // Shedding games (Crazy Eights, Big Two): the pile / last play in the middle,
+  // Big Two: the pile / last play in the middle,
   // opponents' hands as fanned backs with a count, my whole hand fanned big under
   // my badge (tappable via `pick`). No dealer, no board.
   let { view, me, hand = [], onSit = () => {}, pick = null } = $props();

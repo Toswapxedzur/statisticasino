@@ -15,7 +15,6 @@ const SOUNDS = {
   shuffle:  { files: ["shuffle"], gain: 0.5 },
   deal:     { files: ["deal-1", "deal-2", "deal-3", "deal-4"], gain: 0.7 },
   board:    { files: ["board-1", "board-2", "board-3", "board-4"], gain: 0.8 },
-  ball:     { files: ["board-1", "board-2", "board-3", "board-4"], gain: 0.8 },   // a keno number drawn
   showdown: { files: ["showdown"], gain: 0.8 },
   fold:     { files: ["fold-1", "fold-2"], gain: 0.7 },
   check:    { files: ["check"], gain: 0.6 },

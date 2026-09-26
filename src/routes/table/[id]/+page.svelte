@@ -7,17 +7,10 @@
   import { SITE_NAME } from "$lib/config.js";
   import PokerTable from "$lib/poker/components/PokerTable.svelte";
   import ActionBar from "$lib/poker/components/ActionBar.svelte";
-  import DrawBar from "$lib/poker/components/DrawBar.svelte";
   import BankedTable from "$lib/poker/components/BankedTable.svelte";
   import BankedActionBar from "$lib/poker/components/BankedActionBar.svelte";
   import BetGameTable from "$lib/poker/components/BetGameTable.svelte";
   import BankedBetBar from "$lib/poker/components/BankedBetBar.svelte";
-  import VideoPokerTable from "$lib/poker/components/VideoPokerTable.svelte";
-  import VideoPokerBar from "$lib/poker/components/VideoPokerBar.svelte";
-  import KenoTable from "$lib/poker/components/KenoTable.svelte";
-  import KenoBar from "$lib/poker/components/KenoBar.svelte";
-  import PaiGowTable from "$lib/poker/components/PaiGowTable.svelte";
-  import PaiGowBar from "$lib/poker/components/PaiGowBar.svelte";
   import ShedTable from "$lib/poker/components/ShedTable.svelte";
   import ShedBar from "$lib/poker/components/ShedBar.svelte";
   import BuyInModal from "$lib/poker/components/BuyInModal.svelte";
@@ -55,7 +48,7 @@
   // Config has the same shape as the SSR-loaded table row; prefer the live
   // view's config once it arrives, fall back to the server-rendered one.
   let config = $derived(view?.config || data.table);
-  // Banked games (blackjack, casino-holdem, …) run on GameTable and render with
+  // Banked games (blackjack, three card, …) run on GameTable and render with
   // the generic banked components; poker uses the poker table.
   let gameKey = $derived(view?.game || config?.variant);
   let banked = $derived(isBankedGame(gameKey));
@@ -63,15 +56,7 @@
   // the layout comes from the game itself (tableLayout), never from whether a round has arrived yet
   let layout = $derived(tableLayout(gameKey));
   let betGame = $derived(layout === "bet");
-  // Hold-and-draw games (video poker) render an interactive five-card layout.
-  let holdGame = $derived(layout === "hold");
-  // Number-pick games (keno) render a ticket grid.
-  let pickGame = $derived(layout === "pick");
-  // Five-Card Draw's draw phase surfaces a "draw" action → show the discard UI.
-  let isDrawTurn = $derived(!!turn && (turn.actions || []).some((a) => a.type === "draw"));
-  // Hand-split games (pai gow) render a two-hand layout with a split picker.
-  let setGame = $derived(layout === "set");
-  // Shedding games (Crazy Eights, Big Two) — player-vs-player, no house.
+  // Shedding games (Big Two) — player-vs-player, no house.
   let shedding = $derived(isShedding(gameKey));
   let shedGame = $derived(layout === "shed");
   let rules = $derived(view?.rules || null);
@@ -79,25 +64,11 @@
   // Add-bot control: tiers depend on the game; keep the selection valid.
   const BOT_TIERS = {
     blackjack: [["basic", "Basic"], ["aggressive", "Aggressive"], ["timid", "Timid"]],
-    "casino-holdem": [["basic", "Basic"], ["loose", "Loose"], ["tight", "Tight"]],
     "three-card": [["basic", "Basic"], ["loose", "Loose"], ["tight", "Tight"]],
     baccarat: [["banker", "Banker"], ["player", "Player"], ["tie", "Tie"]],
     roulette: [["red", "Red"], ["black", "Black"], ["lucky", "Lucky 7"]],
     "sic-bo": [["small", "Small"], ["big", "Big"], ["triple", "Any Triple"]],
-    "dragon-tiger": [["dragon", "Dragon"], ["tiger", "Tiger"], ["tie", "Tie"]],
-    "casino-war": [["ante", "Player"], ["tie", "Tie"]],
-    "andar-bahar": [["bahar", "Bahar"], ["andar", "Andar"]],
-    "money-wheel": [["one", "$1"], ["twenty", "$20"], ["joker", "Joker"]],
-    "caribbean-stud": [["basic", "Basic"], ["aggressive", "Aggressive"], ["tight", "Tight"]],
-    "red-dog": [["basic", "Basic"], ["aggressive", "Aggressive"], ["tight", "Tight"]],
-    "ultimate-holdem": [["basic", "Basic"], ["aggressive", "Aggressive"], ["tight", "Tight"]],
-    "let-it-ride": [["basic", "Basic"], ["aggressive", "Aggressive"], ["tight", "Tight"]],
-    "video-poker": [["basic", "Basic"], ["aggressive", "Aggressive"], ["tight", "Tight"]],
     slots: [["low", "Low stakes"], ["high", "High roller"]],
-    keno: [["casual", "Casual"], ["chaser", "Jackpot chaser"]],
-    craps: [["pass", "Pass Line"], ["dontpass", "Don't Pass"], ["field", "Field"]],
-    "pai-gow": [["house", "House way"]],
-    "crazy-eights": [["basic", "Basic"], ["reckless", "Reckless"]],
     "big-two": [["basic", "Basic"], ["leader", "Aggressive"]]
   };
   const botTiers = $derived(
@@ -122,35 +93,19 @@
   );
   let isSeated = $derived(!!mySeat);
 
-  // ---- card picking: the cards live under my seat badge; the bars only hold buttons ----
-  // draw (Five-Card Draw discards) / hold (Video Poker) → indices; set (Pai Gow front) /
-  // shed (Crazy Eights, Big Two) → card strings. Reset whenever the turn changes.
+  // ---- card picking (Big Two): the cards live under my seat badge; the bar only holds buttons.
+  // Taps select cards (by card string) for a combination; reset whenever the turn changes.
   let picked = $state([]);
-  let pendingEight = $state(null);
-  const pickMode = $derived(!turn ? null : isDrawTurn ? "draw" : holdGame ? "hold" : setGame ? "set" : shedGame ? "shed" : null);
+  const pickMode = $derived(turn && shedGame ? "shed" : null);
   const turnSig = $derived(turn ? [pickMode, turn.deadline, (turn.cards || turn.hand || []).join(",")].join("|") : "");
-  $effect(() => { turnSig; picked = []; pendingEight = null; });
+  $effect(() => { turnSig; picked = []; });
   const pick = $derived.by(() => {
     if (!pickMode) return null;
-    const byIndex = pickMode === "draw" || pickMode === "hold";
-    const single = pickMode === "shed" && !turn.combo;
-    const legal = single ? new Set(turn.legal || []) : null;
-    const labels = { draw: "discard", hold: "held", set: "front", shed: "play" };
     return {
-      selected: new Set(picked), legal,
-      keyOf: (i, c) => (byIndex ? i : c),
-      labelOf: () => labels[pickMode],
-      onSelect: (k) => {
-        if (single) {
-          if (!legal.has(k)) return;
-          if (k[0] === "8") { pendingEight = k; return; }
-          poker.act(tableId, { type: "play", card: k });
-          return;
-        }
-        if (picked.includes(k)) picked = picked.filter((x) => x !== k);
-        else if (pickMode === "set" && picked.length >= 2) return;
-        else picked = [...picked, k];
-      }
+      selected: new Set(picked), legal: null,
+      keyOf: (i, c) => c,
+      labelOf: () => "play",
+      onSelect: (k) => { picked = picked.includes(k) ? picked.filter((x) => x !== k) : [...picked, k]; }
     };
   });
   // Who we're waiting on (for the action column when it isn't my turn).
@@ -424,18 +379,12 @@
     {#if view}
       {#if shedGame}
         <ShedTable {view} {me} hand={privates?.holeCards || []} onSit={openBuyIn} {pick} />
-      {:else if holdGame}
-        <VideoPokerTable {view} {me} onSit={openBuyIn} {pick} />
-      {:else if pickGame}
-        <KenoTable {view} {me} onSit={openBuyIn} />
-      {:else if setGame}
-        <PaiGowTable {view} {me} onSit={openBuyIn} {pick} />
       {:else if betGame}
         <BetGameTable {view} {me} onSit={openBuyIn} />
       {:else if banked}
-        <BankedTable {view} {me} onSit={openBuyIn} {pick} />
+        <BankedTable {view} {me} onSit={openBuyIn} />
       {:else}
-        <PokerTable {view} {me} {privates} onSit={openBuyIn} {pick} {dealer} />
+        <PokerTable {view} {me} {privates} onSit={openBuyIn} {dealer} />
       {/if}
     {:else}
       <div class="loading"><p class="muted">{poker.connected ? "Loading table…" : "Connecting…"}</p></div>
@@ -451,19 +400,11 @@
     <div class="dock-actions">
       {#if view && turn}
         {#if shedGame}
-          <ShedBar {turn} selected={picked} {pendingEight} onAct={(a) => poker.act(tableId, a)} onCancelEight={() => (pendingEight = null)} />
-        {:else if holdGame}
-          <VideoPokerBar {turn} selected={picked} onAct={(a) => poker.act(tableId, a)} />
-        {:else if pickGame}
-          <KenoBar {turn} onAct={(a) => poker.act(tableId, a)} />
-        {:else if setGame}
-          <PaiGowBar selected={picked} onAct={(a) => poker.act(tableId, a)} />
+          <ShedBar {turn} selected={picked} onAct={(a) => poker.act(tableId, a)} />
         {:else if betGame}
           <BankedBetBar {turn} onAct={(a) => poker.act(tableId, a)} />
         {:else if banked}
           <BankedActionBar {turn} onAct={(a) => poker.act(tableId, a)} />
-        {:else if isDrawTurn}
-          <DrawBar selected={picked} onAct={(a) => poker.act(tableId, a)} />
         {:else}
           <ActionBar {turn} {config} potTotal={view.potTotal} {myStack} onAct={(a) => poker.act(tableId, a)} />
         {/if}

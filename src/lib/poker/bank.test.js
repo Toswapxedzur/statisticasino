@@ -39,10 +39,10 @@ const seat = (n, stack, extra = {}) => ({ seat: n, userId: "u" + n, stack, commi
 test("kinds and wagers", () => {
   assert.equal(moneyKind({ game: "blackjack", config: {} }), "banked");
   assert.equal(moneyKind({ game: "roulette", config: {} }), "banked");
-  assert.equal(moneyKind({ config: { variant: "crazy-eights" } }), "shed");
+  assert.equal(moneyKind({ config: { variant: "big-two" } }), "shed");
   assert.equal(moneyKind({ config: { variant: "holdem" } }), "poker");
-  const round = { hands: [{ seat: 1, bet: 10 }, { seat: 1, bet: 10 }, { seat: 2, ante: 5, call: 10 }], bets: [{ seat: 3, bets: [{ option: "red", amount: 4 }, { option: "7", amount: 1 }] }], tickets: [{ seat: 4, amount: 2 }] };
-  assert.deepEqual([1, 2, 3, 4].map((s) => wagerOf(round, s)), [20, 15, 5, 2]);
+  const round = { hands: [{ seat: 1, bet: 10 }, { seat: 1, bet: 10 }, { seat: 2, ante: 5, call: 10 }], bets: [{ seat: 3, bets: [{ option: "red", amount: 4 }, { option: "7", amount: 1 }] }] };
+  assert.deepEqual([1, 2, 3, 4].map((s) => wagerOf(round, s)), [20, 15, 5, 0]);
 });
 
 test("poker: blinds, raise, calls, the flop sweep, a showdown pot to the winner", () => {
@@ -87,7 +87,7 @@ test("banked: a bet game (spots) and a loss bigger than the visible wager (hidde
 });
 
 test("shed: antes into the pot, the winner takes it", () => {
-  const cfg = { variant: "crazy-eights", minBet: 5 };
+  const cfg = { variant: "big-two", minBet: 5 };
   const v0 = { config: cfg, handNo: 1, result: null, round: null, seats: [seat(0, 100), seat(1, 100), seat(2, 100)] };
   const v1 = { ...v0, handNo: 2, round: { shedGame: true, players: [{ seat: 0 }, { seat: 1 }, { seat: 2 }] } };
   const res = { shedGame: true, players: v1.round.players, winner: 1, results: [{ seat: 0, delta: -5 }, { seat: 1, delta: 10 }, { seat: 2, delta: -5 }] };

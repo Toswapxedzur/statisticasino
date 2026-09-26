@@ -1,13 +1,13 @@
 // Shared card-game toolkit — the common pieces every card game is built from:
 // HOLE cards, COMMUNITY (central) cards, BETS, hand evaluation, and settlement.
 // GameModules compose these primitives instead of re-implementing them, so a new
-// game is thin (see casino-holdem.js). Pure-chance games (roulette, dice) skip
+// game is thin (see three-card.js). Pure-chance games (roulette, dice) skip
 // the card helpers and just use bankedResults for settlement.
 
 import { standardDeck } from "../engine/cards.js";
 
 // Re-export the one hand evaluator so every card game ranks hands identically.
-export { evaluate7, bestHand, bestOmaha, compareRank, STANDARD_MODEL, SHORTDECK_MODEL } from "../engine/evaluator.js";
+export { evaluate7, bestHand, compareRank, STANDARD_MODEL } from "../engine/evaluator.js";
 
 // A single 52-card deck, or an N-deck shoe. Duplicate card strings are fine for
 // value games (blackjack); use 1 deck for games whose evaluator needs uniqueness.

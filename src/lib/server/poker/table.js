@@ -300,7 +300,6 @@ export class LiveTable {
         status: s.inHand ? (ep ? ep.status : s.status) : null,
         inHand: !!s.inHand,
         hasCards: !!(s.holeCards && s.holeCards.length),
-        upCards: s.upCards ? [...s.upCards] : [], // face-up cards (Seven-Card Stud); empty otherwise
         sittingOut: !!s.sittingOut,
         connected: this.isConnected(s),
         isButton: seatNo === this.buttonSeat,
@@ -432,7 +431,7 @@ export class LiveTable {
     if (this.eligibleSeats().length < 2) return;
     // After a hand on a table whose clients animate the deck (regular poker, flop games), wait
     // long enough for the collection + the full shuffle routine; the first hand, tournaments /
-    // River Sprint and Stud/Draw keep the short pause.
+    // River Sprint keeps the short pause.
     const delay = this.result && animatesConfig(this.config) ? SHUFFLE_HAND_DELAY_MS : NEW_HAND_DELAY_MS;
     this.startTimer = this.setTimer(() => {
       this.startTimer = null;
@@ -541,7 +540,6 @@ export class LiveTable {
       if (!s) continue;
       s.inHand = true;
       s.holeCards = [...p.holeCards];
-      s.upCards = p.upCards ? [...p.upCards] : undefined; // Seven-Card Stud face-up cards
       s.status = p.status;
       s.committedThisStreet = p.committedThisStreet;
       s.totalCommitted = p.totalCommitted;
@@ -619,8 +617,7 @@ export class LiveTable {
 
   // Apply one action to the engine and mirror it onto seats. May throw.
   _commitAction(seatNo, action, auto = false) {
-    // Spread the action so engine-specific fields (e.g. Five-Card Draw's
-    // `discards`) pass through; seat is forced to the authenticated seat.
+    // Spread the action (engine fields pass through); seat is forced to the authenticated seat.
     const { state } = applyAction(this.hand, {
       ...action,
       seat: seatNo
@@ -628,7 +625,7 @@ export class LiveTable {
     this.hand = state;
     this.recorder?.action(seatNo, action, auto);
     this.syncSeatsFromHand();
-    // Re-push privates: cards may have changed (draw / stud streets). Idempotent
+    // Re-push privates after every action. Idempotent
     // for flop games where hole cards are static.
     this.sendAllPrivates();
     this.setLastAction(seatNo, action);
@@ -651,10 +648,7 @@ export class LiveTable {
       s.status = p.status;
       s.committedThisStreet = p.committedThisStreet;
       s.totalCommitted = p.totalCommitted;
-      // Cards can change mid-hand (Five-Card Draw's draw, Seven-Card Stud's
-      // streets), so keep the seat copy current; upCards (stud) are public.
       s.holeCards = [...p.holeCards];
-      if (p.upCards) s.upCards = [...p.upCards];
     }
   }
 
@@ -825,7 +819,6 @@ export class LiveTable {
     for (const s of this.seats.values()) {
       s.inHand = false;
       s.holeCards = null;
-      s.upCards = null;
       s.status = null;
       s.committedThisStreet = 0;
       s.totalCommitted = 0;

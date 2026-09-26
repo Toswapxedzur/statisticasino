@@ -1,7 +1,7 @@
 <script>
   import { fly } from "svelte/transition";
   import { d, DUR } from "$lib/motion.js";
-  // Generic action bar for any banked game (blackjack, casino-holdem, …). The
+  // Generic action bar for any banked card game (Blackjack, Three Card Poker). The
   // server's TABLE_TURN carries { phase, actions }. If there's a wager action
   // (bet / ante) it shows an amount slider; otherwise a button per action type
   // (hit / stand / double / surrender / call / fold …). Reads only the menu, so a

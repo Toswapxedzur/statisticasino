@@ -5,7 +5,7 @@
 // Three money shapes (owner's spec 2026-09-25: coins sit beside the badge, add like digits):
 //   poker    a seat's stack drops as it bets → a bet onto its pile; the street ends → the piles
 //            sweep into the pot; the result → uncalled bets go home, the pot goes to the winners.
-//   banked   the round's wagers (blackjack bet, ante + call, bet-game spots, keno ticket…) → piles;
+//   banked   the round's wagers (blackjack bet, ante + call, bet-game spots) → piles;
 //            settlement → the House pays winners into their piles and takes losers' piles, then
 //            every pile goes home. (The server only moves stacks at settlement.)
 //   shed     each player's ante → the pot at the start; the winner takes the pot.
@@ -31,7 +31,6 @@ export function wagerOf(round, seat) {
   let w = 0;
   for (const h of round.hands || []) if (h.seat === seat) w += (h.bet || 0) + (h.ante || 0) + (h.call || 0);
   for (const b of round.bets || []) if (b.seat === seat) for (const x of b.bets || []) w += x.amount || 0;
-  for (const k of round.tickets || []) if (k.seat === seat) w += k.amount || 0;
   return w;
 }
 
@@ -118,7 +117,7 @@ export class Bank {
     for (const s of players) {
       const dw = wagerOf(next.round, s.seat) - wagerOf(prev.round, s.seat);
       if (dw > 0) m.bet(s.seat, dw, t);
-      else if (dw < 0 && !settled) m.giveBack(s.seat, -dw, t);          // let-it-ride: a unit pulled back
+      else if (dw < 0 && !settled) m.giveBack(s.seat, -dw, t);          // a wager pulled back
     }
     if (!settled) return;
     for (const r of next.round?.results || []) {

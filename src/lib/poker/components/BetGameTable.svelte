@@ -5,7 +5,7 @@
   import { fade } from "svelte/transition";
   import { d, DUR } from "$lib/motion.js";
 
-  // Bet-selection games (baccarat, roulette, sic bo, craps, slots, wheel, …): the
+  // Bet-selection games (Baccarat, Roulette, Sic Bo, Slots): the
   // round outcome (headline + any labelled card hands) sits in the middle, the
   // House on top, each player's bets + result in their badge line.
   let { view, me, onSit = () => {} } = $props();

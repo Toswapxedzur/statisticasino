@@ -74,7 +74,7 @@ export function tableSoundCues(prev, next, myUserId) {
 }
 
 // ---------------------------------------------------------------------------
-// Banked / bet / draw / shedding games. Their `round` views differ per game, so
+// Banked / bet / shedding games. Their `round` views differ per game, so
 // the cues key off shapes rather than fields: every card-like string anywhere
 // in the round is a dealt card, every bet entry is a chip placed, an
 // `outcome` appearing is the resolve (dice / wheel / reels / cards), and
@@ -102,8 +102,8 @@ function countBets(round) {
   for (const p of round?.bets || []) n += (p.bets || []).length;
   return n;
 }
-const DICE_GAMES = new Set(["sic-bo", "craps"]);
-const WHEEL_GAMES = new Set(["roulette", "money-wheel"]);
+const DICE_GAMES = new Set(["sic-bo"]);
+const WHEEL_GAMES = new Set(["roulette"]);
 
 function netOf(r) {
   if (!r) return 0;
@@ -151,25 +151,11 @@ function gameCues(prev, next, myUserId) {
     else if (next.game === "slots") cues.push({ name: "reel", count: 3, gap: 220 });
   }
 
-  // Keno: each drawn number.
-  const d0 = newRound ? 0 : (pr.drawn || []).length, d1 = (nr.drawn || []).length;
-  if (d1 > d0) cues.push({ name: "ball", count: Math.min(d1 - d0, 10), gap: 110 });
-
-  // Shedding games: a draw shows up as a bigger hand count (cardCount) for some player.
-  if (!newRound && Array.isArray(nr.players) && Array.isArray(pr.players)) {
-    let drawn = 0;
-    for (const np of nr.players) {
-      const pp = pr.players.find((x) => x.seat === np.seat), n1 = np.cardCount ?? np.count, n0 = pp?.cardCount ?? pp?.count;
-      if (typeof n1 === "number" && typeof n0 === "number" && n1 > n0) drawn += n1 - n0;
-    }
-    if (drawn > 0) cues.push({ name: "deal", count: Math.min(drawn, 8), gap: 85 });
-  }
-  // Shedding games: cards played onto the centre pile — Crazy Eights shows a new top card, Big Two
-  // a new combination on the pile (it replaces the last one, so compare contents, not length).
+  // Big Two: a new combination on the centre pile (it replaces the last one, so compare contents,
+  // not length).
   if (!newRound && nr.shedGame) {
     const pile0 = (pr.pile || []).join(","), pile1 = (nr.pile || []).join(",");
-    if (nr.top && nr.top !== pr.top) cues.push({ name: "cardPlay" });
-    else if (pile1 && pile1 !== pile0) cues.push({ name: "cardPlay", count: Math.min((nr.pile || []).length, 5), gap: 70 });
+    if (pile1 && pile1 !== pile0) cues.push({ name: "cardPlay", count: Math.min((nr.pile || []).length, 5), gap: 70 });
   }
 
   // Settlement for the viewer's seat.

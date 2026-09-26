@@ -16,44 +16,18 @@ import * as realWallet from "../../wallet.js";
 import { BotConn } from "./conn.js";
 import { TIERS } from "./tiers.js";
 import { blackjackStrategy, BJ_TIERS } from "./blackjack-strategy.js";
-import { casinoHoldemStrategy, CH_TIERS } from "./casino-holdem-strategy.js";
 import { threeCardStrategy, TC_TIERS } from "./three-card-strategy.js";
-import {
-  betGameStrategy, BACCARAT_TIERS, ROULETTE_TIERS, SIC_BO_TIERS,
-  DRAGON_TIGER_TIERS, CASINO_WAR_TIERS, ANDAR_BAHAR_TIERS, MONEY_WHEEL_TIERS, SLOTS_TIERS, CRAPS_TIERS
-} from "./bet-game-strategy.js";
-import { caribbeanStudStrategy, CS_TIERS } from "./caribbean-stud-strategy.js";
-import { redDogStrategy, RD_TIERS } from "./red-dog-strategy.js";
-import { ultimateHoldemStrategy, UTH_TIERS } from "./ultimate-holdem-strategy.js";
-import { letItRideStrategy, LR_TIERS } from "./let-it-ride-strategy.js";
-import { videoPokerStrategy, VP_TIERS } from "./video-poker-strategy.js";
-import { kenoStrategy, KENO_TIERS } from "./keno-strategy.js";
-import { paiGowStrategy, PG_TIERS } from "./pai-gow-strategy.js";
-import { crazyEightsStrategy, CE_TIERS } from "./crazy-eights-strategy.js";
+import { betGameStrategy, BACCARAT_TIERS, ROULETTE_TIERS, SIC_BO_TIERS, SLOTS_TIERS } from "./bet-game-strategy.js";
 import { bigTwoStrategy, BT_TIERS } from "./big-two-strategy.js";
 
 // Which brain + tier set a bot uses at a banked game (poker uses the default).
 const GAME_BRAINS = {
   blackjack: { strategy: blackjackStrategy, tiers: BJ_TIERS, def: "basic" },
-  "casino-holdem": { strategy: casinoHoldemStrategy, tiers: CH_TIERS, def: "basic" },
   "three-card": { strategy: threeCardStrategy, tiers: TC_TIERS, def: "basic" },
   baccarat: { strategy: betGameStrategy, tiers: BACCARAT_TIERS, def: "banker" },
   roulette: { strategy: betGameStrategy, tiers: ROULETTE_TIERS, def: "red" },
   "sic-bo": { strategy: betGameStrategy, tiers: SIC_BO_TIERS, def: "small" },
-  "dragon-tiger": { strategy: betGameStrategy, tiers: DRAGON_TIGER_TIERS, def: "dragon" },
-  "casino-war": { strategy: betGameStrategy, tiers: CASINO_WAR_TIERS, def: "ante" },
-  "andar-bahar": { strategy: betGameStrategy, tiers: ANDAR_BAHAR_TIERS, def: "bahar" },
-  "money-wheel": { strategy: betGameStrategy, tiers: MONEY_WHEEL_TIERS, def: "one" },
-  "caribbean-stud": { strategy: caribbeanStudStrategy, tiers: CS_TIERS, def: "basic" },
-  "red-dog": { strategy: redDogStrategy, tiers: RD_TIERS, def: "basic" },
-  "ultimate-holdem": { strategy: ultimateHoldemStrategy, tiers: UTH_TIERS, def: "basic" },
-  "let-it-ride": { strategy: letItRideStrategy, tiers: LR_TIERS, def: "basic" },
-  "video-poker": { strategy: videoPokerStrategy, tiers: VP_TIERS, def: "basic" },
   slots: { strategy: betGameStrategy, tiers: SLOTS_TIERS, def: "low" },
-  keno: { strategy: kenoStrategy, tiers: KENO_TIERS, def: "casual" },
-  craps: { strategy: betGameStrategy, tiers: CRAPS_TIERS, def: "pass" },
-  "pai-gow": { strategy: paiGowStrategy, tiers: PG_TIERS, def: "house" },
-  "crazy-eights": { strategy: crazyEightsStrategy, tiers: CE_TIERS, def: "basic" },
   "big-two": { strategy: bigTwoStrategy, tiers: BT_TIERS, def: "basic" }
 };
 

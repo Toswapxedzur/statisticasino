@@ -1,29 +1,16 @@
 <script>
   import Chip from "$lib/poker/components/Chip.svelte";
+  import { variantLabel } from "$lib/poker/games.js";
 
   let { data } = $props();
 
-  const MODE_NAMES = {
-    holdem: "Poker",
-    blackjack: "Blackjack",
-    baccarat: "Baccarat",
-    "big-two": "Big Two",
-    "crazy-eights": "Crazy Eights",
-    "casino-holdem": "Casino Hold'em",
-    "caribbean-stud": "Caribbean Stud",
-    "ultimate-holdem": "Ultimate Hold'em",
-    "three-card": "Three Card Poker",
-    "let-it-ride": "Let It Ride",
-    "red-dog": "Red Dog",
-    "pai-gow": "Pai Gow Poker",
-    "video-poker": "Video Poker",
-    keno: "Keno"
-  };
+  // mode names from the game catalog; older records of since-deleted games fall back to title case
+  const MODE_NAMES = { holdem: "Poker" };
   const CONTEXT_NAMES = { cash: "Cash rooms", tournament: "Tournaments", sprint: "Sprint" };
 
   const fmt = (value) => Number(value || 0).toLocaleString();
   const signed = (value) => `${Number(value) >= 0 ? "+" : ""}${fmt(value)}`;
-  const modeName = (mode) => MODE_NAMES[mode] || String(mode || "Unknown").split("-").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
+  const modeName = (mode) => MODE_NAMES[mode] || (variantLabel(mode) !== variantLabel("holdem") ? variantLabel(mode) : null) || String(mode || "Unknown").split("-").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
   const dateLabel = (value) => value ? new Date(value).toLocaleDateString([], { year: "numeric", month: "short", day: "numeric" }) : "—";
   const shortDay = (day) => new Date(`${day}T00:00:00`).toLocaleDateString([], { month: "short", day: "numeric" });
 

@@ -14,13 +14,8 @@ const TYPE_NAME = {
 };
 
 // A rank model = the category ordering + which value an ace takes when it plays
-// low in a wheel. Standard: A-2-3-4-5 (ace low = 1). Short deck: A-6-7-8-9 is the
-// wheel (ace low = 5) and a flush outranks a full house.
+// low in a wheel (A-2-3-4-5: ace low = 1).
 export const STANDARD_MODEL = { order: HAND_TYPES, aceLowValue: 1 };
-export const SHORTDECK_MODEL = {
-  order: ["high", "pair", "twopair", "trips", "straight", "fullhouse", "flush", "quads", "straightflush"],
-  aceLowValue: 5
-};
 
 const RANK_VALUE = new Map([...RANKS].map((rank, index) => [rank, index + 2]));
 
@@ -131,59 +126,9 @@ export function bestHand(cards, model = STANDARD_MODEL) {
   return best;
 }
 
-// Omaha-style: the best 5-card hand using EXACTLY 2 hole cards + EXACTLY 3 board
-// cards. board must have >= 3 cards.
-export function bestOmaha(hole, board, model = STANDARD_MODEL) {
-  let best = null;
-  for (const h of combinations(hole, 2)) {
-    for (const b of combinations(board, 3)) {
-      const rank = rank5([...h, ...b], model);
-      if (best === null || compareRank(rank, best) > 0) best = rank;
-    }
-  }
-  return best;
-}
-
 // Standard Texas Hold'em: best 5 of exactly 7 cards. Kept as a named export with
 // its strict 7-card contract because the engine + bots depend on it directly.
 export function evaluate7(cards7) {
   assertCards(cards7, 7);
   return bestHand(cards7, STANDARD_MODEL);
-}
-
-// --- Ace-to-5 low ("8 or better"), for hi-lo split games ---------------------
-// A qualifying low is five distinct ranks all 8 or lower (ace plays low). Read
-// high-card-first, the LOWER hand wins (the wheel A-2-3-4-5 is the best low).
-function lowFive(cards) {
-  const values = cards.map((card) => {
-    const rank = card[0];
-    if (rank === "A") return 1;
-    if ("TJQK".includes(rank)) return 99; // never low
-    return Number(rank);
-  });
-  if (values.some((v) => v > 8)) return null;      // a 9+ card can't make a low
-  if (new Set(values).size !== 5) return null;      // a pair breaks the low
-  return { lowRanks: values.sort((a, b) => b - a) }; // highest first
-}
-
-// Compare two lows: negative if `a` is the BETTER (lower) low.
-export function compareLowRanks(a, b) {
-  for (let i = 0; i < 5; i += 1) {
-    const d = a.lowRanks[i] - b.lowRanks[i];
-    if (d !== 0) return d;
-  }
-  return 0;
-}
-
-// Best Omaha low: the lowest qualifying 5-card low using EXACTLY 2 hole + 3 board.
-// Returns { lowRanks } or null when no 8-or-better low is possible.
-export function bestOmahaLow(hole, board) {
-  let best = null;
-  for (const h of combinations(hole, 2)) {
-    for (const b of combinations(board, 3)) {
-      const low = lowFive([...h, ...b]);
-      if (low && (best === null || compareLowRanks(low, best) < 0)) best = low;
-    }
-  }
-  return best;
 }

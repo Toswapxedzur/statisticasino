@@ -31,7 +31,6 @@ import { LiveTable } from "./table.js";
 import { Tournament } from "./tournament.js";
 import { GameTable } from "./runtime.js";
 import { getGame, isBankedGame } from "./games/registry.js";
-import { isOffered } from "../../poker/games.js";
 import { VARIANT_KEYS } from "./engine/variants.js";
 import { BotManager } from "./bot/manager.js";
 import { looksFor } from "../cosmetics.js";
@@ -365,8 +364,6 @@ export class PokerHub {
   // ------------------------------------------------------- create / quickplay
 
   _validateTableCfg(cfg) {
-    // hidden games (games.js OFFERED) keep their engines for replays, but no new tables
-    if (!isOffered(cfg.variant || "holdem")) return { error: "That game isn't offered." };
     if (isBankedGame(cfg.variant)) return this._validateBankedCfg(cfg);
     const sb = Number(cfg.smallBlind);
     const bb = Number(cfg.bigBlind);
@@ -386,7 +383,7 @@ export class PokerHub {
     return { sb, bb, maxSeats, minBuyin, maxBuyin, buyin, variant, game: "poker" };
   }
 
-  // Banked games (blackjack, casino-holdem, …) reuse the smallBlind column as
+  // Banked games (blackjack, three card, …) reuse the smallBlind column as
   // the table minimum bet and have no big blind. The creator either banks (deep
   // bankroll, may exceed the table max) or plays (a wealthy bot banks). Per-game
   // rule knobs are merged in (blackjack has several; other games use defaults).
@@ -500,7 +497,7 @@ export class PokerHub {
   // Seat the creator of a banked table: either as the banker (deep bankroll, may
   // exceed the table max), or as a player with a wealthy bot banking.
   async _seatBankedCreator(conn, table, cfg, buyin) {
-    // Player-vs-player GameTable games (shedding: Big Two, Crazy Eights) have no
+    // Player-vs-player GameTable games (shedding: Big Two) have no
     // house — just seat the creator as a normal player.
     if (!table.game.usesBanker) {
       await table.sit(conn, this.firstOpenSeat(table), buyin);
@@ -1477,7 +1474,7 @@ export class PokerHub {
   async createTournament(conn, cfg) {
     if (!conn.user) return this._err(conn, "Sign in first.", "AUTH");
     const name = (cfg.name && String(cfg.name).trim().slice(0, 40)) || `${conn.user.displayName || conn.user.email}'s SNG`;
-    const variant = VARIANT_KEYS.includes(cfg.variant) && isOffered(cfg.variant) ? cfg.variant : "holdem";
+    const variant = VARIANT_KEYS.includes(cfg.variant) ? cfg.variant : "holdem";
     const entry = Math.max(0, Math.floor(Number(cfg.entry) || 0));
     const startingStack = Math.max(100, Math.floor(Number(cfg.startingStack) || 1500));
     const maxSeats = Math.min(9, Math.max(2, Math.floor(Number(cfg.maxSeats) || 6)));
