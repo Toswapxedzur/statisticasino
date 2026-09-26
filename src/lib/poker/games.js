@@ -40,6 +40,19 @@ export function isBanked(key) { return BANKED_GAMES.includes(key); }
 export const SHEDDING_GAMES = ["crazy-eights", "big-two"];
 export function isShedding(key) { return SHEDDING_GAMES.includes(key); }
 
+// Which table layout a game uses — a fixed fact of the game, so a table is drawn in its own layout
+// from the very first frame (reading it off the round's flags meant a table first drew in another
+// layout, then jumped when the round arrived). Keep in sync with the server's game modules.
+const BET_GAMES = new Set(["andar-bahar", "baccarat", "craps", "casino-war", "dragon-tiger", "money-wheel", "roulette", "slots", "sic-bo"]);
+const LAYOUT = { "video-poker": "hold", keno: "pick", "pai-gow": "set" };
+/** "shed" | "bet" | "hold" | "pick" | "set" | "banked" | "poker" */
+export function tableLayout(key) {
+  if (isShedding(key)) return "shed";
+  if (BET_GAMES.has(key)) return "bet";
+  if (LAYOUT[key]) return LAYOUT[key];
+  return isBanked(key) ? "banked" : "poker";
+}
+
 // Poker variants offered in the New Table modal, grouped for a tidy picker.
 export const POKER_VARIANTS = [
   { key: "holdem", label: "No-Limit Hold'em", short: "NL Hold'em" },

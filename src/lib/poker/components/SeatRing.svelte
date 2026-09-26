@@ -17,7 +17,8 @@
   // phones — scaled as a whole to fit its box (letterboxed), so seat positions are fixed coordinates.
   // Only a window resize can change the scale or the shape; nothing during play can.
   // spread = the ring's half-width (% of the stage) so the side seats' fixed plates stay on the stage
-  const STAGES = { wide: { w: 1120, h: 660, plate: 182, mine: 218, spread: 41 }, tall: { w: 640, h: 940, plate: 170, mine: 206, spread: 35 } };
+  // plates are back to their compact size (owner, 2026-09-26); the ring overhangs them
+  const STAGES = { wide: { w: 1120, h: 660, plate: 152, mine: 184, spread: 41 }, tall: { w: 640, h: 940, plate: 144, mine: 172, spread: 36 } };
   let el = $state(null);
   let shape = $state("wide");
   let zoom = $state(1);

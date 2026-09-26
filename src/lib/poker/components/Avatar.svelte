@@ -10,7 +10,9 @@
   import { profilePop } from "$lib/profilePopover.svelte.js";
   import { ringSvg, ringBox } from "$lib/cosmetics.js";
   // ringRemain (0…1): the ring as a turn clock — only that share of its gems shows
-  let { name = "?", id = "", mediaId = null, size = 40, href = null, userId = null, ring = null, ringRemain = 1 } = $props();
+  // ringFloat: the ring takes no layout space — it hangs round the picture and may overhang whatever
+  // holds it (the seat plate: owner, 2026-09-26)
+  let { name = "?", id = "", mediaId = null, size = 40, href = null, userId = null, ring = null, ringRemain = 1, ringFloat = false } = $props();
   const ringMarkup = $derived(ring ? ringSvg(size, ring, ringRemain) : "");
 
   function openPop(e) {
@@ -37,7 +39,7 @@
 {/snippet}
 
 {#if ring}
-  <span class="rw" style="width:{ringBox(size)}px;height:{ringBox(size)}px">{@html ringMarkup}{@render face()}</span>
+  <span class="rw" class:float={ringFloat} style="width:{ringFloat ? size : ringBox(size)}px;height:{ringFloat ? size : ringBox(size)}px;--rb:{ringBox(size)}px">{@html ringMarkup}{@render face()}</span>
 {:else}
   {@render face()}
 {/if}
@@ -49,5 +51,6 @@
   .av img { width: 100%; height: 100%; object-fit: cover; }
   .rw { position: relative; display: inline-grid; place-items: center; flex: 0 0 auto; line-height: 0; }
   .rw > :global(svg) { position: absolute; inset: 0; pointer-events: none; }
+  .rw.float > :global(svg) { inset: auto; left: 50%; top: 50%; width: var(--rb); height: var(--rb); transform: translate(-50%, -50%); }
   .rw > .av { position: relative; }
 </style>

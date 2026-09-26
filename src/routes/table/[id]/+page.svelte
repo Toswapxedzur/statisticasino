@@ -24,7 +24,7 @@
   import TableChat from "$lib/poker/components/TableChat.svelte";
   import Chip from "$lib/poker/components/Chip.svelte";
   import Num from "$lib/poker/components/Num.svelte";
-  import { variantLabel, isBanked as isBankedGame, isShedding, gameIcon } from "$lib/poker/games.js";
+  import { variantLabel, isBanked as isBankedGame, isShedding, gameIcon, tableLayout } from "$lib/poker/games.js";
   import Select from "$lib/components/Select.svelte";
   import { fade, fly, scale } from "svelte/transition";
   import { d, DUR } from "$lib/motion.js";
@@ -60,18 +60,20 @@
   let gameKey = $derived(view?.game || config?.variant);
   let banked = $derived(isBankedGame(gameKey));
   // Bet-selection games (baccarat/roulette/…) render a betting layout, not a hand.
-  let betGame = $derived(banked && !!view?.round?.betSelection);
+  // the layout comes from the game itself (tableLayout), never from whether a round has arrived yet
+  let layout = $derived(tableLayout(gameKey));
+  let betGame = $derived(layout === "bet");
   // Hold-and-draw games (video poker) render an interactive five-card layout.
-  let holdGame = $derived(banked && !!view?.round?.holdGame);
+  let holdGame = $derived(layout === "hold");
   // Number-pick games (keno) render a ticket grid.
-  let pickGame = $derived(banked && !!view?.round?.pickGame);
+  let pickGame = $derived(layout === "pick");
   // Five-Card Draw's draw phase surfaces a "draw" action → show the discard UI.
   let isDrawTurn = $derived(!!turn && (turn.actions || []).some((a) => a.type === "draw"));
   // Hand-split games (pai gow) render a two-hand layout with a split picker.
-  let setGame = $derived(banked && !!view?.round?.setGame);
+  let setGame = $derived(layout === "set");
   // Shedding games (Crazy Eights, Big Two) — player-vs-player, no house.
   let shedding = $derived(isShedding(gameKey));
-  let shedGame = $derived(!!view?.round?.shedGame);
+  let shedGame = $derived(layout === "shed");
   let rules = $derived(view?.rules || null);
 
   // Add-bot control: tiers depend on the game; keep the selection valid.

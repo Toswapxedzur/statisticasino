@@ -80,18 +80,14 @@
     return total <= cap ? base : Math.max(MIN_W, Math.floor(base * cap / total));
   });
   let avSize = $derived(isMine ? 36 : 28);
-  // Layout stability (owner, 2026-09-26: "cards switch place when a turn ends"). A seat is centred on
-  // its spot as a whole, so any change in its size moved the plate: the countdown appearing widened
-  // it, and cards leaving (a fold, the end of a hand) made it jump. The plate now has a fixed width
-  // (CSS) and, once this seat has held cards, the hand keeps their height while it holds none.
+  // Layout stability (owner, 2026-09-26: everything stays in one place, whatever happens, in every
+  // game). The seat's box is ONLY its fixed-size plate plus a constant hang below it: the hand, the
+  // bet summary and anything else under the plate are positioned absolutely, so nothing they do —
+  // cards dealt or mucked, a bet list appearing — changes the seat's size. An empty seat has exactly
+  // the plate's size, so someone sitting down moves nothing either. `hang` is the room a card game
+  // keeps under the plate (its card height, + the lift a picked card gets on my own hand).
   let hasCards = $derived(!!((cards && cards.length) || cardCount > 0));
-  let handNow = $state(0);
-  let handH = $state(0);
-  $effect(() => { if (hasCards && handNow > 0) handH = handNow; });
-  $effect(() => { if (seat?.userId == null) handH = 0; });   // a new player: start fresh
-  // the space kept for the hand: the table's card height from the start (+ the lift a picked card
-  // gets on my own hand), or at least what this seat's hand has already needed
-  let reserveH = $derived(Math.max(handSpace > 0 ? handSpace + (isMine ? 14 : 0) : 0, handH));
+  let hang = $derived(handSpace > 0 ? handSpace + (isMine ? 14 : 0) + 6 : 0);
   // cosmetics: the player's ring round the avatar, and their badge = the plate's stepped colour (the
   // House keeps its own plate, no ring)
   let look = $derived(!house && seat ? plateStyle(seat.badge || "default") : null);
@@ -100,7 +96,7 @@
   let ringRemain = $derived(seat?.isToAct && deadline ? frac : 1);
 </script>
 
-<div class="seat" data-seat={house ? undefined : seatNo} data-house={house ? "" : undefined} class:mine={isMine} class:folded class:sitting-out={sittingOut} class:winner class:allin class:house class:toact={!!seat?.isToAct}>
+<div class="seat" style="--hang:{hang}px" data-seat={house ? undefined : seatNo} data-house={house ? "" : undefined} class:mine={isMine} class:folded class:sitting-out={sittingOut} class:winner class:allin class:house class:toact={!!seat?.isToAct}>
   {#if seat && seat.userId != null}
     {#if winner && won > 0 && !bank}
       <div class="won" in:fly={{ y: d(10), duration: d(DUR.slow) }} out:fade={{ duration: d(DUR.base) }}>
@@ -111,9 +107,9 @@
       <div class="bet" in:scale={{ start: 0.6, duration: d(DUR.base) }} out:fade={{ duration: d(DUR.fast) }}><CoinStack value={seat.committed} size={18} /><Num value={seat.committed} /></div>
     {/if}
 
-    <div class="plate" style={plateVars} in:scale={{ start: 0.92, duration: d(DUR.base) }}>
+    <div class="plate" style={plateVars} in:fade={{ duration: d(DUR.base) }}>   <!-- fades in: no size change -->
       <div class="av">
-        <Avatar id={seat.userId} name={house ? "House" : seat.name} mediaId={seat.avatar ?? null} userId={isMine || house ? null : seat.userId} size={avSize} ring={house ? null : seat.ring || "default"} {ringRemain} />
+        <Avatar id={seat.userId} name={house ? "House" : seat.name} mediaId={seat.avatar ?? null} userId={isMine || house ? null : seat.userId} size={avSize} ring={house ? null : seat.ring || "default"} {ringRemain} ringFloat />
       </div>
       <div class="txt">
         <!-- compact (owner, 2026-09-25): the stack sits right of the name -->
@@ -131,9 +127,12 @@
       </div>
     </div>
 
-    {#if children}<div class="extra">{@render children()}</div>{/if}
-    <div class="hand" class:dealt-away={hideCards} class:has={hasCards} class:held={!hasCards && reserveH > 0} style={reserveH > 0 ? `min-height:${reserveH}px` : undefined} bind:clientHeight={handNow}>
-      <HandFan {cards} count={cardCount} width={cardW} fan={isMine ? "auto" : (cardCount > 3 || (cards?.length ?? 0) > 3 ? "stack" : "auto")} {selectable} {onSelect} {labelOf} {reveal} />
+    <!-- everything under the plate HANGS: it never counts toward the seat's size -->
+    <div class="below">
+      {#if children}<div class="extra">{@render children()}</div>{/if}
+      <div class="hand" class:dealt-away={hideCards} class:has={hasCards}>
+        <HandFan {cards} count={cardCount} width={cardW} fan={isMine ? "auto" : (cardCount > 3 || (cards?.length ?? 0) > 3 ? "stack" : "auto")} {selectable} {onSelect} {labelOf} {reveal} />
+      </div>
     </div>
   {:else}
     <div class="empty">
@@ -149,7 +148,11 @@
 </div>
 
 <style>
-  .seat { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; width: max-content; }
+  /* a fixed box: the plate's width × (plate + hang); what hangs below never counts */
+  .seat { position: relative; display: block; width: var(--plate-w, 152px); padding-bottom: var(--hang, 0px); }
+  .seat.mine { width: var(--plate-w-mine, 184px); }
+  .below { position: absolute; left: 50%; top: calc(100% - var(--hang, 0px) + 6px); transform: translateX(-50%);
+    display: flex; flex-direction: column; align-items: center; gap: 6px; width: max-content; }
   .bet {
     position: absolute; top: -26px; left: 50%; transform: translateX(-50%); z-index: 5; white-space: nowrap;   /* out of the seat's layout */
     display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px 2px 4px;
@@ -167,15 +170,17 @@
   .plate {
     position: relative; display: flex; align-items: center; gap: 7px;
     padding: 5px 10px 5px 5px; box-sizing: border-box;
-    width: var(--plate-w, 182px);   /* FIXED (set by the stage): nothing inside may resize it; the name takes an ellipsis */
+    width: 100%; height: 38px;   /* FIXED (width from the stage): nothing inside may resize it; the name takes an ellipsis;
+                                    the avatar's ring overhangs the plate (owner, 2026-09-26) */
     background: var(--surface); border-radius: 14px; box-shadow: var(--shadow-card);
     transition: box-shadow var(--dur) var(--ease);
   }
-  .mine .plate { width: var(--plate-w-mine, 218px); }
+  .mine .plate { height: 46px; }
   .mine .plate { background: var(--surface-2); box-shadow: 0 0 0 2px var(--accent-soft), var(--shadow-card); }
   .toact .plate { box-shadow: 0 0 0 2px var(--accent), 0 0 20px color-mix(in srgb, var(--accent) 45%, transparent); }
   .house .plate { background: color-mix(in srgb, var(--surface) 70%, var(--gold-bg) 30%); }
-  .av { position: relative; z-index: 1; line-height: 0; }
+  .av { position: relative; z-index: 1; line-height: 0; flex: none; margin-right: 5px; }   /* room for the ring's overhang before the name */
+  .mine .av { margin-right: 7px; }
   .txt { display: flex; flex-direction: column; min-width: 0; flex: 1; text-align: left; }
   .row1 { display: flex; align-items: baseline; gap: 6px; }
   .row1 .badge, .row1 .dot { align-self: center; }
@@ -201,8 +206,7 @@
   .hand { line-height: 0; }
   .hand.dealt-away { visibility: hidden; }
   .extra { display: flex; justify-content: center; }
-  .hand:not(.has):not(.held) { display: none; }
-  .hand.held { visibility: hidden; }
+  .hand:not(.has) { display: none; }
   .seat.folded .plate, .seat.folded .hand { opacity: 0.42; filter: grayscale(0.4); }
   .seat.sitting-out .plate { opacity: 0.7; }
   .seat.winner .plate { box-shadow: 0 0 0 2px rgba(74,222,128,0.65), 0 0 18px rgba(74,222,128,0.4); animation: winpulse 1.1s ease-in-out 2; }
@@ -211,7 +215,7 @@
     0%, 100% { box-shadow: 0 0 0 2px rgba(74,222,128,0.5), 0 0 12px rgba(74,222,128,0.3); }
     50% { box-shadow: 0 0 0 3px rgba(74,222,128,0.85), 0 0 24px rgba(74,222,128,0.55); }
   }
-  .empty { display: flex; align-items: center; justify-content: center; min-width: 112px; height: 52px; border-radius: 14px; background: var(--well); box-shadow: inset 0 0 0 1px rgba(128,128,128,0.10); }
+  .empty { display: flex; align-items: center; justify-content: center; width: 100%; height: 38px; box-sizing: border-box; border-radius: 14px; background: var(--well); box-shadow: inset 0 0 0 1px rgba(128,128,128,0.10); }
   .sit-btn { font-size: 12px; padding: 6px 12px; }
   .empty-lbl { font-size: 12px; color: var(--muted); }
   .empty-lbl.link { text-decoration: none; }
